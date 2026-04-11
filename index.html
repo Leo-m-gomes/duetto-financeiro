@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Duetto Financeiro</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23006437'/%3E%3Ctext x='50%25' y='54%25' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle' dominant-baseline='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══ TELA DE LOADING ══ -->
+<div id="screenLoading" class="screen-overlay">
+  <div style="text-align:center">
+    <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--palm);margin-bottom:8px">Duetto</div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:2px;color:var(--t4);text-transform:uppercase;margin-bottom:32px">Financeiro</div>
+    <div class="spinner-ring"></div>
+    <div style="font-size:13px;color:var(--t4);margin-top:20px" id="loadingMsg">Conectando...</div>
+  </div>
+</div>
+
+<!-- ══ TELA DE LOGIN ══ -->
+<div id="screenLogin" class="screen-overlay" style="display:none;background:linear-gradient(145deg,#f0faf4 0%,#e8f5ee 60%,#f4f6f9 100%)">
+  <div class="login-card">
+    <h1 class="login-title">Duetto</h1>
+    <p class="login-tag">Financeiro</p>
+    <div class="login-divider"></div>
+    <p class="login-desc">Acesse com sua conta Google para entrar no sistema</p>
+    <button class="btn-google" id="btnGoogle" onclick="AUTH.signInGoogle()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Entrar com Google
+    </button>
+    <div class="login-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Sistema privado — acesso restrito a Leo e Pri
+    </div>
+  </div>
+</div>
+
+<!-- ══ TELA ACESSO NEGADO ══ -->
+<div id="screenDenied" class="screen-overlay" style="display:none">
+  <div class="login-card" style="text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+    <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--t1);margin-bottom:8px">Acesso negado</h2>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:8px">Esta conta Google não tem permissão para acessar o Duetto Financeiro.</p>
+    <p id="deniedEmail" style="font-size:12px;color:var(--t4);margin-bottom:24px"></p>
+    <button class="btn btn-secondary" onclick="AUTH.signOut()" style="margin:0 auto">Sair e tentar outra conta</button>
+  </div>
+</div>
+
+<!-- ══ APP PRINCIPAL ══ -->
+<div id="screenApp" style="display:none">
+
+<!-- SIDEBAR -->
+<aside class="sidebar" id="sidebar">
+  <div class="sb-logo">
+    <div class="sb-logo-text">
+      <div class="name">Duetto</div>
+      <div class="tag">Financeiro</div>
+    </div>
+  </div>
+  <nav class="sb-nav">
+    <a class="nav-item active" data-page="dashboard" data-tooltip="Dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
+    <a class="nav-item" data-page="contas" data-tooltip="Contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
+    <a class="nav-item" data-page="receitas" data-tooltip="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
+    <a class="nav-item" data-page="salario" data-tooltip="Salários"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg><span>Salários</span></a>
+    <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
+    <a class="nav-item" data-page="upload" data-tooltip="Upload Cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
+  </nav>
+  <div class="sb-footer">
+    <div class="sb-badge">2026</div>
+    <div id="sbUserChip" class="sb-user-chip"></div>
+    <button id="sbCollapseBtn" onclick="APP.toggleSidebar()" title="Recolher menu" class="sb-collapse-btn">
+      <svg id="sbCollapseIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+    </button>
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main class="main">
+  <header class="topbar">
+    <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
+    <div class="topbar-title" id="pageTitle">Dashboard</div>
+    <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center" id="topbarBtns">
+      <button class="btn btn-secondary btn-sm" id="btnAtualizarTabelas" style="display:none">🔄 Tabelas IR/INSS</button>
+      <button class="btn btn-secondary btn-sm" id="btnNovoSalario" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Novo Salário</span></button>
+      <button class="btn btn-secondary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova Receita</span></button>
+      <button class="btn btn-secondary btn-sm" id="btnCSVContas" style="display:none">⬇ Exportar CSV</button>
+      <button class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Conta</button>
+      <button class="btn btn-ghost btn-sm" onclick="AUTH.signOut()" title="Sair" style="padding:8px 10px">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- DASHBOARD -->
+  <div class="page active" id="page-dashboard">
+    <div class="page-inner">
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <select class="filter-select" id="filtroAnoDash"></select>
+        <select class="filter-select" id="filtroMesDash"></select>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <span style="font-size:11px;color:var(--t4);font-weight:600">Filtrar:</span>
+          <button class="resp-chip active" id="rc-todos" onclick="APP.setRespDash('')">Todos</button>
+          <button class="resp-chip" id="rc-leo" onclick="APP.setRespDash('Leo')">Leo</button>
+          <button class="resp-chip" id="rc-pri" onclick="APP.setRespDash('Pri')">Pri</button>
+        </div>
+      </div>
+      <div id="dashInfoBanner" style="display:none" class="overdue-alert" onclick="APP.goPage('contas')"></div>
+      <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="charts-row">
+        <div class="chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3></div><div class="chart-container"><canvas id="canvasCategoria"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa 2026</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
+      </div>
+      <div class="section-card">
+        <div class="section-header"><h3>Pendentes do Mês</h3><span class="badge-n" id="pendentesCount">0</span></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>Descrição</th><th>Responsável</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tbodyPendentes"></tbody></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTAS -->
+  <div class="page" id="page-contas">
+    <div class="page-inner">
+      <div class="overdue-alert" id="overdueAlert" onclick="APP.filtrarAtrasadas()"></div>
+      <div class="filters-bar">
+        <div class="filter-group">
+          <input type="text" class="filter-input" id="searchContas" placeholder="🔍 Buscar...">
+          <select class="filter-select" id="filtroAnoContas"></select>
+          <select class="filter-select" id="filtroMesContas"></select>
+          <select class="filter-select" id="filtroRespContas"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
+          <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
+          <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
+        </div>
+      </div>
+      <div class="totals-bar">
+        <div class="total-pill blue"><label>Total</label><div class="val" id="totalGeral">R$ 0</div></div>
+        <div class="total-pill orange"><label>Pendente</label><div class="val" id="totalPendente">R$ 0</div></div>
+        <div class="total-pill green"><label>Pago</label><div class="val" id="totalPago">R$ 0</div></div>
+      </div>
+      <span style="font-size:11.5px;color:var(--t4);display:block;margin-bottom:8px" id="contasInfo"></span>
+      <div class="section-card">
+        <div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>A Pagar</th><th>Pago</th><th>Pendente</th><th>Vencimento</th><th>Parcela</th><th>Por</th><th>Ações</th></tr></thead><tbody id="tbodyContas"></tbody></table></div>
+        <div class="table-pagination" id="pgContas"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECEITAS -->
+  <div class="page" id="page-receitas">
+    <div class="page-inner">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <select class="filter-select" id="recFiltroResp" onchange="APP.renderReceitas()"><option value="">Todos</option><option>Leo</option><option>Pri</option></select>
+        <select class="filter-select" id="recFiltroTipo" onchange="APP.renderReceitas()"><option value="">Salários + Outras Receitas</option><option value="salarios">Somente Salários</option><option value="outras">Somente Outras Receitas</option></select>
+      </div>
+      <div class="rec-section"><div class="rec-header"><h3>💼 Salários por Mês</h3><span style="font-size:11px;color:var(--t4)">Calculado pelo histórico salarial</span></div><div class="table-wrap"><table class="rec-table" id="tblRecSalarios"></table></div></div>
+      <div class="rec-section"><div class="rec-header"><h3>📊 Outras Receitas</h3><div style="display:flex;gap:7px;align-items:center"><span id="recEditStatus" style="font-size:11px;color:var(--t4)">Somente leitura</span><button class="btn btn-secondary btn-sm" id="btnToggleEditRec" onclick="APP.toggleEditReceitas()">✏️ Editar</button></div></div><div class="table-wrap"><table class="rec-table" id="tblRecOutras"></table></div></div>
+      <div class="rec-section"><div class="rec-header"><h3>📈 Resumo Anual</h3></div><div style="padding:16px"><div class="chart-container"><canvas id="canvasReceitas"></canvas></div></div></div>
+    </div>
+  </div>
+
+  <!-- SALÁRIO -->
+  <div class="page" id="page-salario">
+    <div class="page-inner">
+      <div class="sal-cards" id="salCards"></div>
+      <div class="charts-row">
+        <div class="chart-card"><div class="chart-header"><h3>Tabela IR</h3><span id="vigenciaIR" style="font-size:11px;color:var(--t4)"></span></div><table class="data-table" id="tblIR"></table></div>
+        <div class="chart-card"><div class="chart-header"><h3>Tabela INSS</h3><span id="vigenciaINSS" style="font-size:11px;color:var(--t4)"></span></div><table class="data-table" id="tblINSS"></table></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RELATÓRIO -->
+  <div class="page" id="page-relatorio">
+    <div class="page-inner">
+      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
+        <select class="filter-select" id="relAno"></select>
+        <select class="filter-select" id="relMes"></select>
+        <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
+        <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
+        <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
+        <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ Exportar CSV</button>
+      </div>
+      <div class="rel-kpis" id="relKpis"></div>
+      <div class="section-card"><div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Descrição</th><th>Resp.</th><th>Forma</th><th>Cat.</th><th>A Pagar</th><th>Pago</th><th>Pendente</th><th>Vencimento</th><th>Parcela</th><th>Por</th><th>Nota</th></tr></thead><tbody id="tbodyRel"></tbody></table></div></div>
+    </div>
+  </div>
+</main>
+
+<!-- MODAIS (mesmos da versão anterior) -->
+<div class="modal-overlay" id="ovConta">
+  <div class="modal">
+    <div class="modal-header"><h2 id="titleConta">Nova Conta</h2><button class="modal-close" data-close="ovConta">&times;</button></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8fbf9;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:10.5px;font-weight:600;color:var(--t4);letter-spacing:.5px;text-transform:uppercase">Gerenciar:</span>
+      <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('cat')" style="font-size:11.5px">+ Categorias</button>
+      <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('forma')" style="font-size:11.5px">+ Formas de Pagamento</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Descrição *</label><textarea id="fDesc" rows="2" placeholder="Ex: Financiamento Honda Fit..."></textarea></div>
+        <div class="fg"><label>Responsável *</label><select id="fResp"><option value="">Selecione...</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select></div>
+        <div class="fg"><label>Forma de Pagamento *</label><select id="fForma"><option value="">Selecione...</option></select></div>
+        <div class="fg"><label>Categoria *</label><select id="fCat"><option value="">Selecione...</option></select></div>
+        <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
+        <div class="fg"><label>Valor da Parcela (R$) *</label><input type="number" id="fVP" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" min="1" value="1"></div>
+        <div class="fg"><label>Valor Total (auto)</label><input type="number" id="fVT" readonly placeholder="—"></div>
+        <div class="fg"><label>Parcela Atual</label><input type="text" id="fParc" placeholder="Ex: 3 de 12"></div>
+        <div class="fg full"><label>Nota</label><textarea id="fNota" rows="2" placeholder="Informações adicionais..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovConta">Cancelar</button><button class="btn btn-ghost" id="btnLimparConta">Limpar</button><button class="btn btn-primary" id="btnSalvarConta">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovParcelas">
+  <div class="modal modal-xl">
+    <div class="modal-header"><h2 id="titleParcelas">Gerenciar Parcelamento</h2><button class="modal-close" data-close="ovParcelas">&times;</button></div>
+    <div class="modal-body">
+      <div class="parcs-actions-bar">
+        <button class="btn btn-primary btn-sm" onclick="APP.parcsPayAll()">✅ Baixar todas</button>
+        <button class="btn btn-warning btn-sm" onclick="APP.parcsPayEarly()">⚡ Antecipado</button>
+        <button class="btn btn-danger btn-sm" onclick="APP.parcsDeleteAll()">🗑 Excluir todas</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsApplyDesc()">Aplicar descrição a todas</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsSaveAll()">💾 Salvar</button>
+      </div>
+      <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelas">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovSalario">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2 id="titleSal">Novo Salário</h2><button class="modal-close" data-close="ovSalario">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Nome Completo *</label><input type="text" id="sNome" placeholder="Ex: Leonardo Gomes"></div>
+        <div class="fg"><label>Pessoa *</label><select id="sPessoa"><option value="">Selecione...</option><option value="Leo">Leo</option><option value="Pri">Pri</option></select></div>
+        <div class="fg"><label>Válido a partir de</label><select id="sMesInicio"></select></div>
+        <div class="fg"><label>Salário Bruto (R$) *</label><input type="number" id="sSal" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Bonificação (R$)</label><input type="number" id="sBon" step="0.01" min="0" value="0"></div>
+        <div class="fg"><label>Nº de Dependentes</label><input type="number" id="sDeps" min="0" value="0"></div>
+        <div class="form-sep"></div>
+        <div class="fg"><label>INSS (calculado)</label><input type="number" id="sINSS" readonly></div>
+        <div class="fg"><label>IR (calculado)</label><input type="number" id="sIR" readonly></div>
+        <div class="fg full"><label>Salário Líquido</label><input type="number" id="sLiq" readonly class="highlight"></div>
+        <div class="form-note">⚠️ Alterações salariais aplicam-se apenas a partir do mês selecionado.</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovSalario">Cancelar</button><button class="btn btn-primary" id="btnSalvarSal">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovReceita">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h2>Nova Receita</h2><button class="modal-close" data-close="ovReceita">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Descrição *</label><input type="text" id="rDesc" placeholder="Ex: Freelance, Aluguel..."></div>
+        <div class="fg"><label>Responsável</label><select id="rResp"><option value="">Ambos</option><option>Leo</option><option>Pri</option></select></div>
+        <div class="fg"><label>Valor padrão (R$)</label><input type="number" id="rValor" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="form-note">💡 O valor será aplicado em todos os meses. Edite mês a mês depois.</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovReceita">Cancelar</button><button class="btn btn-primary" id="btnSalvarReceita">Criar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovTabelas">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>Atualizar Tabelas Fiscais</h2><button class="modal-close" data-close="ovTabelas">&times;</button></div>
+    <div class="modal-body">
+      <div id="atualizarStatus" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btnBuscarOnline">🌐 Buscar nos sites oficiais</button>
+        <button class="btn btn-secondary btn-sm" id="btnEditarManual">✏️ Editar manualmente</button>
+      </div>
+      <div id="tabelasEditor" style="display:none">
+        <div style="margin-bottom:12px"><label style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Vigência</label><input type="text" id="vigencia" placeholder="Ex: 2025" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;width:180px;outline:none"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div><div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px">TABELA IR</div><textarea id="editorIR" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical"></textarea></div>
+          <div><div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px">TABELA INSS</div><textarea id="editorINSS" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical"></textarea></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+          <div class="fg"><label>Dedução por dependente (R$)</label><input type="number" id="edDedDep" step="0.01"></div>
+          <div class="fg"><label>Teto INSS (R$)</label><input type="number" id="edTetoINSS" step="0.01"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovTabelas">Cancelar</button><button class="btn btn-primary" id="btnSalvarTabelas" style="display:none">Salvar Tabelas</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovGerenciar">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h2 id="titleGerenciar">Gerenciar Categorias</h2><button class="modal-close" data-close="ovGerenciar">&times;</button></div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="gNovoNome" placeholder="Nome do item..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font-b);font-size:13px;outline:none" onkeydown="if(event.key==='Enter')APP.gerenciarAdicionar()">
+        <button class="btn btn-primary btn-sm" onclick="APP.gerenciarAdicionar()">+ Adicionar</button>
+      </div>
+      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)" id="gerenciarLista"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovGerenciar">Fechar</button></div>
+  </div>
+</div>
+
+</div><!-- /screenApp -->
+
+<!-- MODAL: CONFIRMAR PAGAMENTO -->
+<div class="modal-overlay" id="ovPagamento">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>Confirmar Pagamento</h2>
+      <button class="modal-close" data-close="ovPagamento">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pgContaId">
+      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:12px 16px;margin-bottom:18px">
+        <div style="font-weight:700;font-size:14px;color:var(--t1);margin-bottom:6px" id="pgContaNome"></div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--t3)">
+          <span>📅 <span id="pgContaData"></span></span>
+          <span>📋 <span id="pgContaParc"></span></span>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Valor Previsto</label>
+          <div style="padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;color:var(--t3)" id="pgValorPrevisto"></div>
+        </div>
+        <div class="fg full">
+          <label>Valor Pago (R$) *</label>
+          <input type="number" id="pgValorPago" step="0.01" min="0.01" placeholder="0,00" oninput="APP.atualizarDiffPagamento()">
+          <div id="pgDiff" style="display:none;margin-top:5px"></div>
+        </div>
+        <div class="form-note" style="grid-column:1/-1">
+          💡 Se houve multa, desconto ou diferença, ajuste o valor acima. O valor pago substitui o valor previsto em todo o sistema.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovPagamento">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.confirmarPagamento()">✅ Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+  <!-- UPLOAD CARDS -->
+  <div class="page" id="page-upload">
+    <div class="page-inner">
+      <div id="upAlertErr"  class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b"></div>
+      <div id="upAlertOk"  class="overdue-alert" style="display:none;background:var(--green-lt);border-color:#bbf7d0;border-left-color:var(--green);color:#166534;cursor:default"></div>
+      <div id="upAlertAv"  class="overdue-alert" style="display:none;background:var(--yellow-lt);border-color:#fde68a;border-left-color:var(--yellow);color:#92400e;cursor:default"></div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <!-- UPLOAD ZONE -->
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📤 Upload da Planilha</h3>
+            <div style="display:flex;gap:7px">
+              <button class="btn btn-secondary btn-sm" onclick="APP.openUpModal('ovCartoes')">🃏 Cartões</button>
+              <button class="btn btn-primary btn-sm" onclick="APP.openUpModal('ovModelo')">⬇ Baixar Modelo</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div class="up-zone" id="upZone" onclick="document.getElementById('upFileInput').click()" ondragover="APP.upDragOver(event)" ondragleave="APP.upDragLeave()" ondrop="APP.upDrop(event)">
+              <div style="font-size:36px;margin-bottom:10px">📊</div>
+              <p style="color:var(--t3);font-size:13px;margin-bottom:6px">Arraste a planilha aqui ou clique para selecionar</p>
+              <strong style="color:var(--palm);font-size:12.5px">Aceita: .xlsx gerado pelo sistema</strong>
+            </div>
+            <input type="file" id="upFileInput" accept=".xlsx,.xls" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="APP.upHandleFile(this.files[0])">
+            <div id="upFileInfo" style="display:none;margin-top:12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#166534">
+              <strong>📄 <span id="upFileName"></span></strong><br>
+              <span id="upFileDetail"></span><br>
+              <span style="font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--t4)" id="upFileId"></span>
+            </div>
+          </div>
+        </div>
+        <!-- HISTÓRICO -->
+        <div class="section-card">
+          <div class="section-header"><h3>📋 Importações Registradas</h3></div>
+          <div style="padding:16px">
+            <p style="font-size:12px;color:var(--t3);margin-bottom:10px">Histórico completo no banco. Bloqueio por ID exclusivo — renomear o arquivo não contorna a validação.</p>
+            <div id="upHistorico"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn btn-ghost btn-sm" onclick="APP.upToggleHist()">Ver todas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div id="upSecaoPreview" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📋 Pré-visualização — Contas a Cadastrar</h3>
+            <span style="font-size:12px;color:var(--t4)" id="upResumoLinha"></span>
+          </div>
+          <div style="padding:16px">
+            <div id="upStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+            <div id="upAlertVal" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b;cursor:default"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
+              <button class="btn btn-primary btn-sm" onclick="APP.upConfirmar()" id="upBtnConfirmar">✅ Confirmar Cadastro em Massa</button>
+              <button class="btn btn-danger btn-sm" onclick="APP.upCancelar()">✕ Cancelar</button>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--t4)">Edite ou exclua linhas antes de confirmar</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>1ª Data Vcto</th><th>Valor R$</th><th>Parcelas</th><th>Nota</th><th>Ação</th></tr></thead>
+                <tbody id="upTbodyPreview"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- MODAL: CARTÕES -->
+<div class="modal-overlay" id="ovCartoes">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>🃏 Gerenciar Cartões</h2><button class="modal-close" data-close="ovCartoes">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cEId">
+      <div class="form-grid">
+        <div class="fg full"><label>Nome do Cartão *</label><input type="text" id="cNome" placeholder="Ex: Itaú Black, Nubank Platinum..."></div>
+        <div class="fg full"><label>Bandeira</label>
+          <select id="cBand"><option value="">Selecione...</option><option>Visa</option><option>Mastercard</option><option>Elo</option><option>American Express</option><option>Hipercard</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="APP.upSalvarCartao()" style="flex:1;justify-content:center" id="bSalvCartao">+ Adicionar Cartão</button>
+        <button class="btn btn-ghost btn-sm" id="bCancCartao" onclick="APP.upCancelarEditCartao()" style="display:none">Cancelar</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cartões cadastrados</div>
+      <div id="upListaCartoes"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovCartoes">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: BAIXAR MODELO -->
+<div class="modal-overlay" id="ovModelo">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>⬇ Baixar Planilha Modelo</h2><button class="modal-close" data-close="ovModelo">&times;</button></div>
+    <div class="modal-body">
+      <div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#1e40af;margin-bottom:16px">
+        🔐 Cada planilha recebe um <strong>ID exclusivo</strong> em aba oculta. O sistema valida pelo ID — não pelo nome — bloqueando reimportação mesmo que o arquivo seja renomeado.
+      </div>
+      <div class="form-grid">
+        <div class="fg full"><label>Cartão *</label><select id="mCartao" onchange="APP.upAtualizarNome()"><option value="">Selecione o cartão...</option></select></div>
+        <div class="fg"><label>Ano *</label><select id="mAno" onchange="APP.upAtualizarNome()"></select></div>
+        <div class="fg"><label>Mês *</label>
+          <select id="mMes" onchange="APP.upAtualizarNome()">
+            <option value="">Selecione o mês...</option>
+            <option value="01">01 — Janeiro</option><option value="02">02 — Fevereiro</option><option value="03">03 — Março</option><option value="04">04 — Abril</option><option value="05">05 — Maio</option><option value="06">06 — Junho</option><option value="07">07 — Julho</option><option value="08">08 — Agosto</option><option value="09">09 — Setembro</option><option value="10">10 — Outubro</option><option value="11">11 — Novembro</option><option value="12">12 — Dezembro</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nome do arquivo</div>
+      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:10px 14px;font-family:monospace;font-size:13px;font-weight:700;color:var(--palm);text-align:center;word-break:break-all" id="upNomePreview">— preencha todos os campos —</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovModelo">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.upBaixarModelo()">⬇ Gerar e Baixar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PARCELAS PREVIEW -->
+<div class="modal-overlay" id="ovParcelasUp">
+  <div class="modal modal-xl">
+    <div class="modal-header"><h2 id="upTitParcelas">Parcelas</h2><button class="modal-close" data-close="ovParcelasUp">&times;</button></div>
+    <div class="modal-body" style="padding:0">
+      <div style="overflow-x:auto">
+        <table class="data-table" id="upTblParcelas">
+          <thead><tr><th>#</th><th>Parcela</th><th>Data Vencimento</th><th>Valor</th></tr></thead>
+          <tbody id="upTbodyParcelas"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelasUp">Fechar</button></div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
+<div class="toast" id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
