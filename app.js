@@ -690,11 +690,13 @@ const APP = {
     STATE.parcGrupo=grupo;
     const parcs=CACHE.getByGrupo(grupo);if(!parcs.length)return;
     document.getElementById('titleParcelas').textContent=`Parcelamento: ${parcs[0].conta}`;
+    const respOpts=['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}">${r}</option>`).join('');
     document.getElementById('tbodyParcelas').innerHTML=parcs.map(c=>{
-      const pago=c.vPago>=c.vPagar;const atr=isOverdue(c);
+      const pago=c.vPago>0;const atr=isOverdue(c);
       return`<tr style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td><input type="text" value="${c.parcela||''}" id="parc_parc_${c.id}" style="width:80px"></td>
         <td><input type="text" value="${c.conta}" id="parc_desc_${c.id}"></td>
+        <td><select id="parc_resp_${c.id}" style="min-width:90px">${['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}"${c.resp===r?' selected':''}>${r}</option>`).join('')}</select></td>
         <td><input type="date" value="${c.data}" id="parc_data_${c.id}"></td>
         <td><input type="number" value="${c.vPagar}" id="parc_val_${c.id}" step="0.01" style="width:90px"></td>
         <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?'<span class="badge bg-atr">Atrasado</span>':'<span class="badge bg-pend">Pendente</span>'}</td>
@@ -751,10 +753,11 @@ const APP = {
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
     await Promise.all(parcs.map(c=>{
       const desc=document.getElementById(`parc_desc_${c.id}`)?.value;
+      const resp=document.getElementById(`parc_resp_${c.id}`)?.value;
       const data=document.getElementById(`parc_data_${c.id}`)?.value;
-      const val=document.getElementById(`parc_val_${c.id}`)?.value;
+      const val =document.getElementById(`parc_val_${c.id}`)?.value;
       const parc=document.getElementById(`parc_parc_${c.id}`)?.value;
-      return FS.updateConta(c.id,{conta:desc||c.conta,data:data||c.data,vPagar:parseFloat(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
+      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseFloat(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
     }));
     this.toast('Alterações salvas','success');
     document.getElementById('ovParcelas').classList.remove('open');
