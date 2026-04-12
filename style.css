@@ -61,7 +61,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 .btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fecaca}
 
 /* ── PAGES ── */
-.page{display:none}.page.active{display:block}
+.page{display:none;width:100%}.page.active{display:block;width:100%}
 .page-inner{padding:20px 24px}
 
 /* ── ALERT OVERDUE ── */
@@ -322,7 +322,10 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 .resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
 
 /* ── UPLOAD CARDS PAGE ── */
-.up-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;width:100%}
+#page-upload{width:100%;display:none}
+#page-upload.active{display:block}
+#page-upload .page-inner{width:100%;box-sizing:border-box}
+.up-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;width:100%;box-sizing:border-box}
 .up-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg)}
 .up-zone:hover,.up-zone.drag{border-color:var(--palm);background:var(--palm-lt)}
 .up-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 16px;min-width:110px}
