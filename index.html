@@ -197,6 +197,73 @@
       <div class="section-card"><div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Descrição</th><th>Resp.</th><th>Forma</th><th>Cat.</th><th>A Pagar</th><th>Pago</th><th>Pendente</th><th>Vencimento</th><th>Parcela</th><th>Por</th><th>Nota</th></tr></thead><tbody id="tbodyRel"></tbody></table></div></div>
     </div>
   </div>
+
+  <!-- UPLOAD CARDS PAGE (dentro do main) -->
+  <div class="page" id="page-upload">
+    <div class="page-inner">
+      <div id="upAlertErr" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b"></div>
+      <div id="upAlertOk"  class="overdue-alert" style="display:none;background:var(--green-lt);border-color:#bbf7d0;border-left-color:var(--green);color:#166534;cursor:default"></div>
+      <div id="upAlertAv"  class="overdue-alert" style="display:none;background:var(--yellow-lt);border-color:#fde68a;border-left-color:var(--yellow);color:#92400e;cursor:default"></div>
+      <div class="up-grid">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📤 Upload da Planilha</h3>
+            <div style="display:flex;gap:7px">
+              <button class="btn btn-secondary btn-sm" onclick="APP.openUpModal('ovCartoes')">🃏 Cartões</button>
+              <button class="btn btn-primary btn-sm" onclick="APP.openUpModal('ovModelo')">⬇ Baixar Modelo</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div class="up-zone" id="upZone" onclick="document.getElementById('upFileInput').click()" ondragover="APP.upDragOver(event)" ondragleave="APP.upDragLeave()" ondrop="APP.upDrop(event)">
+              <div style="font-size:36px;margin-bottom:10px">📊</div>
+              <p style="color:var(--t3);font-size:13px;margin-bottom:6px">Arraste a planilha aqui ou clique para selecionar</p>
+              <strong style="color:var(--palm);font-size:12.5px">Aceita: .xlsx gerado pelo sistema</strong>
+            </div>
+            <input type="file" id="upFileInput" accept=".xlsx,.xls" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="APP.upHandleFile(this.files[0])">
+            <div id="upFileInfo" style="display:none;margin-top:12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#166534">
+              <strong>📄 <span id="upFileName"></span></strong><br>
+              <span id="upFileDetail"></span><br>
+              <span style="font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--t4)" id="upFileId"></span>
+            </div>
+          </div>
+        </div>
+        <div class="section-card">
+          <div class="section-header"><h3>📋 Importações Registradas</h3></div>
+          <div style="padding:16px">
+            <p style="font-size:12px;color:var(--t3);margin-bottom:10px">Histórico completo no banco. Bloqueio por ID exclusivo — renomear o arquivo não contorna a validação.</p>
+            <div id="upHistorico"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn btn-ghost btn-sm" onclick="APP.upToggleHist()">Ver todas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div id="upSecaoPreview" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📋 Pré-visualização — Contas a Cadastrar</h3>
+            <span style="font-size:12px;color:var(--t4)" id="upResumoLinha"></span>
+          </div>
+          <div style="padding:16px">
+            <div id="upStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+            <div id="upAlertVal" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b;cursor:default"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
+              <button class="btn btn-primary btn-sm" onclick="APP.upConfirmar()" id="upBtnConfirmar">✅ Confirmar Cadastro em Massa</button>
+              <button class="btn btn-danger btn-sm" onclick="APP.upCancelar()">✕ Cancelar</button>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--t4)">Edite ou exclua linhas antes de confirmar</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>1ª Data Vcto</th><th>Valor R$</th><th>Parcelas</th><th>Nota</th><th>Ação</th></tr></thead>
+                <tbody id="upTbodyPreview"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <!-- MODAIS (mesmos da versão anterior) -->
@@ -489,7 +556,7 @@
     <div class="modal-header"><h2 id="upTitParcelas">Parcelas</h2><button class="modal-close" data-close="ovParcelasUp">&times;</button></div>
     <div class="modal-body" style="padding:0">
       <div style="overflow-x:auto">
-        <table class="data-table" id="upTblParcelas">
+        <table class="data-table">
           <thead><tr><th>#</th><th>Parcela</th><th>Data Vencimento</th><th>Valor</th></tr></thead>
           <tbody id="upTbodyParcelas"></tbody>
         </table>
@@ -498,9 +565,7 @@
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelasUp">Fechar</button></div>
   </div>
 </div>
-<script src="app.js"></script>
-</body>
-</html>
+
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="app.js"></script>
