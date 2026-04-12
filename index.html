@@ -142,6 +142,7 @@
           <select class="filter-select" id="filtroMesContas"></select>
           <select class="filter-select" id="filtroRespContas"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
           <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
+          <select class="filter-select" id="filtroFormaContas"><option value="">Todas as formas</option></select>
           <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
         </div>
       </div>
@@ -191,6 +192,8 @@
         <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
         <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
         <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo()">📅 Período</button>
+        <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo()" title="Clique para remover o filtro de período"></span>
         <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ Exportar CSV</button>
       </div>
       <div class="rel-kpis" id="relKpis"></div>
@@ -563,6 +566,46 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelasUp">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: PERÍODO RELATÓRIO -->
+<div class="modal-overlay" id="ovPeriodo">
+  <div class="modal" style="width:420px">
+    <div class="modal-header"><h2>📅 Filtro por Período</h2><button class="modal-close" data-close="ovPeriodo">&times;</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info show" style="font-size:12.5px;margin-bottom:16px;padding:10px 14px">
+        Define um intervalo de meses dentro de um único ano. Os filtros de Ano e Mês acima serão ignorados enquanto o período estiver ativo.
+      </div>
+      <div class="fg"><label>Ano *</label>
+        <input type="number" id="periodoAno" min="2019" max="2035" placeholder="Ex: 2026" style="width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg"><label>Mês inicial *</label>
+          <select id="periodoMesIni">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+        <div class="fg"><label>Mês final *</label>
+          <select id="periodoMesFim">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="APP.limparPeriodo()">Limpar filtro</button>
+      <button class="btn btn-ghost" data-close="ovPeriodo">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.aplicarPeriodo()">✅ Aplicar</button>
+    </div>
   </div>
 </div>
 

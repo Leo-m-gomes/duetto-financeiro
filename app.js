@@ -118,6 +118,7 @@ const STATE = {
   page:'dashboard', pg:1, pgSz:20,
   dashResp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
+  periodo:null, // {ano, mesIni, mesFim} — null = sem filtro de período
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
 };
 
@@ -389,7 +390,7 @@ const APP = {
 
     // Filtros cat/forma
     CACHE.getAllCats().forEach(c=>{ ['filtroCatContas','relCat'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(c.nome,c.nome)); }); });
-    CACHE.getAllFormas().forEach(f=>{ const s=document.getElementById('relForma'); if(s)s.appendChild(new Option(f.nome,f.id)); });
+    CACHE.getAllFormas().forEach(f=>{ ['filtroFormaContas','relForma'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(f.nome,f.id)); }); });
 
     // Ano + Mês Dashboard
     mkAno('filtroAnoDash');
@@ -418,11 +419,19 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.addEventListener('change',()=>this.renderDashboard());
     });
-    ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroStatus'].forEach(id=>{
+    ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.addEventListener('input',()=>{STATE.pg=1;this.renderContas();});
     });
-    ['relAno','relMes','relCat','relForma','relResp'].forEach(id=>{
+    ['relAno','relMes'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.addEventListener('change',()=>{
+        STATE.periodo=null;
+        this._atualizarPeriodoBadge();
+        this.renderRelatorio();
+      });
+    });
+    ['relCat','relForma','relResp'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.addEventListener('change',()=>this.renderRelatorio());
     });
@@ -578,14 +587,16 @@ const APP = {
     const mes=document.getElementById('filtroMesContas').value;
     const resp=document.getElementById('filtroRespContas').value;
     const cat=document.getElementById('filtroCatContas').value;
+    const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;
 
     let data = CACHE.getByAnoMes(ano,mes);
-    if(search) data = data.filter(c=>c.conta.toLowerCase().includes(search));
-    if(resp)   data = data.filter(c=>c.resp===resp);
-    if(cat)data=data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
-    if(status==='pago')    data=data.filter(c=>c.vPago>0);
-    else if(status==='pendente') data=data.filter(c=>!(c.vPago>0)); // inclui atrasadas
+    if(search)  data = data.filter(c=>c.conta.toLowerCase().includes(search));
+    if(resp)    data = data.filter(c=>c.resp===resp);
+    if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
+    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
+    if(status==='pago')          data=data.filter(c=>c.vPago>0);
+    else if(status==='pendente') data=data.filter(c=>!(c.vPago>0));
     else if(status==='atrasado') data=data.filter(isOverdue);
 
     document.getElementById('totalGeral').textContent    = fmt(data.reduce((s,c)=>s+vEfetivo(c),0));
@@ -994,6 +1005,43 @@ const APP = {
     }catch(e){this.toast('JSON inválido. Verifique o formato.','error');}
   },
 
+  // ── PERÍODO RELATÓRIO ──
+  openPeriodo(){
+    const p = STATE.periodo;
+    document.getElementById('periodoAno').value    = p ? p.ano    : new Date().getFullYear();
+    document.getElementById('periodoMesIni').value = p ? p.mesIni : '';
+    document.getElementById('periodoMesFim').value = p ? p.mesFim : '';
+    document.getElementById('ovPeriodo').classList.add('open');
+  },
+
+  aplicarPeriodo(){
+    const ano    = parseInt(document.getElementById('periodoAno').value);
+    const mesIni = document.getElementById('periodoMesIni').value;
+    const mesFim = document.getElementById('periodoMesFim').value;
+    if(!ano||ano<2019||ano>2035) return this.toast('Informe um ano válido (2019–2035)','error');
+    if(mesIni===''||mesFim==='')  return this.toast('Selecione o mês inicial e o mês final','error');
+    if(parseInt(mesFim)<parseInt(mesIni)) return this.toast('O mês final não pode ser anterior ao mês inicial','error');
+    STATE.periodo = {ano, mesIni:parseInt(mesIni), mesFim:parseInt(mesFim)};
+    document.getElementById('ovPeriodo').classList.remove('open');
+    this._atualizarPeriodoBadge();
+    this.renderRelatorio();
+  },
+
+  limparPeriodo(){
+    STATE.periodo = null;
+    document.getElementById('ovPeriodo').classList.remove('open');
+    this._atualizarPeriodoBadge();
+    this.renderRelatorio();
+  },
+
+  _atualizarPeriodoBadge(){
+    const badge = document.getElementById('periodoBadge');
+    const p = STATE.periodo;
+    if(!p){ badge.style.display='none'; return; }
+    badge.style.display='inline-flex';
+    badge.innerHTML = `📅 ${MESES_F[p.mesIni]} → ${MESES_F[p.mesFim]} ${p.ano} &nbsp;✕`;
+  },
+
   // ============================================================
   // RELATÓRIO
   // ============================================================
@@ -1003,12 +1051,22 @@ const APP = {
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
+    const p       = STATE.periodo; // filtro de período (tem prioridade sobre ano/mês)
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
 
     let data = CACHE.contas;
-    if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
-    if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+
+    if(p){
+      // Filtro por período: ano fixo + intervalo de meses
+      data = data.filter(c=>{
+        const d = new Date(c.data+'T12:00');
+        return d.getFullYear()===p.ano && d.getMonth()>=p.mesIni && d.getMonth()<=p.mesFim;
+      });
+    } else {
+      if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
+      if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+    }
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     // Filtro responsável: Leo ou Pri inclui "Leo & Pri" com valor ÷2; "Leo & Pri" mostra valor inteiro
