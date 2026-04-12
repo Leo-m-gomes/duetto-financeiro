@@ -339,6 +339,7 @@ const APP = {
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
         ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas'].forEach(id=>document.getElementById(id).style.display='none');
+        document.getElementById('btnNovaConta').style.display=el.dataset.page==='upload'?'none':'flex';
         if(el.dataset.page==='salario'){document.getElementById('btnNovoSalario').style.display='flex';document.getElementById('btnAtualizarTabelas').style.display='flex';}
         if(el.dataset.page==='receitas')document.getElementById('btnNovaReceita').style.display='flex';
         if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
