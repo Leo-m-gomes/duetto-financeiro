@@ -566,39 +566,40 @@ const APP = {
       return`<tr><td><strong>${c.conta}</strong>${c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':''}</td><td>${c.resp}</td><td>${catNome}</td><td style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td><td class="neg">${fmt(c.vPagar)}</td><td><span class="badge ${atr?'bg-atr':'bg-pend'}">${atr?'● Atrasado':'● Pendente'}</span></td></tr>`;
     }).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
 
-    this.chartCategoria(mes,resp);this.chartFluxo();
+    this.chartCategoria(mes,resp,baseContas);this.chartFluxo(baseContas,resp);
   },
 
-  chartCategoria(mes,resp){
+  chartCategoria(mes,resp,baseContas){
+    const base = baseContas || CACHE.contas;
     let contas;
     if(mes===null){
-      if(!resp) contas=[...CACHE.contas];
-      else if(resp==='Leo & Pri') contas=CACHE.contas.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-      else contas=CACHE.contas.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2}:{...c});
+      if(!resp) contas=[...base];
+      else if(resp==='Leo & Pri') contas=base.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
+      else contas=base.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2}:{...c});
     } else {
-      contas=CACHE.getContasFiltradas(mes,resp);
+      const porMes=base.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
+      if(!resp) contas=[...porMes];
+      else if(resp==='Leo & Pri') contas=porMes.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
+      else contas=porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2}:{...c});
     }
     const map={};contas.forEach(c=>{const n=CACHE.resolveCat(c.catId||c.cat);map[n]=(map[n]||0)+vEfetivo(c);});
     const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,9);
     this.mkChart('canvasCategoria',{type:'doughnut',data:{labels:sorted.map(([k])=>k),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#374151',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}}});
   },
 
-  chartFluxo(){
-    const resp   = STATE.dashResp;
-    const anoVal = document.getElementById('filtroAnoDash').value;
-    const ano    = anoVal==='todos' ? null : parseInt(anoVal);
+  chartFluxo(baseContas, resp){
+    // Recebe as contas já filtradas por ano/período do renderDashboard
+    // Isso garante que o gráfico usa exatamente os mesmos dados que os cards
+    const base = baseContas || CACHE.contas;
+    resp = (resp !== undefined) ? resp : STATE.dashResp;
 
-    // Filtrar contas pelo ano selecionado antes de agrupar por mês
-    const contasAno = ano ? CACHE.contas.filter(c=>new Date(c.data+'T12:00').getFullYear()===ano) : CACHE.contas;
-
-    // Despesas por mês usando vEfetivo e respeitando filtro de responsável e ano
+    // Agrupa por mês com filtro de responsável — usa vEfetivo
     const despFilt = Array.from({length:12},(_,m)=>{
-      const porMes = contasAno.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
+      const porMes = base.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
       if(!resp) return porMes.reduce((s,c)=>s+vEfetivo(c),0);
       if(resp==='Leo & Pri') return porMes.filter(c=>c.resp==='Leo & Pri').reduce((s,c)=>s+vEfetivo(c),0);
       return porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').reduce((s,c)=>{
-        const ef=vEfetivo(c);
-        return s+(c.resp==='Leo & Pri'?ef/2:ef);
+        return s+(c.resp==='Leo & Pri'?vEfetivo(c)/2:vEfetivo(c));
       },0);
     });
 
@@ -1044,15 +1045,18 @@ const APP = {
 
   // ── PERÍODO (compartilhado entre Dashboard, Contas e Relatório) ──
   openPeriodo(tela){
-    STATE.periodoTela = tela || 'relatorio';
-    const p = tela==='dashboard' ? STATE.periodoDash : tela==='contas' ? STATE.periodoContas : STATE.periodo;
+    const t = tela || 'relatorio';
+    STATE.periodoTela = t;
+    document.getElementById('ovPeriodo').setAttribute('data-tela', t);
+    const p = t==='dashboard' ? STATE.periodoDash : t==='contas' ? STATE.periodoContas : STATE.periodo;
     document.getElementById('periodoAno').value    = p ? p.ano    : new Date().getFullYear();
     document.getElementById('periodoMesIni').value = p ? p.mesIni : '';
     document.getElementById('periodoMesFim').value = p ? p.mesFim : '';
     document.getElementById('ovPeriodo').classList.add('open');
   },
 
-  aplicarPeriodo(){
+  aplicarPeriodo(tela){
+    const t = tela || document.getElementById('ovPeriodo').getAttribute('data-tela') || STATE.periodoTela || 'relatorio';
     const ano    = parseInt(document.getElementById('periodoAno').value);
     const mesIni = document.getElementById('periodoMesIni').value;
     const mesFim = document.getElementById('periodoMesFim').value;
@@ -1060,19 +1064,18 @@ const APP = {
     if(mesIni===''||mesFim==='')  return this.toast('Selecione o mês inicial e o mês final','error');
     if(parseInt(mesFim)<parseInt(mesIni)) return this.toast('O mês final não pode ser anterior ao mês inicial','error');
     const p = {ano, mesIni:parseInt(mesIni), mesFim:parseInt(mesFim)};
-    const tela = STATE.periodoTela;
-    if(tela==='dashboard')     STATE.periodoDash   = p;
-    else if(tela==='contas')   STATE.periodoContas = p;
-    else                       STATE.periodo       = p;
+    if(t==='dashboard')     STATE.periodoDash   = p;
+    else if(t==='contas')   STATE.periodoContas = p;
+    else                    STATE.periodo       = p;
     document.getElementById('ovPeriodo').classList.remove('open');
-    this._atualizarPeriodoBadge(tela, p);
-    if(tela==='dashboard')   this.renderDashboard();
-    else if(tela==='contas') { STATE.pg=1; this.renderContas(); }
-    else                     this.renderRelatorio();
+    this._atualizarPeriodoBadge(t, p);
+    if(t==='dashboard')   this.renderDashboard();
+    else if(t==='contas') { STATE.pg=1; this.renderContas(); }
+    else                  this.renderRelatorio();
   },
 
   limparPeriodo(tela){
-    const t = tela || STATE.periodoTela || 'relatorio';
+    const t = tela || document.getElementById('ovPeriodo').getAttribute('data-tela') || STATE.periodoTela || 'relatorio';
     if(t==='dashboard')   STATE.periodoDash   = null;
     else if(t==='contas') STATE.periodoContas = null;
     else                  STATE.periodo       = null;

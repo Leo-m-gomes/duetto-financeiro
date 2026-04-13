@@ -606,9 +606,9 @@
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-ghost" onclick="APP.limparPeriodo()">Limpar filtro</button>
+      <button class="btn btn-ghost" onclick="APP.limparPeriodo(document.getElementById('ovPeriodo').dataset.tela)">Limpar filtro</button>
       <button class="btn btn-ghost" data-close="ovPeriodo">Cancelar</button>
-      <button class="btn btn-primary" onclick="APP.aplicarPeriodo()">✅ Aplicar</button>
+      <button class="btn btn-primary" onclick="APP.aplicarPeriodo(document.getElementById('ovPeriodo').dataset.tela)">✅ Aplicar</button>
     </div>
   </div>
 </div>
