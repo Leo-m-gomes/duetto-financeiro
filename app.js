@@ -1475,8 +1475,8 @@ Object.assign(APP, {
     const ws = XLSX.utils.aoa_to_sheet([cab,...ex]);
     // Larguras de coluna aprimoradas pelo usuário
     ws['!cols']=[{wch:12.8},{wch:34.8},{wch:14.8},{wch:24.8},{wch:20.8},{wch:16.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:30.8}];
-    // Congelar linha de cabeçalho (melhoria do usuário)
-    ws['!freeze']={xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft'};
+    // Congelar linha de cabeçalho — propriedade correta do SheetJS
+    ws['!views']=[{state:'frozen',xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft'}];
     ws['!dataValidation']=[
       {sqref:'A2:A5000',type:'list',formula1:'"Nova,Existente"',showErrorMessage:true,errorTitle:'Inválido',error:'Use: Nova ou Existente'},
       {sqref:'C2:C5000',type:'list',formula1:'"Leo,Pri,Leo & Pri"'},
