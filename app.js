@@ -118,7 +118,10 @@ const STATE = {
   page:'dashboard', pg:1, pgSz:20,
   dashResp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
-  periodo:null, // {ano, mesIni, mesFim} — null = sem filtro de período
+  periodo:null,       // período ativo no Relatório
+  periodoDash:null,   // período ativo no Dashboard
+  periodoContas:null, // período ativo em Contas
+  periodoTela:null,   // qual tela está usando o modal de período
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
 };
 
@@ -417,17 +420,27 @@ const APP = {
   filtros(){
     ['filtroAnoDash','filtroMesDash'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.addEventListener('change',()=>this.renderDashboard());
+      if(el) el.addEventListener('change',()=>{
+        STATE.periodoDash=null;
+        this._atualizarPeriodoBadge('dashboard',null);
+        this.renderDashboard();
+      });
     });
     ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el)el.addEventListener('input',()=>{STATE.pg=1;this.renderContas();});
+      if(el)el.addEventListener('input',()=>{
+        if(id==='filtroAnoContas'||id==='filtroMesContas'){
+          STATE.periodoContas=null;
+          this._atualizarPeriodoBadge('contas',null);
+        }
+        STATE.pg=1;this.renderContas();
+      });
     });
     ['relAno','relMes'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.addEventListener('change',()=>{
         STATE.periodo=null;
-        this._atualizarPeriodoBadge();
+        this._atualizarPeriodoBadge('relatorio', null);
         this.renderRelatorio();
       });
     });
@@ -480,14 +493,19 @@ const APP = {
   renderDashboard(){
     const anoVal = document.getElementById('filtroAnoDash').value;
     const mesVal = document.getElementById('filtroMesDash').value;
+    const p      = STATE.periodoDash;
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
     const mes  = todosMeses ? null : parseInt(mesVal);
     const ano  = todosAnos  ? null : parseInt(anoVal);
     const resp = STATE.dashResp;
 
-    // Filtrar contas por ano e mês
+    // Filtrar contas — período tem prioridade sobre ano/mês
     const filtrarContas = (all) => {
+      if(p) return all.filter(c=>{
+        const d=new Date(c.data+'T12:00');
+        return d.getFullYear()===p.ano && d.getMonth()>=p.mesIni && d.getMonth()<=p.mesFim;
+      });
       let r = all;
       if(ano)  r = r.filter(c=>new Date(c.data+'T12:00').getFullYear()===ano);
       if(!todosMeses && mes!==null) r = r.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
@@ -566,16 +584,31 @@ const APP = {
   },
 
   chartFluxo(){
-    const resp=STATE.dashResp;
-    const desp=CACHE.getTotalByMes();
-    const despFilt=Array.from({length:12},(_,m)=>CACHE.getContasFiltradas(m,resp).reduce((s,c)=>s+c.vPagar,0));
+    const resp   = STATE.dashResp;
+    const anoVal = document.getElementById('filtroAnoDash').value;
+    const ano    = anoVal==='todos' ? null : parseInt(anoVal);
+
+    // Filtrar contas pelo ano selecionado antes de agrupar por mês
+    const contasAno = ano ? CACHE.contas.filter(c=>new Date(c.data+'T12:00').getFullYear()===ano) : CACHE.contas;
+
+    // Despesas por mês usando vEfetivo e respeitando filtro de responsável e ano
+    const despFilt = Array.from({length:12},(_,m)=>{
+      const porMes = contasAno.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
+      if(!resp) return porMes.reduce((s,c)=>s+vEfetivo(c),0);
+      if(resp==='Leo & Pri') return porMes.filter(c=>c.resp==='Leo & Pri').reduce((s,c)=>s+vEfetivo(c),0);
+      return porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').reduce((s,c)=>{
+        const ef=vEfetivo(c);
+        return s+(c.resp==='Leo & Pri'?ef/2:ef);
+      },0);
+    });
+
     const rec=Array.from({length:12},(_,m)=>{
       let t=0;
       CACHE.salarios.forEach(s=>{if(!resp||s.pessoa===resp){const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;}});
       CACHE.outras.forEach(r=>{const v=r.valores[m]||0;if(!resp)t+=v;else if(r.resp===resp)t+=v;else if(!r.resp||r.resp==='Ambos')t+=v/2;});
       return t;
     });
-    this.mkChart('canvasFluxo',{type:'bar',data:{labels:MESES,datasets:[{label:'Receita',data:rec,backgroundColor:'rgba(0,100,55,.15)',borderColor:'#006437',borderWidth:2,borderRadius:4},{label:'Despesas',data:resp?despFilt:desp,backgroundColor:'rgba(220,38,38,.12)',borderColor:'#dc2626',borderWidth:2,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#374151',font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)'}}}}});
+    this.mkChart('canvasFluxo',{type:'bar',data:{labels:MESES,datasets:[{label:'Receita',data:rec,backgroundColor:'rgba(0,100,55,.15)',borderColor:'#006437',borderWidth:2,borderRadius:4},{label:'Despesas',data:despFilt,backgroundColor:'rgba(220,38,38,.12)',borderColor:'#dc2626',borderWidth:2,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#374151',font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)'}}}}});
   },
 
   // ============================================================
@@ -589,8 +622,12 @@ const APP = {
     const cat=document.getElementById('filtroCatContas').value;
     const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;
+    const p=STATE.periodoContas;
 
-    let data = CACHE.getByAnoMes(ano,mes);
+    // Período tem prioridade sobre ano/mês
+    let data = p
+      ? CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; })
+      : CACHE.getByAnoMes(ano,mes);
     if(search)  data = data.filter(c=>c.conta.toLowerCase().includes(search));
     if(resp)    data = data.filter(c=>c.resp===resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
@@ -1005,9 +1042,10 @@ const APP = {
     }catch(e){this.toast('JSON inválido. Verifique o formato.','error');}
   },
 
-  // ── PERÍODO RELATÓRIO ──
-  openPeriodo(){
-    const p = STATE.periodo;
+  // ── PERÍODO (compartilhado entre Dashboard, Contas e Relatório) ──
+  openPeriodo(tela){
+    STATE.periodoTela = tela || 'relatorio';
+    const p = tela==='dashboard' ? STATE.periodoDash : tela==='contas' ? STATE.periodoContas : STATE.periodo;
     document.getElementById('periodoAno').value    = p ? p.ano    : new Date().getFullYear();
     document.getElementById('periodoMesIni').value = p ? p.mesIni : '';
     document.getElementById('periodoMesFim').value = p ? p.mesFim : '';
@@ -1021,22 +1059,34 @@ const APP = {
     if(!ano||ano<2019||ano>2035) return this.toast('Informe um ano válido (2019–2035)','error');
     if(mesIni===''||mesFim==='')  return this.toast('Selecione o mês inicial e o mês final','error');
     if(parseInt(mesFim)<parseInt(mesIni)) return this.toast('O mês final não pode ser anterior ao mês inicial','error');
-    STATE.periodo = {ano, mesIni:parseInt(mesIni), mesFim:parseInt(mesFim)};
+    const p = {ano, mesIni:parseInt(mesIni), mesFim:parseInt(mesFim)};
+    const tela = STATE.periodoTela;
+    if(tela==='dashboard')     STATE.periodoDash   = p;
+    else if(tela==='contas')   STATE.periodoContas = p;
+    else                       STATE.periodo       = p;
     document.getElementById('ovPeriodo').classList.remove('open');
-    this._atualizarPeriodoBadge();
-    this.renderRelatorio();
+    this._atualizarPeriodoBadge(tela, p);
+    if(tela==='dashboard')   this.renderDashboard();
+    else if(tela==='contas') { STATE.pg=1; this.renderContas(); }
+    else                     this.renderRelatorio();
   },
 
-  limparPeriodo(){
-    STATE.periodo = null;
+  limparPeriodo(tela){
+    const t = tela || STATE.periodoTela || 'relatorio';
+    if(t==='dashboard')   STATE.periodoDash   = null;
+    else if(t==='contas') STATE.periodoContas = null;
+    else                  STATE.periodo       = null;
     document.getElementById('ovPeriodo').classList.remove('open');
-    this._atualizarPeriodoBadge();
-    this.renderRelatorio();
+    this._atualizarPeriodoBadge(t, null);
+    if(t==='dashboard')   this.renderDashboard();
+    else if(t==='contas') { STATE.pg=1; this.renderContas(); }
+    else                  this.renderRelatorio();
   },
 
-  _atualizarPeriodoBadge(){
-    const badge = document.getElementById('periodoBadge');
-    const p = STATE.periodo;
+  _atualizarPeriodoBadge(tela, p){
+    const idMap = {dashboard:'periodoBadgeDash', contas:'periodoBadgeContas', relatorio:'periodoBadge'};
+    const badge = document.getElementById(idMap[tela]);
+    if(!badge) return;
     if(!p){ badge.style.display='none'; return; }
     badge.style.display='inline-flex';
     badge.innerHTML = `📅 ${MESES_F[p.mesIni]} → ${MESES_F[p.mesFim]} ${p.ano} &nbsp;✕`;
@@ -1420,7 +1470,10 @@ Object.assign(APP, {
       ['Existente','Conta já cadastrada','Leo','PIX','Casa','04/07/2026',350,12,7,'Será ignorada'],
     ];
     const ws = XLSX.utils.aoa_to_sheet([cab,...ex]);
-    ws['!cols']=[{wch:12},{wch:34},{wch:14},{wch:24},{wch:20},{wch:16},{wch:14},{wch:14},{wch:14},{wch:30}];
+    // Larguras de coluna aprimoradas pelo usuário
+    ws['!cols']=[{wch:12.8},{wch:34.8},{wch:14.8},{wch:24.8},{wch:20.8},{wch:16.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:30.8}];
+    // Congelar linha de cabeçalho (melhoria do usuário)
+    ws['!freeze']={xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft'};
     ws['!dataValidation']=[
       {sqref:'A2:A5000',type:'list',formula1:'"Nova,Existente"',showErrorMessage:true,errorTitle:'Inválido',error:'Use: Nova ou Existente'},
       {sqref:'C2:C5000',type:'list',formula1:'"Leo,Pri,Leo & Pri"'},

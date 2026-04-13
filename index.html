@@ -111,6 +111,8 @@
       <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
         <select class="filter-select" id="filtroAnoDash"></select>
         <select class="filter-select" id="filtroMesDash"></select>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('dashboard')">📅 Período</button>
+        <span id="periodoBadgeDash" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('dashboard')" title="Clique para remover"></span>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
           <span style="font-size:11px;color:var(--t4);font-weight:600">Filtrar:</span>
           <button class="resp-chip active" id="rc-todos" onclick="APP.setRespDash('')">Todos</button>
@@ -144,6 +146,8 @@
           <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
           <select class="filter-select" id="filtroFormaContas"><option value="">Todas as formas</option></select>
           <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
+          <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('contas')">📅 Período</button>
+          <span id="periodoBadgeContas" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('contas')" title="Clique para remover"></span>
         </div>
       </div>
       <div class="totals-bar">
@@ -192,8 +196,8 @@
         <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
         <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
         <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
-        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo()">📅 Período</button>
-        <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo()" title="Clique para remover o filtro de período"></span>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
+        <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>
         <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ Exportar CSV</button>
       </div>
       <div class="rel-kpis" id="relKpis"></div>
@@ -577,7 +581,7 @@
       <div class="alert alert-info show" style="font-size:12.5px;margin-bottom:16px;padding:10px 14px">
         Define um intervalo de meses dentro de um único ano. Os filtros de Ano e Mês acima serão ignorados enquanto o período estiver ativo.
       </div>
-      <div class="fg"><label>Ano *</label>
+      <div class="fg" style="margin-bottom:20px"><label>Ano *</label>
         <input type="number" id="periodoAno" min="2019" max="2035" placeholder="Ex: 2026" style="width:100%">
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
