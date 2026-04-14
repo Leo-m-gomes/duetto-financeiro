@@ -678,21 +678,22 @@ const APP = {
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
-      return`<tr style="${atr?'background:rgba(234,88,12,.04)':''}">
-        <td style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}</td>
-        <td>${c.resp}</td><td style="font-size:11px;color:var(--t3)">${formaNome}</td>
-        <td><span class="badge bg-cat">${catNome}</span></td>
-        <td class="neg">${fmt(ef)}</td>
-        <td class="${pago?'pos':'dim'}">${pago?fmt(c.vPago):'—'}</td>
-        <td class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
-        <td style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
-        <td style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
-        <td>${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
-        <td style="white-space:nowrap">
+      return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
+        <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}</td>
+        <td data-label="Responsável">${c.resp}</td>
+        <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
+        <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
+        <td data-label="A Pagar" class="neg">${fmt(ef)}</td>
+        <td data-label="Pago" class="${pago?'pos':'dim'}">${pago?fmt(c.vPago):'—'}</td>
+        <td data-label="Pendente" class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
+        <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
+        <td data-label="Parcela" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
+        <td data-label="Por">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
+        <td data-label="Ações" style="white-space:nowrap">
           <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>
           ${!pago?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
-          ${pago?`<button class="action-btn" title="Desfazer pagamento" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
+          ${pago?`<button class="action-btn" title="Desfazer" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
           ${hasGrupo?`<button class="action-btn parcs" title="Parcelamento" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
           <button class="action-btn del" title="Excluir" onclick="APP.deleteConta('${c.id}')">✕</button>
         </td></tr>`;
@@ -1178,19 +1179,19 @@ const APP = {
       const ef=vEfetivo(c); const pend=c.vPago>0?0:ef; const atr=isOverdue(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat); const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const splitBadge=c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);font-size:9px;margin-left:4px">÷2</span>':'';
-      return`<tr>
-        <td style="color:var(--t4)">${i+1}</td>
-        <td style="max-width:140px;white-space:normal">${c.conta}${splitBadge}</td>
-        <td>${c.resp}</td>
-        <td style="font-size:11px;color:var(--t3)">${formaNome}</td>
-        <td>${catNome}</td>
-        <td class="neg">${fmt(ef)}</td>
-        <td class="${c.vPago>0?'pos':'dim'}">${c.vPago>0?fmt(c.vPago):'—'}</td>
-        <td class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
-        <td style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
-        <td style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
-        <td>${c.updatedBy||c.createdBy?`<span class="audit-chip">${c.updatedBy||c.createdBy}</span>`:''}</td>
-        <td style="font-size:10.5px;color:var(--t4);max-width:100px;white-space:normal">${c.nota||'—'}</td>
+      return`<tr class="mob-card">
+        <td data-label="#" style="color:var(--t4)">${i+1}</td>
+        <td data-label="Descrição" style="max-width:140px;white-space:normal">${c.conta}${splitBadge}</td>
+        <td data-label="Resp.">${c.resp}</td>
+        <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
+        <td data-label="Categoria">${catNome}</td>
+        <td data-label="A Pagar" class="neg">${fmt(ef)}</td>
+        <td data-label="Pago" class="${c.vPago>0?'pos':'dim'}">${c.vPago>0?fmt(c.vPago):'—'}</td>
+        <td data-label="Pendente" class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
+        <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
+        <td data-label="Parcela" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
+        <td data-label="Por">${c.updatedBy||c.createdBy?`<span class="audit-chip">${c.updatedBy||c.createdBy}</span>`:''}</td>
+        <td data-label="Nota" style="font-size:10.5px;color:var(--t4);max-width:100px;white-space:normal">${c.nota||'—'}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--t4)">Nenhum dado para este filtro</td></tr>';
   },
