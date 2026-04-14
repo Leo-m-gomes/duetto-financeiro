@@ -405,156 +405,148 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 
 /* ── Filtros: visíveis por padrão no desktop ── */
 .filter-group{ display:flex; }
-
 @media(max-width:640px){
 
-  /* ── TOPBAR: compacto, sem overflow ── */
-  .topbar{
-    padding:0 10px;
-    gap:6px;
-    flex-wrap:nowrap;
-    height:auto;
-    min-height:var(--sh);
-  }
-  .topbar-title{ font-size:14px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  #topbarBtns{
-    display:flex;
-    gap:4px;
-    flex-wrap:nowrap;
-    align-items:center;
-    flex-shrink:0;
-  }
-  /* Esconde texto, mantém ícone nos botões do topo */
-  #topbarBtns .btn span{ display:none; }
-  #topbarBtns .btn svg{ display:block; }
-  #topbarBtns .btn{ padding:7px 9px; min-width:unset; }
-  /* Esconde botões menos importantes no mobile */
-  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita{ display:none!important; }
+  /* ════ TOPBAR ════ */
+  .topbar{padding:0 10px;gap:6px;flex-wrap:nowrap;height:auto;min-height:var(--sh)}
+  .topbar-title{font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #topbarBtns{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;flex-shrink:0}
+  #topbarBtns .btn span{display:none}
+  #topbarBtns .btn svg{display:block}
+  #topbarBtns .btn{padding:7px 9px;min-width:unset}
+  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita{display:none!important}
 
-  /* ── FILTROS: toggle recolhível ── */
+  /* ════ FILTROS recolhíveis ════ */
   .mob-filter-toggle{
-    display:flex;
-    align-items:center;
-    gap:7px;
-    width:100%;
-    padding:11px 14px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:var(--r-sm);
-    font-family:var(--font-b);
-    font-size:13.5px;
-    font-weight:500;
-    color:var(--t2);
-    cursor:pointer;
-    margin-bottom:8px;
+    display:flex;align-items:center;gap:7px;width:100%;
+    padding:11px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);
+    font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--t2);
+    cursor:pointer;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)
   }
-  .mob-filter-toggle svg:last-child{ margin-left:auto; transition:.2s; }
-
-  /* Filtros: recolhidos por padrão no mobile */
+  .mob-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
   .filter-group{
-    display:none;
-    flex-direction:column;
-    gap:8px;
-    background:var(--surface);
-    border:1px solid var(--border);
-    border-radius:var(--r-sm);
-    padding:12px;
-    margin-bottom:10px;
-    animation:fadeIn .15s ease;
+    display:none;flex-direction:column;gap:8px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:12px;margin-bottom:10px;
+    animation:fadeIn .15s ease
   }
-  .filter-group.mob-filters-open{ display:flex; }
+  .filter-group.mob-filters-open{display:flex}
   @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .filter-select,.filter-input{width:100%;font-size:14px;padding:11px 14px}
+  .filters-bar .btn-secondary,.filters-bar .btn-sm{width:100%;justify-content:center;padding:10px 14px;font-size:13.5px}
 
-  .filter-select,.filter-input{
-    width:100%;
-    font-size:14px;
-    padding:11px 14px;
-    border-radius:var(--r-sm);
-  }
-  .filters-bar .btn-secondary,.filters-bar .btn-sm{
-    width:100%;
-    justify-content:center;
-    padding:10px 14px;
-    font-size:13.5px;
-  }
-
-  /* ── TOTAIS: linha compacta ── */
+  /* ════ CARDS TOTAL/PENDENTE/PAGO ════ */
   .totals-bar{
-    grid-template-columns:repeat(3,1fr);
-    gap:6px;
-    margin-bottom:10px;
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:8px;margin-bottom:12px
   }
-  .total-pill{ padding:8px 10px; border-radius:var(--r-sm); }
-  .total-pill label{ font-size:8.5px; }
-  .total-pill .val{ font-size:13px; }
-
-  /* ── KPIs 2 colunas ── */
-  .kpi-grid{ grid-template-columns:1fr 1fr; gap:8px; }
-  .kpi-card{ padding:12px 14px; }
-  .kpi-value{ font-size:17px; }
-
-  /* ── TABELA → CARDS ──
-     Cada <tr class="mob-card"> vira um card vertical
-     com label acima do valor via ::before             */
-  .data-table thead{ display:none; }
-  .data-table{ border:none; background:transparent; }
-  .table-wrap{ overflow-x:unset; max-height:unset; border:none; background:transparent; }
-
-  .data-table tbody{
-    display:flex;
-    flex-direction:column;
-    gap:10px;
-    padding:0;
+  .total-pill{
+    display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:10px 8px;min-height:64px;
+    border-radius:var(--r-sm)
+  }
+  .total-pill label{
+    font-size:8px;font-weight:700;letter-spacing:.6px;
+    text-align:center;margin-bottom:4px;white-space:nowrap
+  }
+  .total-pill .val{
+    font-size:12.5px;font-weight:700;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    width:100%;line-height:1.2
   }
 
+  /* ════ TABELA → CARDS ════
+     tr.mob-card = CSS grid 2 colunas
+     - Descrição e Ações: grid-column 1/-1 (full width)
+     - # e Por: ocultos
+     - Demais: 1 coluna cada, caem naturalmente em par
+  ════════════════════════════════════════ */
+  .data-table thead{display:none}
+  .data-table{border:none;background:transparent}
+  .table-wrap{overflow-x:unset;max-height:unset;border:none;background:transparent;box-shadow:none}
+  .data-table tbody{display:flex;flex-direction:column;gap:10px;padding:0}
+
+  /* Card: grid 2 colunas */
   .data-table tr.mob-card{
     display:grid;
     grid-template-columns:1fr 1fr;
     background:var(--surface);
     border:1px solid var(--border);
-    border-radius:var(--r-sm);
+    border-radius:10px;
     overflow:hidden;
-    box-shadow:0 1px 4px rgba(0,0,0,.07);
+    box-shadow:0 1px 4px rgba(0,0,0,.07)
   }
 
-  /* Todas as células */
+  /* Todas as células: flex coluna */
   .data-table tr.mob-card td{
     display:flex;
     flex-direction:column;
-    padding:9px 12px;
+    padding:8px 12px;
     font-size:13px;
     border-bottom:1px solid var(--border);
     border-right:1px solid var(--border);
-    min-width:0;
+    min-width:0
   }
 
   /* Label acima do valor */
-  .data-table tr.mob-card td::before{
+  .data-table tr.mob-card td[data-label]::before{
     content:attr(data-label);
-    font-size:9px;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:.6px;
-    color:var(--t4);
-    margin-bottom:3px;
+    font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--t4);margin-bottom:3px
   }
 
-  /* Oculta coluna # — não agrega no mobile */
-  .data-table tr.mob-card td[data-label="#"]{ display:none; }
-
-  /* Descrição: linha inteira, destaque */
+  /* ── DESCRIÇÃO: linha inteira, header do card ── */
   .data-table tr.mob-card td[data-label="Descrição"]{
     grid-column:1/-1;
     border-right:none;
     background:var(--palm-lt);
-    padding:10px 14px;
-    font-size:14px;
-    font-weight:700;
-    color:var(--t1);
+    padding:10px 14px 8px
   }
-  .data-table tr.mob-card td[data-label="Descrição"]::before{ color:var(--palm); }
+  .data-table tr.mob-card td[data-label="Descrição"]::before{display:none}
+  /* Limitar 2 linhas com ellipsis */
+  .data-table tr.mob-card td[data-label="Descrição"] div:first-child{
+    font-size:13.5px;font-weight:600;color:var(--t1);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden
+  }
+  .data-table tr.mob-card td[data-label="Descrição"] div:last-child:not(:first-child){
+    font-size:10px;color:var(--t4);margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
 
-  /* Ações: linha inteira, botões em fila */
+  /* ── Colunas da direita: sem borda direita ── */
+  .data-table tr.mob-card td[data-label="Forma"],
+  .data-table tr.mob-card td[data-label="A Pagar"],
+  .data-table tr.mob-card td[data-label="Pendente"],
+  .data-table tr.mob-card td[data-label="Parcela"]{
+    border-right:none
+  }
+
+  /* ── Última linha antes das ações: sem borda inferior ── */
+  .data-table tr.mob-card td[data-label="Vencimento"],
+  .data-table tr.mob-card td[data-label="Parcela"]{
+    border-bottom:none
+  }
+
+  /* ── Hierarquia visual: valores críticos com destaque ── */
+  .data-table tr.mob-card td[data-label="A Pagar"]{
+    font-size:15px;font-weight:700
+  }
+  .data-table tr.mob-card td[data-label="Vencimento"]{
+    font-size:13px;font-weight:600
+  }
+  .data-table tr.mob-card td[data-label="Pendente"]{
+    font-size:13.5px;font-weight:600
+  }
+
+  /* ── # e Por: ocultos no mobile ── */
+  .data-table tr.mob-card td[data-label="#"],
+  .data-table tr.mob-card td[data-label="Por"]{
+    display:none
+  }
+
+  /* ── AÇÕES: rodapé full-width ── */
   .data-table tr.mob-card td[data-label="Ações"]{
     grid-column:1/-1;
     flex-direction:row;
@@ -564,54 +556,31 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
     background:var(--bg);
     border-right:none;
     border-bottom:none;
-    padding:10px 14px;
+    border-top:1px solid var(--border);
+    padding:10px 14px
   }
-  .data-table tr.mob-card td[data-label="Ações"]::before{ display:none; }
+  .data-table tr.mob-card td[data-label="Ações"]::before{display:none}
   .data-table tr.mob-card td[data-label="Ações"] .action-btn{
-    padding:7px 12px;
-    font-size:14px;
+    padding:8px 14px;font-size:14px;border-radius:8px;flex:1;
+    justify-content:center;text-align:center
   }
 
-  /* Células pares: sem borda direita (última coluna) */
-  .data-table tr.mob-card td:nth-child(even){ border-right:none; }
-
-  /* Última td antes de Ações: sem borda inferior */
-  .data-table tr.mob-card td[data-label="Parcela"],
-  .data-table tr.mob-card td[data-label="Por"],
-  .data-table tr.mob-card td[data-label="Nota"]{ border-bottom:none; }
-
-  /* ── PAGE INNER ── */
-  .page-inner{ padding:10px 10px; }
-
-  /* ── GRÁFICOS ── */
-  .charts-row{ grid-template-columns:1fr; gap:12px; }
-  .chart-card{ min-height:220px; }
-
-  /* ── PAGINAÇÃO ── */
-  .pg-btn{ padding:7px 11px; font-size:12px; }
-
-  /* ── MODAL: sobe de baixo ── */
-  .modal-overlay{ padding:0; align-items:flex-end; }
-  .modal,
-  .modal-md,
-  .modal-lg,
-  .modal-xl{
-    width:100%!important;
-    max-width:100%!important;
-    border-radius:var(--r) var(--r) 0 0;
-    max-height:90vh!important;
+  /* ════ OUTROS ════ */
+  .page-inner{padding:10px}
+  .section-card{border-radius:var(--r-sm)}
+  .charts-row{grid-template-columns:1fr;gap:12px}
+  .chart-card{min-height:220px}
+  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
+  .kpi-card{padding:12px 14px}
+  .kpi-value{font-size:17px}
+  .pg-btn{padding:7px 11px;font-size:12px}
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal,.modal-md,.modal-lg,.modal-xl{
+    width:100%!important;max-width:100%!important;
+    border-radius:var(--r) var(--r) 0 0;max-height:90vh!important
   }
-
-  /* ── CONFIG tabs wrap ── */
-  .cfg-tabs{ gap:3px; }
-  .cfg-tab{ padding:7px 9px; font-size:11px; }
-
-  /* ── Up-grid coluna única ── */
-  .up-grid{ grid-template-columns:1fr; }
-
-  /* ── Rel-kpis 2 colunas ── */
-  .rel-kpis{ grid-template-columns:1fr 1fr; }
-
-  /* ── section-card sem padding lateral excessivo ── */
-  .section-card{ border-radius:var(--r-sm); }
+  .cfg-tabs{gap:3px}
+  .cfg-tab{padding:7px 9px;font-size:11px}
+  .up-grid{grid-template-columns:1fr}
+  .rel-kpis{grid-template-columns:1fr 1fr}
 }
