@@ -5,6 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Duetto Financeiro</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23006437'/%3E%3Ctext x='50%25' y='54%25' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle' dominant-baseline='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#006437">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Duetto">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -78,10 +84,14 @@
     <a class="nav-item" data-page="salario" data-tooltip="Salários"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg><span>Salários</span></a>
     <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
     <a class="nav-item" data-page="upload" data-tooltip="Upload Cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
+    <a class="nav-item" data-page="config" data-tooltip="Configurações" id="navConfig" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Configurações</span></a>
   </nav>
   <div class="sb-footer">
     <div class="sb-badge">2026</div>
     <div id="sbUserChip" class="sb-user-chip"></div>
+    <button id="btnDarkMode" onclick="APP.toggleDark()" title="Modo escuro" class="sb-collapse-btn" style="margin-right:4px">
+      <svg id="iconDark" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    </button>
     <button id="sbCollapseBtn" onclick="APP.toggleSidebar()" title="Recolher menu" class="sb-collapse-btn">
       <svg id="sbCollapseIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
@@ -157,7 +167,19 @@
       </div>
       <span style="font-size:11.5px;color:var(--t4);display:block;margin-bottom:8px" id="contasInfo"></span>
       <div class="section-card">
-        <div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>A Pagar</th><th>Pago</th><th>Pendente</th><th>Vencimento</th><th>Parcela</th><th>Por</th><th>Ações</th></tr></thead><tbody id="tbodyContas"></tbody></table></div>
+        <div class="table-wrap"><table class="data-table"><thead><tr>
+          <th class="th-sort" onclick="APP.sortTable('contas','#')">#<span class="sort-icon" data-col="#"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','conta')">Descrição<span class="sort-icon" data-col="conta"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','resp')">Responsável<span class="sort-icon" data-col="resp"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','forma')">Forma<span class="sort-icon" data-col="forma"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','cat')">Categoria<span class="sort-icon" data-col="cat"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','vPagar')">A Pagar<span class="sort-icon" data-col="vPagar"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','vPago')">Pago<span class="sort-icon" data-col="vPago"></span></th>
+          <th>Pendente</th>
+          <th class="th-sort" onclick="APP.sortTable('contas','data')">Vencimento<span class="sort-icon" data-col="data"></span></th>
+          <th class="th-sort" onclick="APP.sortTable('contas','parcela')">Parcela<span class="sort-icon" data-col="parcela"></span></th>
+          <th>Por</th><th>Ações</th>
+        </tr></thead><tbody id="tbodyContas"></tbody></table></div>
         <div class="table-pagination" id="pgContas"></div>
       </div>
     </div>
@@ -198,10 +220,23 @@
         <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
         <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
         <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>
-        <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ Exportar CSV</button>
+        <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ CSV</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.exportPDF()">📄 PDF</button>
       </div>
       <div class="rel-kpis" id="relKpis"></div>
-      <div class="section-card"><div class="table-wrap"><table class="data-table"><thead><tr><th>#</th><th>Descrição</th><th>Resp.</th><th>Forma</th><th>Cat.</th><th>A Pagar</th><th>Pago</th><th>Pendente</th><th>Vencimento</th><th>Parcela</th><th>Por</th><th>Nota</th></tr></thead><tbody id="tbodyRel"></tbody></table></div></div>
+      <div class="section-card"><div class="table-wrap"><table class="data-table"><thead><tr>
+        <th class="th-sort" onclick="APP.sortTable('rel','#')">#<span class="sort-icon" data-col="#"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','conta')">Descrição<span class="sort-icon" data-col="conta"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','resp')">Resp.<span class="sort-icon" data-col="resp"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','forma')">Forma<span class="sort-icon" data-col="forma"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','cat')">Cat.<span class="sort-icon" data-col="cat"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','vPagar')">A Pagar<span class="sort-icon" data-col="vPagar"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','vPago')">Pago<span class="sort-icon" data-col="vPago"></span></th>
+        <th>Pendente</th>
+        <th class="th-sort" onclick="APP.sortTable('rel','data')">Vencimento<span class="sort-icon" data-col="data"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('rel','parcela')">Parcela<span class="sort-icon" data-col="parcela"></span></th>
+        <th>Por</th><th>Nota</th>
+      </tr></thead><tbody id="tbodyRel"></tbody></table></div></div>
     </div>
   </div>
 
@@ -269,6 +304,218 @@
           </div>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- BACKUP PAGE — somente Leo -->
+  <div class="page" id="page-backup">
+    <div class="page-inner">
+      <div style="max-width:700px;margin:0 auto">
+        <!-- HEADER CARD -->
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="section-header">
+            <h3>🛡️ Backup do Sistema</h3>
+            <span style="font-size:11px;color:var(--t4);background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa;border-radius:99px;padding:2px 10px;font-weight:600">Acesso restrito — Leo</span>
+          </div>
+          <div style="padding:18px">
+            <div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:12px 16px;font-size:13px;color:#1e40af;margin-bottom:20px;line-height:1.6">
+              ℹ️ O backup exporta <strong>todas as coleções</strong> do banco de dados em tempo real: contas, salários, outras receitas, categorias, formas de pagamento, cartões e histórico de importações.<br>
+              Recomendado fazer <strong>mensalmente</strong> ou antes de grandes importações.
+            </div>
+
+            <!-- STATS DO BANCO -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px" id="backupStats">
+              <div class="up-stat"><label>Contas</label><div class="sv" id="bkContas">—</div></div>
+              <div class="up-stat"><label>Salários</label><div class="sv" id="bkSalarios">—</div></div>
+              <div class="up-stat"><label>Categorias</label><div class="sv" id="bkCats">—</div></div>
+              <div class="up-stat"><label>Importações</label><div class="sv" id="bkImps">—</div></div>
+            </div>
+
+            <!-- BOTÕES DE BACKUP -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+              <button class="btn btn-primary" onclick="APP.backupJSON()" id="btnBackupJSON" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar JSON
+              </button>
+              <button class="btn btn-secondary" onclick="APP.backupExcel()" id="btnBackupExcel" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+              </button>
+              <button class="btn btn-secondary" onclick="APP.backupAmbos()" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar JSON + Excel
+              </button>
+            </div>
+
+            <!-- HISTÓRICO DE BACKUPS -->
+            <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico desta sessão</div>
+            <div id="backupHistorico" style="color:var(--t4);font-size:12.5px">Nenhum backup realizado nesta sessão.</div>
+          </div>
+        </div>
+
+        <!-- AVISO RESTAURAÇÃO -->
+        <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:12px 16px;font-size:12.5px;color:#92400e">
+          ⚠️ <strong>Sobre restauração:</strong> em caso de necessidade de restaurar os dados, entre em contato com o desenvolvedor do sistema. O arquivo JSON gerado contém toda a estrutura necessária para a recuperação completa.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════ -->
+  <!-- CONFIGURAÇÕES — somente Leo (admin)   -->
+  <!-- ══════════════════════════════════════ -->
+  <div class="page" id="page-config">
+    <div class="page-inner">
+
+      <!-- TABS DE NAVEGAÇÃO INTERNA -->
+      <div class="cfg-tabs" id="cfgTabs">
+        <button class="cfg-tab active" data-tab="usuarios"  onclick="APP.cfgTab('usuarios')">👥 Usuários</button>
+        <button class="cfg-tab"        data-tab="backup"    onclick="APP.cfgTab('backup')">🛡️ Backup</button>
+        <button class="cfg-tab"        data-tab="tabelas"   onclick="APP.cfgTab('tabelas')">📊 Tabelas Fiscais</button>
+        <button class="cfg-tab"        data-tab="log"       onclick="APP.cfgTab('log')">📋 Log de Atividades</button>
+        <button class="cfg-tab"        data-tab="prefs"     onclick="APP.cfgTab('prefs')">⚙️ Preferências</button>
+      </div>
+
+      <!-- TAB: USUÁRIOS -->
+      <div class="cfg-panel active" id="cfgPanel-usuarios">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>👥 Usuários Autorizados</h3>
+            <span class="badge badge-admin">Somente Admin</span>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ Usuários autorizados têm acesso completo ao sistema. O administrador (Leo) tem acesso à tela de Configurações. A Pri tem acesso a todas as demais telas.
+            </div>
+            <div id="cfgListaUsuarios" style="margin-bottom:16px"></div>
+            <div class="section-header" style="border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;background:var(--bg);margin-top:4px">
+              <h3 style="font-size:13px">Adicionar novo usuário</h3>
+            </div>
+            <div style="padding:14px;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-sm) var(--r-sm);background:var(--bg);margin-bottom:4px">
+              <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+                <div class="fg" style="margin:0"><label>Nome</label><input type="text" id="cfgNovoNome" placeholder="Ex: João Silva"></div>
+                <div class="fg" style="margin:0"><label>E-mail Google *</label><input type="email" id="cfgNovoEmail" placeholder="usuario@gmail.com"></div>
+                <button class="btn btn-primary" onclick="APP.cfgAdicionarUsuario()">+ Adicionar</button>
+              </div>
+            </div>
+            <p style="font-size:11px;color:var(--t4);margin-top:8px">⚠️ Após adicionar, o novo usuário poderá acessar o sistema com a conta Google correspondente. Para revogar o acesso, remova o e-mail da lista.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: BACKUP -->
+      <div class="cfg-panel" id="cfgPanel-backup">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🛡️ Backup do Banco de Dados</h3>
+            <span class="badge badge-admin">Somente Admin</span>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ O backup exporta todas as coleções em tempo real. Recomendado fazer <strong>mensalmente</strong> ou antes de grandes importações.
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+              <div class="up-stat"><label>Contas</label><div class="sv" id="cfgBkContas">—</div></div>
+              <div class="up-stat"><label>Salários</label><div class="sv" id="cfgBkSalarios">—</div></div>
+              <div class="up-stat"><label>Categorias</label><div class="sv" id="cfgBkCats">—</div></div>
+              <div class="up-stat"><label>Importações</label><div class="sv" id="cfgBkImps">—</div></div>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+              <button class="btn btn-primary" onclick="APP.cfgBackupJSON()" id="cfgBtnJSON" style="flex:1;justify-content:center;min-width:160px">⬇ Exportar JSON</button>
+              <button class="btn btn-secondary" onclick="APP.cfgBackupExcel()" id="cfgBtnExcel" style="flex:1;justify-content:center;min-width:160px">⬇ Exportar Excel</button>
+              <button class="btn btn-secondary" onclick="APP.cfgBackupAmbos()" style="flex:1;justify-content:center;min-width:160px">⬇ JSON + Excel</button>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico desta sessão</div>
+            <div id="cfgBackupLog"><span style="color:var(--t4);font-size:12.5px">Nenhum backup realizado nesta sessão.</span></div>
+          </div>
+        </div>
+        <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:12px 16px;font-size:12.5px;color:#92400e;margin-top:12px">
+          ⚠️ <strong>Restauração:</strong> em caso de necessidade, entre em contato com o desenvolvedor. O arquivo JSON contém toda a estrutura para recuperação completa.
+        </div>
+      </div>
+
+      <!-- TAB: TABELAS FISCAIS -->
+      <div class="cfg-panel" id="cfgPanel-tabelas">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📊 Tabelas Fiscais IR / INSS</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" id="cfgBtnBuscarTabelas" onclick="APP.buscarTabelasOnline()">🌐 Buscar online</button>
+              <button class="btn btn-primary btn-sm" id="cfgBtnSalvarTabelas" style="display:none" onclick="APP.salvarTabelasConfig()">💾 Salvar</button>
+            </div>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ As tabelas abaixo são usadas para calcular INSS e IR de Leo e Pri na tela de Salários. Atualize sempre que houver reajuste pelo governo federal.
+            </div>
+            <div id="cfgTabelasContent">
+              <p style="color:var(--t4);font-size:12.5px">Carregando tabelas...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: LOG DE ATIVIDADES -->
+      <div class="cfg-panel" id="cfgPanel-log">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📋 Log de Atividades Recentes</h3>
+            <button class="btn btn-ghost btn-sm" onclick="APP.cfgCarregarLog()">🔄 Atualizar</button>
+          </div>
+          <div style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>Data/Hora</th><th>Ação</th><th>Descrição</th><th>Usuário</th><th>Valor</th></tr></thead>
+                <tbody id="cfgLogBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t4)">Clique em Atualizar para carregar</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: PREFERÊNCIAS -->
+      <div class="cfg-panel" id="cfgPanel-prefs">
+        <div class="section-card">
+          <div class="section-header"><h3>⚙️ Preferências do Sistema</h3></div>
+          <div style="padding:18px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div class="fg"><label>Itens por página (tela Contas)</label>
+                  <select id="cfgPgSz" onchange="APP.cfgSalvarPrefs()">
+                    <option value="10">10 itens</option>
+                    <option value="20" selected>20 itens (padrão)</option>
+                    <option value="50">50 itens</option>
+                    <option value="100">100 itens</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Parcelas padrão ao cadastrar nova conta</label>
+                  <input type="number" id="cfgParcelaPadrao" min="1" max="120" value="1" onchange="APP.cfgSalvarPrefs()">
+                </div>
+              </div>
+              <div>
+                <div class="fg"><label>Alertas de vencimento próximo</label>
+                  <select id="cfgAlertaDias" onchange="APP.cfgSalvarPrefs()">
+                    <option value="0">Desativado</option>
+                    <option value="3">3 dias antes</option>
+                    <option value="5" selected>5 dias antes</option>
+                    <option value="7">7 dias antes</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Tema visual</label>
+                  <select id="cfgTema" onchange="APP.cfgAplicarTema(this.value)">
+                    <option value="light">Claro</option>
+                    <option value="dark">Escuro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--t4)">Preferências salvas automaticamente no seu navegador.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
 </main>
@@ -615,6 +862,8 @@
 
 <div class="toast" id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

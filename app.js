@@ -118,11 +118,11 @@ const STATE = {
   page:'dashboard', pg:1, pgSz:20,
   dashResp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
-  periodo:null,       // período ativo no Relatório
-  periodoDash:null,   // período ativo no Dashboard
-  periodoContas:null, // período ativo em Contas
-  periodoTela:null,   // qual tela está usando o modal de período
+  periodo:null, periodoDash:null, periodoContas:null, periodoTela:null,
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
+  sortContas:{col:null, dir:1},   // col=nome da coluna, dir=1 asc / -1 desc
+  sortRel:   {col:null, dir:1},
+  darkMode:  localStorage.getItem('dt_dark')==='1',
 };
 
 // ============================================================
@@ -175,6 +175,15 @@ const FS = {
       vPagar: valorPago, // valor pago vira o valor definitivo — cálculos ficam consistentes
       paidBy: quem,
       paidAt: today(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async desfazerPagamento(id, vPagarOriginal){
+    await fbDb.collection('contas').doc(id).update({
+      vPago:  null,
+      vPagar: vPagarOriginal,
+      paidBy: firebase.firestore.FieldValue.delete(),
+      paidAt: firebase.firestore.FieldValue.delete(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   },
@@ -312,6 +321,11 @@ const APP = {
     this.restoreSidebarState();
     const chip=document.getElementById('sbUserChip');
     if(chip) chip.textContent='👤 '+STATE.usuario;
+    // Configurações só visível para Leo (admin)
+    if(STATE.usuario==='Leo'){
+      const nav=document.getElementById('navConfig');
+      if(nav) nav.style.display='flex';
+    }
     this.renderPage('dashboard');
   },
 
@@ -452,6 +466,7 @@ const APP = {
   },
 
   renderPage(p){
+    if((p==='backup'||p==='config') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
     STATE.page=p;
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     const el=document.getElementById(`page-${p}`);
@@ -463,6 +478,8 @@ const APP = {
       salario:   ()=>this.renderSalario(),
       relatorio: ()=>this.renderRelatorio(),
       upload:    ()=>this.upRenderHistorico(),
+      backup:    ()=>this.renderBackup(),
+      config:    ()=>this.renderConfig(),
     })[p]?.();
   },
 
@@ -648,6 +665,9 @@ const APP = {
 
     document.getElementById('contasInfo').textContent=`${data.length} conta${data.length!==1?'s':''} encontrada${data.length!==1?'s':''}`;
 
+    // Ordenação
+    data = this._aplicarSort(data,'sortContas');
+
     const totalPg=Math.max(1,Math.ceil(data.length/STATE.pgSz));
     if(STATE.pg>totalPg)STATE.pg=1;
     const start=(STATE.pg-1)*STATE.pgSz;
@@ -672,6 +692,7 @@ const APP = {
         <td style="white-space:nowrap">
           <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>
           ${!pago?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
+          ${pago?`<button class="action-btn" title="Desfazer pagamento" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
           ${hasGrupo?`<button class="action-btn parcs" title="Parcelamento" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
           <button class="action-btn del" title="Excluir" onclick="APP.deleteConta('${c.id}')">✕</button>
         </td></tr>`;
@@ -1149,6 +1170,9 @@ const APP = {
       {label:'Total Pago',val:fmt(tPg),c:'var(--palm)'},
       {label:'Pendente',val:fmt(tPend),c:'var(--yellow)'},
     ].map(k=>`<div class="rel-kpi"><label>${k.label}</label><div class="val" style="color:${k.c}">${k.val}</div></div>`).join('');
+
+    // Ordenação
+    data = this._aplicarSort(data,'sortRel');
 
     document.getElementById('tbodyRel').innerHTML=data.map((c,i)=>{
       const ef=vEfetivo(c); const pend=c.vPago>0?0:ef; const atr=isOverdue(c);
@@ -1850,3 +1874,676 @@ Object.assign(APP, {
   _upShowAlert(id,msg){ const el=document.getElementById(id); if(!el)return; el.innerHTML=msg; el.style.display='block'; },
   _upOcultarAlertas(){ ['upAlertErr','upAlertOk','upAlertAv','upAlertVal'].forEach(id=>{ const el=document.getElementById(id); if(el)el.style.display='none'; }); },
 });
+
+// ============================================================
+// BACKUP MODULE — somente Leo
+// ============================================================
+Object.assign(APP, {
+
+  _backupLog: [],
+
+  renderBackup(){
+    if(STATE.usuario!=='Leo') return;
+    // Stats em tempo real do CACHE
+    document.getElementById('bkContas').textContent   = CACHE.contas.length;
+    document.getElementById('bkSalarios').textContent = CACHE.salarios.length;
+    document.getElementById('bkCats').textContent     = CACHE.getAllCats().length;
+    document.getElementById('bkImps').textContent     = '...';
+    // Buscar contagem de importações no Firestore
+    fbDb.collection('importacoes').get().then(s=>{
+      const el=document.getElementById('bkImps');
+      if(el) el.textContent=s.size;
+    });
+    this._renderBackupLog();
+  },
+
+  _renderBackupLog(){
+    const el=document.getElementById('backupHistorico');
+    if(!el) return;
+    if(!this._backupLog.length){
+      el.innerHTML='<span style="color:var(--t4)">Nenhum backup realizado nesta sessão.</span>';
+      return;
+    }
+    el.innerHTML=this._backupLog.map(l=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px">${l.tipo==='json'?'📄':'📊'}</span>
+        <div>
+          <div style="font-weight:600;font-size:12.5px;color:var(--t1)">${l.arquivo}</div>
+          <div style="font-size:11px;color:var(--t4)">${l.data} às ${l.hora} · ${l.registros} registros</div>
+        </div>
+        <span class="badge bg-pago" style="margin-left:auto">✅ Baixado</span>
+      </div>`).join('');
+  },
+
+  async _coletarDados(){
+    this.toast('Coletando dados do banco...','info');
+    // Buscar coleções diretamente do Firestore para garantir dados frescos
+    const [contas,salarios,outras,cats,formas,cartoes,importacoes] = await Promise.all([
+      fbDb.collection('contas').get(),
+      fbDb.collection('salarios').get(),
+      fbDb.collection('outras_receitas').get(),
+      fbDb.collection('categorias').get(),
+      fbDb.collection('formas').get(),
+      fbDb.collection('cartoes').get(),
+      fbDb.collection('importacoes').get(),
+    ]);
+    const doc2obj = snap => snap.docs.map(d=>({_id:d.id,...d.data()}));
+    return {
+      meta:{
+        geradoEm:    new Date().toISOString(),
+        geradoPor:   STATE.usuario,
+        totalContas: contas.size,
+        sistema:     'Duetto Financeiro v1.0',
+      },
+      contas:       doc2obj(contas),
+      salarios:     doc2obj(salarios),
+      outras_receitas: doc2obj(outras),
+      categorias:   doc2obj(cats),
+      formas:       doc2obj(formas),
+      cartoes:      doc2obj(cartoes),
+      importacoes:  doc2obj(importacoes),
+    };
+  },
+
+  _nomeArquivo(ext){
+    const d=new Date();
+    const dt=`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    return `Duetto_Backup_${dt}.${ext}`;
+  },
+
+  _registrarLog(tipo,arquivo,dados){
+    const d=new Date();
+    const total=Object.values(dados).reduce((s,v)=>s+(Array.isArray(v)?v.length:0),0);
+    this._backupLog.unshift({
+      tipo,arquivo,
+      data:d.toLocaleDateString('pt-BR'),
+      hora:d.toLocaleTimeString('pt-BR'),
+      registros:total,
+    });
+    this._renderBackupLog();
+  },
+
+  async backupJSON(){
+    const btn=document.getElementById('btnBackupJSON');
+    btn.disabled=true; btn.textContent='⏳ Exportando...';
+    try{
+      const dados = await this._coletarDados();
+      const json  = JSON.stringify(dados, null, 2);
+      const blob  = new Blob([json],{type:'application/json'});
+      const nome  = this._nomeArquivo('json');
+      const a=document.createElement('a');
+      a.href=URL.createObjectURL(blob);
+      a.download=nome; a.click();
+      this._registrarLog('json',nome,dados);
+      this.toast(`Backup JSON exportado: ${nome} ✅`,'success');
+    }catch(e){
+      this.toast('Erro ao exportar: '+e.message,'error');
+    }
+    btn.disabled=false; btn.textContent='Exportar JSON';
+  },
+
+  async backupExcel(){
+    if(typeof XLSX==='undefined') return this.toast('Biblioteca Excel não carregada','error');
+    const btn=document.getElementById('btnBackupExcel');
+    btn.disabled=true; btn.textContent='⏳ Exportando...';
+    try{
+      const dados = await this._coletarDados();
+      const wb    = XLSX.utils.book_new();
+
+      // Aba: Contas
+      const hdContas=['ID','Descrição','Responsável','Categoria ID','Forma ID','Data','A Pagar','Pago','Parcela','Grupo','Nota','Criado por','Atualizado por','Pago por','Data Pgto'];
+      const rwContas=dados.contas.map(c=>[c._id,c.conta,c.resp,c.catId||'',c.formaId||'',c.data,c.vPagar,c.vPago||'',c.parcela||'',c.grupo||'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'']);
+      const wsContas=XLSX.utils.aoa_to_sheet([hdContas,...rwContas]);
+      wsContas['!cols']=[{wch:24},{wch:36},{wch:12},{wch:20},{wch:20},{wch:12},{wch:12},{wch:12},{wch:14},{wch:28},{wch:28},{wch:12},{wch:12},{wch:12},{wch:12}];
+      wsContas['!views']=[{state:'frozen',xSplit:0,ySplit:1,topLeftCell:'A2'}];
+      XLSX.utils.book_append_sheet(wb,wsContas,'Contas');
+
+      // Aba: Categorias
+      const wsCats=XLSX.utils.aoa_to_sheet([['ID','Nome'],...dados.categorias.map(c=>[c._id,c.nome])]);
+      wsCats['!cols']=[{wch:24},{wch:28}];
+      XLSX.utils.book_append_sheet(wb,wsCats,'Categorias');
+
+      // Aba: Formas
+      const wsFormas=XLSX.utils.aoa_to_sheet([['ID','Nome'],...dados.formas.map(f=>[f._id,f.nome])]);
+      wsFormas['!cols']=[{wch:24},{wch:28}];
+      XLSX.utils.book_append_sheet(wb,wsFormas,'Formas de Pagamento');
+
+      // Aba: Salários
+      const hdSal=['ID','Nome','Pessoa'];
+      const rwSal=dados.salarios.map(s=>[s._id,s.nome,s.pessoa]);
+      const wsSal=XLSX.utils.aoa_to_sheet([hdSal,...rwSal]);
+      wsSal['!cols']=[{wch:24},{wch:24},{wch:10}];
+      XLSX.utils.book_append_sheet(wb,wsSal,'Salários');
+
+      // Aba: Outras Receitas
+      const hdOut=['ID','Descrição','Responsável','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+      const rwOut=dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,...(r.valores||Array(12).fill(0))]);
+      const wsOut=XLSX.utils.aoa_to_sheet([hdOut,...rwOut]);
+      wsOut['!cols']=[{wch:24},{wch:32},{wch:12},...Array(12).fill({wch:10})];
+      XLSX.utils.book_append_sheet(wb,wsOut,'Outras Receitas');
+
+      // Aba: Cartões
+      const wsCrt=XLSX.utils.aoa_to_sheet([['ID','Nome','Bandeira','Criado por'],...dados.cartoes.map(c=>[c._id,c.nome,c.bandeira||'',c.createdBy||''])]);
+      wsCrt['!cols']=[{wch:24},{wch:28},{wch:16},{wch:14}];
+      XLSX.utils.book_append_sheet(wb,wsCrt,'Cartões');
+
+      // Aba: Histórico Importações
+      const hdImp=['ID','Nome Planilha','Planilha ID','Qtd Contas','Qtd Docs','Importado por','Data','Hora'];
+      const rwImp=dados.importacoes.map(i=>[i._id,i.nome||'',i.planilhaId||'',i.qtdContas||0,i.qtdDocs||0,i.importadoPor||'',i.data||'',i.hora||'']);
+      const wsImp=XLSX.utils.aoa_to_sheet([hdImp,...rwImp]);
+      wsImp['!cols']=[{wch:24},{wch:32},{wch:32},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12}];
+      XLSX.utils.book_append_sheet(wb,wsImp,'Importações');
+
+      // Aba: Meta
+      const wsMeta=XLSX.utils.aoa_to_sheet([
+        ['Campo','Valor'],
+        ['Gerado em',dados.meta.geradoEm],
+        ['Gerado por',dados.meta.geradoPor],
+        ['Total de contas',dados.meta.totalContas],
+        ['Sistema',dados.meta.sistema],
+      ]);
+      wsMeta['!cols']=[{wch:18},{wch:40}];
+      XLSX.utils.book_append_sheet(wb,wsMeta,'Meta');
+
+      const nome=this._nomeArquivo('xlsx');
+      XLSX.writeFile(wb,nome);
+      this._registrarLog('excel',nome,dados);
+      this.toast(`Backup Excel exportado: ${nome} ✅`,'success');
+    }catch(e){
+      this.toast('Erro ao exportar: '+e.message,'error');
+    }
+    btn.disabled=false; btn.textContent='Exportar Excel';
+  },
+
+  async backupAmbos(){
+    await this.backupJSON();
+    await this.backupExcel();
+  },
+});
+
+// ============================================================
+// DARK MODE + SORT + DESFAZER + PDF
+// ============================================================
+Object.assign(APP, {
+
+  // ── DARK MODE ──
+  toggleDark(){
+    STATE.darkMode = !STATE.darkMode;
+    document.documentElement.classList.toggle('dark', STATE.darkMode);
+    localStorage.setItem('dt_dark', STATE.darkMode?'1':'0');
+  },
+
+  initDark(){
+    if(STATE.darkMode) document.documentElement.classList.add('dark');
+  },
+
+  // ── DESFAZER PAGAMENTO ──
+  async desfazerPagamento(id){
+    const c = CACHE.contas.find(x=>x.id===id);
+    if(!c) return;
+    if(!confirm(`Desfazer pagamento de "${c.conta}"?\n\nA conta voltará ao status pendente.`)) return;
+    // Guarda o valor original antes de desfazer
+    const vOriginal = c.vPago || c.vPagar;
+    await FS.desfazerPagamento(id, vOriginal);
+    this.toast(`Pagamento desfeito: ${c.conta}`,'success');
+  },
+
+  // ── ORDENAÇÃO ──
+  sortTable(tabela, col){
+    const key = tabela==='contas' ? 'sortContas' : 'sortRel';
+    if(STATE[key].col===col){
+      STATE[key].dir *= -1; // inverte direção
+    } else {
+      STATE[key].col = col;
+      STATE[key].dir = 1;
+    }
+    // Atualizar ícones
+    document.querySelectorAll('.sort-icon').forEach(el=>{
+      el.classList.remove('asc','desc');
+    });
+    const icone = document.querySelector(`.sort-icon[data-col="${col}"]`);
+    if(icone) icone.classList.add(STATE[key].dir===1?'asc':'desc');
+
+    if(tabela==='contas') this.renderContas();
+    else                  this.renderRelatorio();
+  },
+
+  _aplicarSort(data, key){
+    const s = STATE[key];
+    if(!s.col) return data;
+    return [...data].sort((a,b)=>{
+      let va, vb;
+      const col = s.col;
+      if(col==='conta'||col==='resp'||col==='parcela'){
+        va=String(a[col]||'').toLowerCase();
+        vb=String(b[col]||'').toLowerCase();
+      } else if(col==='data'){
+        va=a.data||'';
+        vb=b.data||'';
+      } else if(col==='vPagar'||col==='vPago'){
+        va=Number(a[col]||0);
+        vb=Number(b[col]||0);
+      } else if(col==='forma'){
+        va=CACHE.resolveForma(a.formaId||a.forma).toLowerCase();
+        vb=CACHE.resolveForma(b.formaId||b.forma).toLowerCase();
+      } else if(col==='cat'){
+        va=CACHE.resolveCat(a.catId||a.cat).toLowerCase();
+        vb=CACHE.resolveCat(b.catId||b.cat).toLowerCase();
+      } else {
+        va=a[col]||''; vb=b[col]||'';
+      }
+      if(va<vb) return -1*s.dir;
+      if(va>vb) return  1*s.dir;
+      return 0;
+    });
+  },
+
+  // ── PDF DO RELATÓRIO ──
+  exportPDF(){
+    if(typeof window.jspdf === 'undefined' && typeof jspdf === 'undefined'){
+      return this.toast('Biblioteca PDF não carregada. Aguarde e tente novamente.','error');
+    }
+    const { jsPDF } = window.jspdf || jspdf;
+    const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
+
+    // Coletar dados do filtro atual
+    const anoVal  = document.getElementById('relAno').value;
+    const mesVal  = document.getElementById('relMes').value;
+    const cat     = document.getElementById('relCat').value;
+    const resp    = document.getElementById('relResp').value;
+    const p       = STATE.periodo;
+
+    let data = CACHE.contas;
+    if(p){
+      data = data.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; });
+    } else {
+      if(anoVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
+      if(mesVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+    }
+    if(cat) data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
+    if(resp){
+      if(resp==='Leo & Pri') data=data.filter(c=>c.resp==='Leo & Pri');
+      else data=data.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2,vPago:c.vPago>0?c.vPago/2:null,_split:true}:{...c});
+    }
+    data = this._aplicarSort(data,'sortRel');
+
+    const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
+    const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
+    const tPend = data.reduce((s,c)=>s+(c.vPago>0?0:vEfetivo(c)),0);
+
+    // Período label
+    let periodoLabel = '';
+    if(p) periodoLabel = `${MESES_F[p.mesIni]} a ${MESES_F[p.mesFim]} de ${p.ano}`;
+    else if(mesVal!=='todos') periodoLabel = `${MESES_F[parseInt(mesVal)]}/${anoVal==='todos'?'Todos':anoVal}`;
+    else periodoLabel = anoVal==='todos'?'Todos os períodos':anoVal;
+    if(resp) periodoLabel += ` · ${resp}`;
+    if(cat)  periodoLabel += ` · ${cat}`;
+
+    // ── CABEÇALHO ──
+    doc.setFillColor(0, 100, 55);
+    doc.rect(0, 0, 297, 22, 'F');
+    doc.setTextColor(255,255,255);
+    doc.setFontSize(16); doc.setFont('helvetica','bold');
+    doc.text('Duetto Financeiro', 14, 10);
+    doc.setFontSize(9); doc.setFont('helvetica','normal');
+    doc.text('Relatório de Despesas', 14, 16);
+    doc.setFontSize(9);
+    doc.text(`Período: ${periodoLabel}`, 150, 10);
+    doc.text(`Gerado em: ${new Date().toLocaleDateString('pt-BR')} às ${new Date().toLocaleTimeString('pt-BR')}`, 150, 16);
+
+    // ── KPI CARDS ──
+    const kpis = [
+      {label:'Qtd. Contas', val:String(data.length), cor:[37,99,235]},
+      {label:'Total a Pagar', val:fmt(tP), cor:[220,38,38]},
+      {label:'Total Pago', val:fmt(tPg), cor:[0,100,55]},
+      {label:'Pendente', val:fmt(tPend), cor:[217,119,6]},
+    ];
+    const kW=60, kH=16, kY=26;
+    kpis.forEach((k,i)=>{
+      const x=14+i*(kW+4);
+      doc.setFillColor(248,251,248);
+      doc.setDrawColor(220,220,220);
+      doc.roundedRect(x,kY,kW,kH,2,2,'FD');
+      doc.setFontSize(7); doc.setTextColor(100,100,100); doc.setFont('helvetica','normal');
+      doc.text(k.label, x+3, kY+5);
+      doc.setFontSize(11); doc.setTextColor(...k.cor); doc.setFont('helvetica','bold');
+      doc.text(k.val, x+3, kY+12);
+    });
+
+    // ── TABELA ──
+    const rows = data.map((c,i)=>{
+      const ef=vEfetivo(c);
+      const pend=c.vPago>0?'—':fmt(ef);
+      const atr=isOverdue(c);
+      return [
+        i+1,
+        (c.conta||'')+(c._split?' ÷2':''),
+        c.resp,
+        CACHE.resolveForma(c.formaId||c.forma),
+        CACHE.resolveCat(c.catId||c.cat),
+        fmt(ef),
+        c.vPago>0?fmt(c.vPago):'—',
+        pend,
+        fmtDate(c.data),
+        c.parcela||'—',
+        c.paidBy||c.updatedBy||'—',
+        c.nota||'—',
+      ];
+    });
+
+    doc.autoTable({
+      startY: kY+kH+4,
+      head: [['#','Descrição','Resp.','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota']],
+      body: rows,
+      styles:{ fontSize:7.5, cellPadding:2.5, font:'helvetica', textColor:[55,65,81] },
+      headStyles:{ fillColor:[0,100,55], textColor:[255,255,255], fontStyle:'bold', fontSize:8 },
+      alternateRowStyles:{ fillColor:[248,252,249] },
+      columnStyles:{
+        0:{cellWidth:8, halign:'center'},
+        1:{cellWidth:48},
+        2:{cellWidth:16},
+        3:{cellWidth:22},
+        4:{cellWidth:22},
+        5:{cellWidth:20, halign:'right'},
+        6:{cellWidth:20, halign:'right'},
+        7:{cellWidth:20, halign:'right'},
+        8:{cellWidth:20},
+        9:{cellWidth:14},
+        10:{cellWidth:12},
+        11:{cellWidth:28},
+      },
+      didParseCell(hook){
+        // Linha de total no final
+        if(hook.row.index===rows.length-1 && hook.section==='body'){
+          hook.cell.styles.fontStyle='bold';
+        }
+        // Datas atrasadas em laranja
+        if(hook.column.index===8 && hook.section==='body'){
+          const c=data[hook.row.index];
+          if(c&&isOverdue(c)) hook.cell.styles.textColor=[234,88,12];
+        }
+      },
+      foot:[['','','','','Total',fmt(tP),fmt(tPg),fmt(tPend),'','','','']],
+      footStyles:{ fillColor:[0,100,55], textColor:[255,255,255], fontStyle:'bold', fontSize:8 },
+    });
+
+    // ── RODAPÉ ──
+    const pgs = doc.internal.getNumberOfPages();
+    for(let i=1;i<=pgs;i++){
+      doc.setPage(i);
+      doc.setFontSize(7); doc.setTextColor(150,150,150); doc.setFont('helvetica','normal');
+      doc.text(`Página ${i} de ${pgs} · Duetto Financeiro · Confidencial`, 14, doc.internal.pageSize.height-5);
+    }
+
+    const dt=new Date();
+    const nome=`Duetto_Relatorio_${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}.pdf`;
+    doc.save(nome);
+    this.toast(`PDF gerado: ${nome} ✅`,'success');
+  },
+});
+
+// Inicializar dark mode ao carregar
+APP.initDark();
+
+// ============================================================
+// CONFIGURAÇÕES MODULE — somente Leo
+// ============================================================
+Object.assign(APP, {
+
+  _cfgTabAtual: 'usuarios',
+  _cfgUsuarios: [], // carregados do Firestore
+
+  // ── RENDER PRINCIPAL ──
+  async renderConfig(){
+    if(STATE.usuario!=='Leo') return;
+    this.cfgTab(this._cfgTabAtual);
+    await this.cfgCarregarUsuarios();
+    this.cfgAtualizarStats();
+    this.cfgCarregarPrefs();
+    this.cfgCarregarTabelasDisplay();
+  },
+
+  cfgTab(tab){
+    this._cfgTabAtual = tab;
+    document.querySelectorAll('.cfg-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
+    document.querySelectorAll('.cfg-panel').forEach(p=>p.classList.toggle('active', p.id===`cfgPanel-${tab}`));
+    if(tab==='log') this.cfgCarregarLog();
+  },
+
+  // ── USUÁRIOS ──
+  async cfgCarregarUsuarios(){
+    const el = document.getElementById('cfgListaUsuarios');
+    if(!el) return;
+
+    // Buscar usuários da coleção config/usuarios (se existir)
+    let extras = [];
+    try{
+      const snap = await fbDb.collection('config').doc('usuarios').get();
+      if(snap.exists) extras = snap.data().lista || [];
+    }catch(e){}
+
+    // Lista base: Leo e Pri (fixos no sistema)
+    const base = [
+      {nome:'Leonardo Gomes', email:'leonardo.phn7@gmail.com', role:'admin'},
+      {nome:'Priscila Alverim', email:'pri.alverim@gmail.com', role:'user'},
+    ];
+
+    // Mesclar com extras do Firestore
+    const todos = [...base, ...extras.filter(e=>!base.some(b=>b.email===e.email))];
+    this._cfgUsuarios = todos;
+
+    el.innerHTML = todos.map(u=>`
+      <div class="cfg-user-item">
+        <div class="info">
+          <div class="nome">${u.nome} ${u.role==='admin'?'👑':''}</div>
+          <div class="email">${u.email}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="role ${u.role==='admin'?'role-admin':'role-user'}">${u.role==='admin'?'Admin':'Usuário'}</span>
+          ${!['leonardo.phn7@gmail.com','pri.alverim@gmail.com'].includes(u.email)
+            ? `<button class="action-btn del" onclick="APP.cfgRemoverUsuario('${u.email}')" title="Remover">✕</button>`
+            : `<span style="font-size:11px;color:var(--t4)">Fixo</span>`}
+        </div>
+      </div>`).join('');
+  },
+
+  async cfgAdicionarUsuario(){
+    const nome  = document.getElementById('cfgNovoNome').value.trim();
+    const email = document.getElementById('cfgNovoEmail').value.trim().toLowerCase();
+    if(!nome)  return this.toast('Informe o nome','error');
+    if(!email||!email.includes('@')) return this.toast('E-mail inválido','error');
+    if(this._cfgUsuarios.some(u=>u.email===email)) return this.toast('E-mail já cadastrado','error');
+
+    const snap = await fbDb.collection('config').doc('usuarios').get();
+    const lista = snap.exists ? (snap.data().lista||[]) : [];
+    lista.push({nome, email, role:'user', adicionadoPor:STATE.usuario, em:new Date().toISOString()});
+    await fbDb.collection('config').doc('usuarios').set({lista});
+
+    document.getElementById('cfgNovoNome').value='';
+    document.getElementById('cfgNovoEmail').value='';
+    await this.cfgCarregarUsuarios();
+    this.toast(`${nome} adicionado ✅. Lembre de atualizar as regras do Firestore para liberar o acesso completo.`,'success');
+  },
+
+  async cfgRemoverUsuario(email){
+    if(!confirm(`Remover ${email} do sistema?`)) return;
+    const snap = await fbDb.collection('config').doc('usuarios').get();
+    if(!snap.exists) return;
+    const lista = (snap.data().lista||[]).filter(u=>u.email!==email);
+    await fbDb.collection('config').doc('usuarios').set({lista});
+    await this.cfgCarregarUsuarios();
+    this.toast('Usuário removido','success');
+  },
+
+  // ── BACKUP (chama as funções já existentes) ──
+  async cfgAtualizarStats(){
+    const el1=document.getElementById('cfgBkContas');
+    const el2=document.getElementById('cfgBkSalarios');
+    const el3=document.getElementById('cfgBkCats');
+    const el4=document.getElementById('cfgBkImps');
+    if(el1) el1.textContent = CACHE.contas.length;
+    if(el2) el2.textContent = CACHE.salarios.length;
+    if(el3) el3.textContent = CACHE.getAllCats().length;
+    if(el4){
+      fbDb.collection('importacoes').get().then(s=>{ if(el4) el4.textContent=s.size; });
+    }
+    // Sincronizar log de backup com a página de config
+    this._syncBackupLog();
+  },
+
+  _syncBackupLog(){
+    const el = document.getElementById('cfgBackupLog');
+    if(!el) return;
+    if(!this._backupLog||!this._backupLog.length){
+      el.innerHTML='<span style="color:var(--t4);font-size:12.5px">Nenhum backup realizado nesta sessão.</span>';
+      return;
+    }
+    el.innerHTML=this._backupLog.map(l=>`
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+        <span style="font-size:18px">${l.tipo==='json'?'📄':'📊'}</span>
+        <div><div style="font-weight:600;font-size:12.5px">${l.arquivo}</div>
+        <div style="font-size:11px;color:var(--t4)">${l.data} às ${l.hora} · ${l.registros} registros</div></div>
+        <span class="badge bg-pago" style="margin-left:auto">✅</span>
+      </div>`).join('');
+  },
+
+  async cfgBackupJSON(){
+    const btn=document.getElementById('cfgBtnJSON');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Exportando...'; }
+    await this.backupJSON();
+    this._syncBackupLog();
+    if(btn){ btn.disabled=false; btn.textContent='⬇ Exportar JSON'; }
+  },
+
+  async cfgBackupExcel(){
+    const btn=document.getElementById('cfgBtnExcel');
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Exportando...'; }
+    await this.backupExcel();
+    this._syncBackupLog();
+    if(btn){ btn.disabled=false; btn.textContent='⬇ Exportar Excel'; }
+  },
+
+  async cfgBackupAmbos(){
+    await this.cfgBackupJSON();
+    await this.cfgBackupExcel();
+  },
+
+  // ── TABELAS FISCAIS (chama openTabelas existente, mas exibe inline) ──
+  cfgCarregarTabelasDisplay(){
+    const el = document.getElementById('cfgTabelasContent');
+    if(!el) return;
+    const tab = CACHE.tabelas;
+    if(!tab){ el.innerHTML='<p style="color:var(--t4)">Tabelas não carregadas.</p>'; return; }
+    el.innerHTML=`
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">TABELA IR</div>
+          <textarea id="cfgEditorIR" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical;background:var(--bg);color:var(--t1)">${JSON.stringify(tab.ir||[],null,2)}</textarea>
+        </div>
+        <div>
+          <div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px">TABELA INSS</div>
+          <textarea id="cfgEditorINSS" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical;background:var(--bg);color:var(--t1)">${JSON.stringify(tab.inss||[],null,2)}</textarea>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div class="fg"><label>Dedução por dependente (R$)</label><input type="number" id="cfgEdDedDep" step="0.01" value="${tab.dedDep||189.59}" style="background:var(--bg);color:var(--t1)"></div>
+        <div class="fg"><label>Teto INSS (R$)</label><input type="number" id="cfgEdTetoINSS" step="0.01" value="${tab.tetoINSS||908.86}" style="background:var(--bg);color:var(--t1)"></div>
+        <div class="fg"><label>Vigência</label><input type="text" id="cfgVigencia" value="${tab.vigencia||''}" placeholder="Ex: Jan/2024" style="background:var(--bg);color:var(--t1)"></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="APP.buscarTabelasOnline()">🌐 Buscar online</button>
+        <button class="btn btn-primary" onclick="APP.salvarTabelasConfig()">💾 Salvar Tabelas</button>
+      </div>`;
+    document.getElementById('cfgBtnSalvarTabelas').style.display='none';
+  },
+
+  async salvarTabelasConfig(){
+    // Tenta ler dos editores inline da Config, senão usa os do modal original
+    const irEl     = document.getElementById('cfgEditorIR')  || document.getElementById('editorIR');
+    const inssEl   = document.getElementById('cfgEditorINSS')|| document.getElementById('editorINSS');
+    const dedEl    = document.getElementById('cfgEdDedDep')  || document.getElementById('edDedDep');
+    const tetoEl   = document.getElementById('cfgEdTetoINSS')|| document.getElementById('edTetoINSS');
+    const vigEl    = document.getElementById('cfgVigencia')  || document.getElementById('vigencia');
+    try{
+      const ir      = JSON.parse(irEl.value);
+      const inss    = JSON.parse(inssEl.value);
+      const dedDep  = parseFloat(dedEl.value)||189.59;
+      const tetoINSS= parseFloat(tetoEl.value)||908.86;
+      const vigencia= vigEl.value;
+      await FS.saveTabelas({ir,inss,dedDep,tetoINSS,vigencia});
+      // Fechar modal se estiver aberto
+      document.getElementById('ovTabelas').classList.remove('open');
+      this.toast('Tabelas fiscais atualizadas ✅','success');
+      setTimeout(()=>this.cfgCarregarTabelasDisplay(), 1000);
+    }catch(e){ this.toast('JSON inválido: '+e.message,'error'); }
+  },
+
+  // ── LOG DE ATIVIDADES ──
+  async cfgCarregarLog(){
+    const tbody = document.getElementById('cfgLogBody');
+    if(!tbody) return;
+    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">⏳ Carregando...</td></tr>';
+
+    // Buscar as 100 contas modificadas mais recentemente
+    const snap = await fbDb.collection('contas')
+      .orderBy('updatedAt','desc')
+      .limit(100)
+      .get().catch(()=>null);
+
+    if(!snap){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">Índice não disponível. Ordenação padrão.</td></tr>'; return; }
+
+    const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+
+    tbody.innerHTML = rows.map(c=>{
+      let acao='', detalhe='', usuario='', valor='', cor='';
+      if(c.vPago>0&&c.paidBy){
+        acao='✅ Pagamento'; detalhe=c.conta; usuario=c.paidBy; valor=fmt(c.vPago); cor='log-item-pago';
+      } else if(c.updatedBy&&c.updatedBy!==c.createdBy){
+        acao='✏️ Edição'; detalhe=c.conta; usuario=c.updatedBy; valor=fmt(c.vPagar);
+      } else {
+        acao='➕ Cadastro'; detalhe=c.conta; usuario=c.createdBy||'—'; valor=fmt(c.vPagar);
+      }
+      const data = c.paidAt||c.updatedAt?.toDate?.()?.toLocaleDateString('pt-BR')||'—';
+      return`<tr class="${cor}"><td style="font-size:11px;color:var(--t4);white-space:nowrap">${data}</td><td>${acao}</td><td style="max-width:200px;white-space:normal">${detalhe}</td><td><span class="audit-chip">${usuario}</span></td><td class="${c.vPago>0?'pos':'neg'}">${valor}</td></tr>`;
+    }).join('')||'<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">Nenhuma atividade encontrada</td></tr>';
+  },
+
+  // ── PREFERÊNCIAS ──
+  cfgCarregarPrefs(){
+    const prefs = JSON.parse(localStorage.getItem('dt_prefs')||'{}');
+    const pgSz    = document.getElementById('cfgPgSz');
+    const parcPad = document.getElementById('cfgParcelaPadrao');
+    const alertD  = document.getElementById('cfgAlertaDias');
+    const tema    = document.getElementById('cfgTema');
+    if(pgSz    && prefs.pgSz)         pgSz.value    = prefs.pgSz;
+    if(parcPad && prefs.parcPadrao)   parcPad.value = prefs.parcPadrao;
+    if(alertD  && prefs.alertaDias!=null) alertD.value = prefs.alertaDias;
+    if(tema)                           tema.value    = STATE.darkMode?'dark':'light';
+  },
+
+  cfgSalvarPrefs(){
+    const pgSz    = parseInt(document.getElementById('cfgPgSz')?.value)||20;
+    const parcPad = parseInt(document.getElementById('cfgParcelaPadrao')?.value)||1;
+    const alertD  = parseInt(document.getElementById('cfgAlertaDias')?.value)||5;
+    const prefs   = {pgSz, parcPadrao:parcPad, alertaDias:alertD};
+    localStorage.setItem('dt_prefs', JSON.stringify(prefs));
+    STATE.pgSz = pgSz;
+    this.toast('Preferências salvas ✅','success');
+  },
+
+  cfgAplicarTema(valor){
+    STATE.darkMode = valor==='dark';
+    document.documentElement.classList.toggle('dark', STATE.darkMode);
+    localStorage.setItem('dt_dark', STATE.darkMode?'1':'0');
+    this.cfgSalvarPrefs();
+  },
+
+  // Carregar preferências salvas na inicialização
+  carregarPrefsInicio(){
+    const prefs = JSON.parse(localStorage.getItem('dt_prefs')||'{}');
+    if(prefs.pgSz) STATE.pgSz = parseInt(prefs.pgSz);
+  },
+});
+
+// Carregar preferências ao iniciar
+APP.carregarPrefsInicio();
