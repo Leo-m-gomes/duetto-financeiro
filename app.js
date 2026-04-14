@@ -339,6 +339,16 @@ const APP = {
       ?'<polyline points="9 18 15 12 9 6"/>'
       :'<polyline points="15 18 9 12 15 6"/>';
   },
+
+  toggleFiltros(){
+    const fg=document.getElementById('filterGroupContas');
+    const icon=document.getElementById('iconFiltros');
+    if(!fg) return;
+    const open=fg.classList.toggle('mob-filters-open');
+    if(icon) icon.innerHTML=open
+      ?'<polyline points="18 15 12 9 6 15"/>'
+      :'<polyline points="6 9 12 15 18 9"/>';
+  },
   restoreSidebarState(){
     if(localStorage.getItem('dt_sb_collapsed')==='1'){
       const sb=document.getElementById('sidebar');

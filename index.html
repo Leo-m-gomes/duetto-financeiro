@@ -148,7 +148,13 @@
     <div class="page-inner">
       <div class="overdue-alert" id="overdueAlert" onclick="APP.filtrarAtrasadas()"></div>
       <div class="filters-bar">
-        <div class="filter-group">
+        <button class="mob-filter-toggle" onclick="APP.toggleFiltros()" id="btnToggleFiltros">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtros
+          <span id="filtrosAtivosCount" style="display:none;background:var(--palm);color:#fff;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700"></span>
+          <svg id="iconFiltros" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="filter-group" id="filterGroupContas">
           <input type="text" class="filter-input" id="searchContas" placeholder="🔍 Buscar...">
           <select class="filter-select" id="filtroAnoContas"></select>
           <select class="filter-select" id="filtroMesContas"></select>

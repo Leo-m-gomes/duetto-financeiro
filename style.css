@@ -392,127 +392,226 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 .dark .cfg-tab.active{background:var(--palm)}
 .dark .cfg-user-item{background:var(--bg);border-color:var(--border)}
 
-/* ═══════════════════════════════════════════
-   MOBILE — telas < 640px
-   Tabelas viram cards, filtros empilham
-   ═══════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE-ONLY — telas ≤ 640px
+   Sem impacto no desktop
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Toggle de filtros (só aparece no mobile) ── */
+.mob-filter-toggle{
+  display:none; /* desktop: oculto */
+}
+
+/* ── Filtros: visíveis por padrão no desktop ── */
+.filter-group{ display:flex; }
+
 @media(max-width:640px){
 
-  /* ── Filtros em coluna ── */
-  .filters-bar{flex-direction:column;align-items:stretch}
-  .filter-group{flex-direction:column;gap:6px}
-  .filter-select,.filter-input{width:100%;min-width:unset;font-size:14px;padding:10px 12px}
-  .btn-sm{padding:10px 14px;font-size:13px}
+  /* ── TOPBAR: compacto, sem overflow ── */
+  .topbar{
+    padding:0 10px;
+    gap:6px;
+    flex-wrap:nowrap;
+    height:auto;
+    min-height:var(--sh);
+  }
+  .topbar-title{ font-size:14px; flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  #topbarBtns{
+    display:flex;
+    gap:4px;
+    flex-wrap:nowrap;
+    align-items:center;
+    flex-shrink:0;
+  }
+  /* Esconde texto, mantém ícone nos botões do topo */
+  #topbarBtns .btn span{ display:none; }
+  #topbarBtns .btn svg{ display:block; }
+  #topbarBtns .btn{ padding:7px 9px; min-width:unset; }
+  /* Esconde botões menos importantes no mobile */
+  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita{ display:none!important; }
 
-  /* ── Totais em linha compacta ── */
-  .totals-bar{grid-template-columns:1fr 1fr 1fr;gap:6px}
-  .total-pill{padding:8px 10px}
-  .total-pill label{font-size:9px}
-  .total-pill .val{font-size:13px}
+  /* ── FILTROS: toggle recolhível ── */
+  .mob-filter-toggle{
+    display:flex;
+    align-items:center;
+    gap:7px;
+    width:100%;
+    padding:11px 14px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-sm);
+    font-family:var(--font-b);
+    font-size:13.5px;
+    font-weight:500;
+    color:var(--t2);
+    cursor:pointer;
+    margin-bottom:8px;
+  }
+  .mob-filter-toggle svg:last-child{ margin-left:auto; transition:.2s; }
 
-  /* ── KPIs em 2 colunas no mobile ── */
-  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .kpi-card{padding:12px 14px}
-  .kpi-value{font-size:18px}
+  /* Filtros: recolhidos por padrão no mobile */
+  .filter-group{
+    display:none;
+    flex-direction:column;
+    gap:8px;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-sm);
+    padding:12px;
+    margin-bottom:10px;
+    animation:fadeIn .15s ease;
+  }
+  .filter-group.mob-filters-open{ display:flex; }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+
+  .filter-select,.filter-input{
+    width:100%;
+    font-size:14px;
+    padding:11px 14px;
+    border-radius:var(--r-sm);
+  }
+  .filters-bar .btn-secondary,.filters-bar .btn-sm{
+    width:100%;
+    justify-content:center;
+    padding:10px 14px;
+    font-size:13.5px;
+  }
+
+  /* ── TOTAIS: linha compacta ── */
+  .totals-bar{
+    grid-template-columns:repeat(3,1fr);
+    gap:6px;
+    margin-bottom:10px;
+  }
+  .total-pill{ padding:8px 10px; border-radius:var(--r-sm); }
+  .total-pill label{ font-size:8.5px; }
+  .total-pill .val{ font-size:13px; }
+
+  /* ── KPIs 2 colunas ── */
+  .kpi-grid{ grid-template-columns:1fr 1fr; gap:8px; }
+  .kpi-card{ padding:12px 14px; }
+  .kpi-value{ font-size:17px; }
 
   /* ── TABELA → CARDS ──
-     Esconde cabeçalho e converte cada linha num card
-     usando o atributo data-label como rótulo         */
-  .data-table{border:none}
-  .data-table thead{display:none}
-  .data-table tbody{display:flex;flex-direction:column;gap:10px;padding:4px}
+     Cada <tr class="mob-card"> vira um card vertical
+     com label acima do valor via ::before             */
+  .data-table thead{ display:none; }
+  .data-table{ border:none; background:transparent; }
+  .table-wrap{ overflow-x:unset; max-height:unset; border:none; background:transparent; }
+
+  .data-table tbody{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    padding:0;
+  }
 
   .data-table tr.mob-card{
     display:grid;
     grid-template-columns:1fr 1fr;
-    gap:0;
     background:var(--surface);
     border:1px solid var(--border);
     border-radius:var(--r-sm);
     overflow:hidden;
-    box-shadow:0 1px 3px rgba(0,0,0,.06);
+    box-shadow:0 1px 4px rgba(0,0,0,.07);
   }
 
+  /* Todas as células */
   .data-table tr.mob-card td{
     display:flex;
     flex-direction:column;
-    padding:8px 12px;
-    font-size:12.5px;
+    padding:9px 12px;
+    font-size:13px;
     border-bottom:1px solid var(--border);
-    border-right:none;
+    border-right:1px solid var(--border);
+    min-width:0;
   }
 
+  /* Label acima do valor */
   .data-table tr.mob-card td::before{
     content:attr(data-label);
-    font-size:9.5px;
+    font-size:9px;
     font-weight:700;
     text-transform:uppercase;
-    letter-spacing:.5px;
+    letter-spacing:.6px;
     color:var(--t4);
     margin-bottom:3px;
   }
 
-  /* Descrição e Ações ocupam linha inteira */
-  .data-table tr.mob-card td[data-label="Descrição"],
+  /* Oculta coluna # — não agrega no mobile */
+  .data-table tr.mob-card td[data-label="#"]{ display:none; }
+
+  /* Descrição: linha inteira, destaque */
+  .data-table tr.mob-card td[data-label="Descrição"]{
+    grid-column:1/-1;
+    border-right:none;
+    background:var(--palm-lt);
+    padding:10px 14px;
+    font-size:14px;
+    font-weight:700;
+    color:var(--t1);
+  }
+  .data-table tr.mob-card td[data-label="Descrição"]::before{ color:var(--palm); }
+
+  /* Ações: linha inteira, botões em fila */
   .data-table tr.mob-card td[data-label="Ações"]{
     grid-column:1/-1;
-  }
-
-  /* Ações: botões em linha */
-  .data-table tr.mob-card td[data-label="Ações"]{
     flex-direction:row;
     align-items:center;
     gap:8px;
     flex-wrap:wrap;
-    padding:10px 12px;
     background:var(--bg);
+    border-right:none;
     border-bottom:none;
+    padding:10px 14px;
   }
-  .data-table tr.mob-card td[data-label="Ações"]::before{display:none}
+  .data-table tr.mob-card td[data-label="Ações"]::before{ display:none; }
+  .data-table tr.mob-card td[data-label="Ações"] .action-btn{
+    padding:7px 12px;
+    font-size:14px;
+  }
 
-  /* # oculto no mobile (ocupa espaço desnecessário) */
-  .data-table tr.mob-card td[data-label="#"]{display:none}
+  /* Células pares: sem borda direita (última coluna) */
+  .data-table tr.mob-card td:nth-child(even){ border-right:none; }
 
-  /* Última td sem borda inferior */
-  .data-table tr.mob-card td:last-child{border-bottom:none}
+  /* Última td antes de Ações: sem borda inferior */
+  .data-table tr.mob-card td[data-label="Parcela"],
+  .data-table tr.mob-card td[data-label="Por"],
+  .data-table tr.mob-card td[data-label="Nota"]{ border-bottom:none; }
 
-  /* Remove overflow-x do table-wrap no mobile */
-  .table-wrap{overflow-x:unset;max-height:unset}
+  /* ── PAGE INNER ── */
+  .page-inner{ padding:10px 10px; }
 
-  /* ── Sidebar e topbar ── */
-  .topbar{padding:0 12px;gap:8px}
-  .topbar-title{font-size:15px}
-  #topbarBtns .btn span{display:none} /* só ícone nos botões do topo */
+  /* ── GRÁFICOS ── */
+  .charts-row{ grid-template-columns:1fr; gap:12px; }
+  .chart-card{ min-height:220px; }
 
-  /* ── Page inner padding menor ── */
-  .page-inner{padding:10px 12px}
+  /* ── PAGINAÇÃO ── */
+  .pg-btn{ padding:7px 11px; font-size:12px; }
 
-  /* ── Gráficos menores ── */
-  .chart-card{min-height:220px}
-  .charts-row{grid-template-columns:1fr;gap:12px}
-
-  /* ── Paginação compacta ── */
-  .pg-btn{padding:6px 10px;font-size:12px}
-
-  /* ── Modal tela cheia no mobile ── */
-  .modal,.modal-md,.modal-lg,.modal-xl{
+  /* ── MODAL: sobe de baixo ── */
+  .modal-overlay{ padding:0; align-items:flex-end; }
+  .modal,
+  .modal-md,
+  .modal-lg,
+  .modal-xl{
     width:100%!important;
     max-width:100%!important;
-    height:100%;
-    max-height:100%;
-    border-radius:0;
-    margin:0;
+    border-radius:var(--r) var(--r) 0 0;
+    max-height:90vh!important;
   }
-  .modal-overlay{padding:0;align-items:flex-end}
-  .modal{border-radius:var(--r) var(--r) 0 0;max-height:92vh!important}
 
-  /* ── Config tabs wrap ── */
-  .cfg-tabs{gap:4px}
-  .cfg-tab{padding:7px 10px;font-size:11.5px}
+  /* ── CONFIG tabs wrap ── */
+  .cfg-tabs{ gap:3px; }
+  .cfg-tab{ padding:7px 9px; font-size:11px; }
 
   /* ── Up-grid coluna única ── */
-  .up-grid{grid-template-columns:1fr}
+  .up-grid{ grid-template-columns:1fr; }
 
   /* ── Rel-kpis 2 colunas ── */
-  .rel-kpis{grid-template-columns:1fr 1fr}
+  .rel-kpis{ grid-template-columns:1fr 1fr; }
+
+  /* ── section-card sem padding lateral excessivo ── */
+  .section-card{ border-radius:var(--r-sm); }
 }
