@@ -627,14 +627,34 @@
 </div>
 
 <div class="modal-overlay" id="ovReceita">
-  <div class="modal modal-sm">
+  <div class="modal modal-md">
     <div class="modal-header"><h2>Nova Receita</h2><button class="modal-close" data-close="ovReceita">&times;</button></div>
     <div class="modal-body">
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><input type="text" id="rDesc" placeholder="Ex: Freelance, Aluguel..."></div>
         <div class="fg"><label>Responsável</label><select id="rResp"><option value="">Ambos</option><option>Leo</option><option>Pri</option></select></div>
-        <div class="fg"><label>Valor padrão (R$)</label><input type="number" id="rValor" step="0.01" min="0" placeholder="0,00"></div>
-        <div class="form-note">💡 O valor será aplicado em todos os meses. Edite mês a mês depois.</div>
+        <div class="fg"><label>Valor (R$)</label><input type="number" id="rValor" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Mês inicial</label>
+          <select id="rMesIni" onchange="APP.rAtualizarPeriodoInfo()">
+            <option value="-1">Todos os meses</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+        <div class="fg"><label>Mês final</label>
+          <select id="rMesFim" onchange="APP.rAtualizarPeriodoInfo()">
+            <option value="-1">Mesmo mês</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#92400e;margin-top:8px">
+        💡 <span id="rPeriodoInfo">O valor será aplicado em todos os meses.</span>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovReceita">Cancelar</button><button class="btn btn-primary" id="btnSalvarReceita">Criar</button></div>

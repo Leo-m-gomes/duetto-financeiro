@@ -385,7 +385,9 @@ const APP = {
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
         ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas'].forEach(id=>document.getElementById(id).style.display='none');
-        document.getElementById('btnNovaConta').style.display=el.dataset.page==='upload'?'none':'flex';
+        // Nova Conta: só aparece na tela Contas
+        const paginasComNovaConta = ['contas'];
+        document.getElementById('btnNovaConta').style.display = paginasComNovaConta.includes(el.dataset.page) ? 'flex' : 'none';
         if(el.dataset.page==='salario'){document.getElementById('btnNovoSalario').style.display='flex';document.getElementById('btnAtualizarTabelas').style.display='flex';}
         if(el.dataset.page==='receitas')document.getElementById('btnNovaReceita').style.display='flex';
         if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
@@ -1312,12 +1314,39 @@ const APP = {
   },
 
   // ── RECEITA MODAL ──
-  openReceita(){ ['rDesc','rResp','rValor'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});document.getElementById('ovReceita').classList.add('open');setTimeout(()=>document.getElementById('rDesc').focus(),100); },
+  openReceita(){
+    ['rDesc','rValor'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    const rResp=document.getElementById('rResp');if(rResp)rResp.value='';
+    const rMesIni=document.getElementById('rMesIni');if(rMesIni)rMesIni.value='-1';
+    const rMesFim=document.getElementById('rMesFim');if(rMesFim)rMesFim.value='-1';
+    this.rAtualizarPeriodoInfo();
+    document.getElementById('ovReceita').classList.add('open');
+    setTimeout(()=>document.getElementById('rDesc').focus(),100);
+  },
+  rAtualizarPeriodoInfo(){
+    const ini=parseInt(document.getElementById('rMesIni')?.value??'-1');
+    const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
+    const el=document.getElementById('rPeriodoInfo');if(!el)return;
+    const MN=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+    if(ini===-1) el.textContent='O valor será aplicado em todos os meses (Jan–Dez).';
+    else if(fim===-1||fim===ini) el.textContent=`O valor será aplicado somente em ${MN[ini]}.`;
+    else if(fim<ini) el.textContent='⚠️ Mês final deve ser igual ou posterior ao inicial.';
+    else el.textContent=`O valor será aplicado de ${MN[ini]} a ${MN[fim]} (${fim-ini+1} meses).`;
+  },
   async saveReceita(){
-    const desc=document.getElementById('rDesc').value.trim();const resp=document.getElementById('rResp').value;const val=parseFloat(document.getElementById('rValor').value)||0;
+    const desc=document.getElementById('rDesc').value.trim();
+    const resp=document.getElementById('rResp').value;
+    const val=parseFloat(document.getElementById('rValor').value)||0;
+    const ini=parseInt(document.getElementById('rMesIni')?.value??'-1');
+    const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
     if(!desc)return this.toast('Informe a descrição','error');
-    await FS.addOutra({desc,resp,valores:Array(12).fill(val),createdBy:STATE.usuario,createdAt:today()});
-    document.getElementById('ovReceita').classList.remove('open');this.toast(`"${desc}" criada ✅`,'success');
+    if(ini!==-1&&fim!==-1&&fim<ini)return this.toast('Mês final deve ser igual ou posterior ao inicial','error');
+    const valores=Array(12).fill(0);
+    if(ini===-1){ valores.fill(val); }
+    else{ const mesF=(fim===-1||fim<ini)?ini:fim; for(let m=ini;m<=mesF;m++)valores[m]=val; }
+    await FS.addOutra({desc,resp,valores,createdBy:STATE.usuario,createdAt:today()});
+    document.getElementById('ovReceita').classList.remove('open');
+    this.toast(`"${desc}" criada ✅`,'success');
   },
 
   // ── GERENCIAR CATS / FORMAS ──
@@ -2508,33 +2537,48 @@ Object.assign(APP, {
   },
 
   // ── LOG DE ATIVIDADES ──
-  async cfgCarregarLog(){
+  cfgCarregarLog(){
     const tbody = document.getElementById('cfgLogBody');
     if(!tbody) return;
-    tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">⏳ Carregando...</td></tr>';
 
-    // Buscar as 100 contas modificadas mais recentemente
-    const snap = await fbDb.collection('contas')
-      .orderBy('updatedAt','desc')
-      .limit(100)
-      .get().catch(()=>null);
+    // Usa o CACHE já carregado em memória — sem necessidade de índice no Firestore
+    // Ordena por data de pagamento ou updatedAt no JavaScript
+    const rows = [...CACHE.contas]
+      .sort((a,b)=>{
+        // Extrai timestamp numérico para ordenação
+        const ta = a.updatedAt?.toMillis?.() || (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+        const tb = b.updatedAt?.toMillis?.() || (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+        return tb - ta;
+      })
+      .slice(0,100);
 
-    if(!snap){ tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">Índice não disponível. Ordenação padrão.</td></tr>'; return; }
-
-    const rows = snap.docs.map(d=>({id:d.id,...d.data()}));
+    if(!rows.length){
+      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t4)">Nenhuma atividade encontrada</td></tr>';
+      return;
+    }
 
     tbody.innerHTML = rows.map(c=>{
-      let acao='', detalhe='', usuario='', valor='', cor='';
-      if(c.vPago>0&&c.paidBy){
+      let acao, detalhe, usuario, valor, cor='';
+      if(c.vPago>0 && c.paidBy){
         acao='✅ Pagamento'; detalhe=c.conta; usuario=c.paidBy; valor=fmt(c.vPago); cor='log-item-pago';
-      } else if(c.updatedBy&&c.updatedBy!==c.createdBy){
+      } else if(c.updatedBy && c.updatedBy!==c.createdBy){
         acao='✏️ Edição'; detalhe=c.conta; usuario=c.updatedBy; valor=fmt(c.vPagar);
       } else {
         acao='➕ Cadastro'; detalhe=c.conta; usuario=c.createdBy||'—'; valor=fmt(c.vPagar);
       }
-      const data = c.paidAt||c.updatedAt?.toDate?.()?.toLocaleDateString('pt-BR')||'—';
-      return`<tr class="${cor}"><td style="font-size:11px;color:var(--t4);white-space:nowrap">${data}</td><td>${acao}</td><td style="max-width:200px;white-space:normal">${detalhe}</td><td><span class="audit-chip">${usuario}</span></td><td class="${c.vPago>0?'pos':'neg'}">${valor}</td></tr>`;
-    }).join('')||'<tr><td colspan="5" style="text-align:center;padding:16px;color:var(--t4)">Nenhuma atividade encontrada</td></tr>';
+      // Formata data — tenta paidAt (string), depois updatedAt (Firestore Timestamp)
+      let dataStr = '—';
+      if(c.paidAt) dataStr = c.paidAt;
+      else if(c.updatedAt?.toDate) dataStr = c.updatedAt.toDate().toLocaleDateString('pt-BR');
+
+      return`<tr class="${cor}">
+        <td style="font-size:11px;color:var(--t4);white-space:nowrap">${dataStr}</td>
+        <td>${acao}</td>
+        <td style="max-width:200px;white-space:normal">${detalhe}</td>
+        <td><span class="audit-chip">${usuario}</span></td>
+        <td class="${c.vPago>0?'pos':'neg'}">${valor}</td>
+      </tr>`;
+    }).join('');
   },
 
   // ── PREFERÊNCIAS ──
