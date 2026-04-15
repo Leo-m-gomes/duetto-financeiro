@@ -108,6 +108,7 @@
       <button class="btn btn-secondary btn-sm" id="btnNovoSalario" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Novo Salário</span></button>
       <button class="btn btn-secondary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova Receita</span></button>
       <button class="btn btn-secondary btn-sm" id="btnCSVContas" style="display:none">⬇ Exportar CSV</button>
+      <button class="btn btn-secondary btn-sm" id="btnGerarRec" style="display:none" onclick="APP.openRecorrentes()">🔁 Gerar Recorrentes</button>
       <button class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Conta</button>
       <button class="btn btn-ghost btn-sm" onclick="AUTH.signOut()" title="Sair" style="padding:8px 10px">
         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -132,6 +133,7 @@
       </div>
       <div id="dashInfoBanner" style="display:none" class="overdue-alert" onclick="APP.goPage('contas')"></div>
       <div class="kpi-grid" id="kpiGrid"></div>
+      <div class="insight-bar" id="insightBar"></div>
       <div class="charts-row">
         <div class="chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3></div><div class="chart-container"><canvas id="canvasCategoria"></canvas></div></div>
         <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa 2026</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
@@ -162,6 +164,7 @@
           <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
           <select class="filter-select" id="filtroFormaContas"><option value="">Todas as formas</option></select>
           <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
+          <select class="filter-select" id="filtroRecorrente"><option value="">Todas as contas</option><option value="sim">🔁 Recorrentes</option><option value="nao">Não recorrentes</option></select>
           <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('contas')">📅 Período</button>
           <span id="periodoBadgeContas" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('contas')" title="Clique para remover"></span>
         </div>
@@ -617,6 +620,12 @@
         <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" min="1" value="1"></div>
         <div class="fg"><label>Valor Total (auto)</label><input type="number" id="fVT" readonly placeholder="—"></div>
         <div class="fg"><label>Parcela Atual</label><input type="text" id="fParc" placeholder="Ex: 3 de 12"></div>
+        <div class="fg full" style="display:flex;align-items:center;gap:10px;padding:10px 0">
+          <input type="checkbox" id="fRecorrente" style="width:16px;height:16px;accent-color:var(--palm);cursor:pointer;flex-shrink:0">
+          <label for="fRecorrente" style="cursor:pointer;font-size:12.5px;color:var(--t2);margin:0">
+            <strong style="color:var(--palm)">🔁 Conta recorrente</strong> — gera nova entrada todo ano (água, energia, escola, streaming…)
+          </label>
+        </div>
         <div class="fg full"><label>Nota</label><textarea id="fNota" rows="2" placeholder="Informações adicionais..."></textarea></div>
       </div>
     </div>
@@ -953,6 +962,36 @@
       <button class="btn btn-ghost" onclick="APP.limparPeriodo(document.getElementById('ovPeriodo').dataset.tela)">Limpar filtro</button>
       <button class="btn btn-ghost" data-close="ovPeriodo">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.aplicarPeriodo(document.getElementById('ovPeriodo').dataset.tela)">✅ Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GERAR CONTAS RECORRENTES -->
+<div class="modal-overlay" id="ovRecorrentes">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>🔁 Gerar Contas Recorrentes</h2>
+      <button class="modal-close" data-close="ovRecorrentes">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+        <div class="fg" style="margin:0">
+          <label>Ano de origem</label>
+          <select id="recAnoOrigem" style="padding:8px 12px" onchange="APP.recCarregarLista()"></select>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>Gerar para o ano</label>
+          <select id="recAnoDestino" style="padding:8px 12px"></select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="APP.recSelecionarTodos()">Selecionar todas</button>
+        <button class="btn btn-ghost btn-sm" onclick="APP.recDeselecionarTodos()">Limpar seleção</button>
+      </div>
+      <div style="font-size:12px;color:var(--t4);margin-bottom:10px" id="recInfo">Selecione as contas e ajuste valores antes de gerar.</div>
+      <div id="recLista" style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovRecorrentes">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.recGerarContas()">✅ Gerar contas selecionadas</button>
     </div>
   </div>
 </div>

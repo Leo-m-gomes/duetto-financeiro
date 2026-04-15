@@ -455,10 +455,11 @@ const APP = {
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
-        ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas'].forEach(id=>document.getElementById(id).style.display='none');
+        ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>document.getElementById(id).style.display='none');
         // Nova Conta: só aparece na tela Contas
         const paginasComNovaConta = ['contas'];
         document.getElementById('btnNovaConta').style.display = paginasComNovaConta.includes(el.dataset.page) ? 'flex' : 'none';
+        if(el.dataset.page==='contas'){ document.getElementById('btnGerarRec').style.display='flex'; }
         if(el.dataset.page==='salario'){document.getElementById('btnNovoSalario').style.display='flex';document.getElementById('btnAtualizarTabelas').style.display='flex';}
         if(el.dataset.page==='receitas')document.getElementById('btnNovaReceita').style.display='flex';
         if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
@@ -541,7 +542,7 @@ const APP = {
         this.renderDashboard();
       });
     });
-    ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus'].forEach(id=>{
+    ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus','filtroRecorrente'].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.addEventListener('input',()=>{
         if(id==='filtroAnoContas'||id==='filtroMesContas'){
@@ -671,12 +672,15 @@ const APP = {
     else banner.style.display='none';
 
     const kpis=[
-      {label:'Receita',val:fmt(recMes),sub:periodoLabel+(resp?` — ${resp}`:''),icon:'📈',c:'var(--palm)'},
-      {label:'Total Despesas',val:fmt(totP),sub:`${contas.length} contas`,icon:'📋',c:'var(--blue)'},
-      {label:'Pendente',val:fmt(totPend),sub:`${pendList.length} contas`,icon:'⏳',c:'var(--red)'},
-      {label:'Saldo',val:fmt(saldo),sub:saldo>=0?'✅ Positivo':'⚠️ Atenção',icon:saldo>=0?'💰':'📉',c:saldo>=0?'var(--palm)':'var(--red)'}
+      {label:'Receita',val:fmt(recMes),sub:periodoLabel+(resp?` — ${resp}`:''),icon:'📈',c:'var(--palm)',hero:false},
+      {label:'Total Despesas',val:fmt(totP),sub:`${contas.length} contas`,icon:'📋',c:'var(--blue)',hero:false},
+      {label:'Pendente',val:fmt(totPend),sub:`${pendList.length} contas`,icon:'⏳',c:'var(--red)',hero:false},
+      {label:'Saldo',val:fmt(saldo),sub:saldo>=0?'✅ Positivo':'⚠️ Atenção',icon:saldo>=0?'💰':'📉',c:saldo>=0?'var(--palm)':'var(--red)',hero:true}
     ];
-    document.getElementById('kpiGrid').innerHTML=kpis.map(k=>`<div class="kpi-card" style="--kc:${k.c}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.c}">${k.val}</div><div class="kpi-sub">${k.sub}</div><div class="kpi-icon">${k.icon}</div></div>`).join('');
+    document.getElementById('kpiGrid').innerHTML=kpis.map(k=>`<div class="kpi-card${k.hero?' kpi-hero':''}" style="--kc:${k.c}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.c}">${k.val}</div><div class="kpi-sub">${k.sub}</div><div class="kpi-icon">${k.icon}</div></div>`).join('');
+
+    // ── INSIGHTS automáticos ──
+    this._renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas);
 
     document.getElementById('pendentesCount').textContent=pendList.length;
     document.getElementById('tbodyPendentes').innerHTML=pendList.slice(0,8).map(c=>{
@@ -685,6 +689,66 @@ const APP = {
     }).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
 
     this.chartCategoria(mes,resp,baseContas);this.chartFluxo(baseContas,resp);
+  },
+
+  _renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas){
+    const el = document.getElementById('insightBar');
+    if(!el) return;
+    const chips = [];
+
+    // 1. Comparar despesas com mês anterior (só se um mês específico estiver selecionado)
+    if(mes !== null && ano !== null){
+      const mesPrev = mes === 0 ? 11 : mes - 1;
+      const anoPrev = mes === 0 ? ano - 1 : ano;
+      const contasPrev = CACHE.contas.filter(c=>{
+        const d = new Date(c.data+'T12:00');
+        return d.getFullYear()===anoPrev && d.getMonth()===mesPrev && (!resp || c.resp===resp || c.resp==='Leo & Pri');
+      });
+      const totPrev = contasPrev.reduce((s,c)=>s+vEfetivo(c),0);
+      if(totPrev > 0 && totP > 0){
+        const diff = ((totP - totPrev) / totPrev) * 100;
+        const abs  = Math.abs(diff).toFixed(1);
+        const prevLabel = MESES_F[mesPrev];
+        if(diff > 5)       chips.push({cls:'insight-up',  text:`📈 Despesas ${abs}% acima de ${prevLabel}`});
+        else if(diff < -5) chips.push({cls:'insight-down', text:`📉 Despesas ${abs}% abaixo de ${prevLabel}`});
+        else               chips.push({cls:'insight-neu',  text:`➡️ Despesas estáveis vs ${prevLabel} (${diff>0?'+':''}${abs}%)`});
+      }
+    }
+
+    // 2. Categoria com maior gasto
+    if(baseContas.length > 0){
+      const map = {};
+      baseContas.forEach(c=>{ const n=CACHE.resolveCat(c.catId||c.cat); map[n]=(map[n]||0)+vEfetivo(c); });
+      const top = Object.entries(map).sort((a,b)=>b[1]-a[1])[0];
+      if(top) chips.push({cls:'insight-neu', text:`🏷️ Maior categoria: ${top[0]} (${fmt(top[1])})`});
+    }
+
+    // 3. Saldo negativo — alerta
+    if(saldo < 0) chips.push({cls:'insight-warn', text:`⚠️ Despesas superam a receita em ${fmt(Math.abs(saldo))}`});
+
+    // 4. Contas próximas do vencimento (3 dias)
+    const hoje = new Date(); hoje.setHours(0,0,0,0);
+    const em3  = new Date(hoje); em3.setDate(hoje.getDate()+3);
+    const proximas = CACHE.contas.filter(c=>{
+      if(c.vPago > 0) return false;
+      const d = new Date(c.data+'T12:00'); d.setHours(0,0,0,0);
+      return d >= hoje && d <= em3;
+    });
+    if(proximas.length > 0) chips.push({cls:'insight-warn', text:`⏰ ${proximas.length} conta${proximas.length>1?'s':''} vencem nos próximos 3 dias`});
+
+    // 5. Contas recorrentes sem preenchimento no mês atual
+    if(mes !== null && ano !== null){
+      const recorrentes = CACHE.contas.filter(c=>c.recorrente);
+      const comMes = new Set(
+        CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase())
+      );
+      const semMes = recorrentes.filter(c=>!comMes.has(c.conta.toLowerCase()));
+      if(semMes.length > 0) chips.push({cls:'insight-warn', text:`🔁 ${semMes.length} conta${semMes.length>1?'s recorrentes':'recorrente'} sem registro neste mês`});
+    }
+
+    el.innerHTML = chips.length
+      ? chips.map(c=>`<span class="insight-chip ${c.cls}">${c.text}</span>`).join('')
+      : '';
   },
 
   chartCategoria(mes,resp,baseContas){
@@ -741,16 +805,19 @@ const APP = {
     const cat=document.getElementById('filtroCatContas').value;
     const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;
+    const recFiltro=document.getElementById('filtroRecorrente')?.value||'';
     const p=STATE.periodoContas;
 
-    // Período tem prioridade sobre ano/mês
     let data = p
       ? CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; })
       : CACHE.getByAnoMes(ano,mes);
+
     if(search)  data = data.filter(c=>c.conta.toLowerCase().includes(search));
     if(resp)    data = data.filter(c=>c.resp===resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
+    if(recFiltro==='sim') data = data.filter(c=>c.recorrente);
+    else if(recFiltro==='nao') data = data.filter(c=>!c.recorrente);
     if(status==='pago')          data=data.filter(c=>c.vPago>0);
     else if(status==='pendente') data=data.filter(c=>!(c.vPago>0));
     else if(status==='atrasado') data=data.filter(isOverdue);
@@ -781,7 +848,7 @@ const APP = {
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
@@ -1344,6 +1411,7 @@ const APP = {
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
         document.getElementById('fResp').value=c.resp;document.getElementById('fData').value=c.data;
         document.getElementById('fVP').value=c.vPagar;document.getElementById('fParc').value=c.parcela||'';
+        const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=!!c.recorrente;
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
       }
     }
@@ -1351,12 +1419,17 @@ const APP = {
     setTimeout(()=>document.getElementById('fDesc').focus(),100);
   },
 
-  clearConta(){ ['fDesc','fNota','fResp','fForma','fCat','fData','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';}); document.getElementById('fQP').value=1;document.getElementById('fVT').value=''; },
+  clearConta(){
+    ['fDesc','fNota','fResp','fForma','fCat','fData','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
+    const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
+  },
   calcTotal(){ const v=parseFloat(document.getElementById('fVP').value)||0;const q=parseInt(document.getElementById('fQP').value)||1;document.getElementById('fVT').value=(v*q).toFixed(2); },
 
   async saveConta(){
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
-    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseFloat(document.getElementById('fVP').value)||0,vPago:null,parcela:document.getElementById('fParc').value.trim(),createdBy:STATE.usuario};
+    const recorrente=document.getElementById('fRecorrente')?.checked||false;
+    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseFloat(document.getElementById('fVP').value)||0,vPago:null,parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
     if(!c.conta)return this.toast('Descrição é obrigatória','error');
     if(!c.resp)return this.toast('Selecione o responsável','error');
     if(!catId)return this.toast('Selecione a categoria','error');
@@ -1371,8 +1444,7 @@ const APP = {
       const qt=parseInt(document.getElementById('fQP').value)||1;
       const grupo=`grp-${Date.now()}`;
       if(qt>1){
-        const base=new Date(c.data+'T12:00');
-        const proms=[];
+        const base=new Date(c.data+'T12:00');const proms=[];
         for(let i=0;i<qt;i++){const d=new Date(base);d.setMonth(d.getMonth()+i);proms.push(FS.addConta({...c,data:d.toISOString().split('T')[0],parcela:`${i+1} de ${qt}`,grupo}));}
         await Promise.all(proms);
       } else {
@@ -2843,5 +2915,121 @@ Object.assign(APP, {
     await batch.commit();
     this.toast(`${snap.size} item(ns) excluído(s) permanentemente`,'success');
     this.lixeiraCarregar();
+  },
+});
+
+// ============================================================
+// CONTAS RECORRENTES — geração em lote para novo ano
+// ============================================================
+Object.assign(APP, {
+
+  openRecorrentes(){
+    // Popular selects de ano
+    const anos = [...new Set(CACHE.contas.map(c=>new Date(c.data+'T12:00').getFullYear()))].sort((a,b)=>b-a);
+    const anoAtual = new Date().getFullYear();
+
+    const origemSel = document.getElementById('recAnoOrigem');
+    const destSel   = document.getElementById('recAnoDestino');
+    origemSel.innerHTML = anos.map(a=>`<option value="${a}" ${a===anoAtual?'selected':''}>${a}</option>`).join('');
+
+    // Destino: anos futuros
+    const anosDestino = [anoAtual, anoAtual+1, anoAtual+2];
+    destSel.innerHTML = anosDestino.map(a=>`<option value="${a}" ${a===anoAtual+1?'selected':''}>${a}</option>`).join('');
+
+    document.getElementById('ovRecorrentes').classList.add('open');
+    this.recCarregarLista();
+  },
+
+  recCarregarLista(){
+    const anoOrigem = parseInt(document.getElementById('recAnoOrigem').value);
+    const lista = document.getElementById('recLista');
+    const info  = document.getElementById('recInfo');
+
+    // Buscar contas recorrentes do ano de origem (sem duplicatas por nome+mês)
+    const recorrentes = CACHE.contas.filter(c=>{
+      const d = new Date(c.data+'T12:00');
+      return c.recorrente && d.getFullYear()===anoOrigem;
+    });
+
+    // Agrupar por nome — pegar a mais recente de cada nome
+    const mapa = {};
+    recorrentes.forEach(c=>{
+      const key = c.conta.toLowerCase().trim();
+      if(!mapa[key] || c.data > mapa[key].data) mapa[key] = c;
+    });
+    const unicas = Object.values(mapa).sort((a,b)=>a.conta.localeCompare(b.conta));
+
+    if(!unicas.length){
+      lista.innerHTML=`<div style="padding:24px;text-align:center;color:var(--t4)">Nenhuma conta marcada como recorrente em ${anoOrigem}.<br><small>Marque o campo "🔁 Conta recorrente" ao cadastrar ou editar.</small></div>`;
+      if(info) info.textContent = '0 contas recorrentes encontradas.';
+      return;
+    }
+
+    if(info) info.textContent = `${unicas.length} conta${unicas.length>1?'s recorrentes':'recorrente'} encontrada${unicas.length>1?'s':''} em ${anoOrigem}. Ajuste data e valor antes de gerar.`;
+
+    lista.innerHTML = unicas.map(c=>{
+      const catNome = CACHE.resolveCat(c.catId||c.cat);
+      // Calcular data sugerida: mesmo dia/mês no ano destino
+      const dOrig = new Date(c.data+'T12:00');
+      const dSug  = `${document.getElementById('recAnoDestino').value}-${String(dOrig.getMonth()+1).padStart(2,'0')}-${String(dOrig.getDate()).padStart(2,'0')}`;
+      return`<div class="rec-sel-item" onclick="APP.recToggleItem(this)">
+        <input type="checkbox" class="rec-chk" data-id="${c.id}" data-conta='${JSON.stringify({conta:c.conta,resp:c.resp,formaId:c.formaId||'',catId:c.catId||'',nota:c.nota||'',parcela:'1 de 1',recorrente:true}).replace(/'/g,"&apos;")}' checked>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:600;font-size:13px;color:var(--t1)">${c.conta} <span class="badge-rec">🔁 REC</span></div>
+          <div style="font-size:11px;color:var(--t4);margin-top:2px">${c.resp} · ${catNome}</div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
+          <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
+          <input type="number" class="rec-val" value="${c.vPagar}" step="0.01" min="0" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
+        </div>
+      </div>`;
+    }).join('');
+  },
+
+  recToggleItem(el){
+    const chk = el.querySelector('input[type=checkbox]');
+    if(!chk) return;
+    chk.checked = !chk.checked;
+    el.classList.toggle('selected', chk.checked);
+  },
+
+  recSelecionarTodos(){
+    document.querySelectorAll('.rec-chk').forEach(c=>{ c.checked=true; c.closest('.rec-sel-item').classList.add('selected'); });
+  },
+  recDeselecionarTodos(){
+    document.querySelectorAll('.rec-chk').forEach(c=>{ c.checked=false; c.closest('.rec-sel-item').classList.remove('selected'); });
+  },
+
+  async recGerarContas(){
+    const itens = [...document.querySelectorAll('.rec-sel-item')];
+    const selecionados = itens.filter(el=>el.querySelector('.rec-chk')?.checked);
+    if(!selecionados.length){ this.toast('Selecione ao menos uma conta','error'); return; }
+
+    const anoDestino = parseInt(document.getElementById('recAnoDestino').value);
+
+    if(!confirm(`Gerar ${selecionados.length} conta${selecionados.length>1?'s':''} para ${anoDestino}?`)) return;
+
+    let geradas = 0, erros = 0;
+    for(const el of selecionados){
+      try{
+        const chk   = el.querySelector('.rec-chk');
+        const base  = JSON.parse(chk.dataset.conta.replace(/&apos;/g,"'"));
+        const data  = el.querySelector('.rec-data')?.value;
+        const valor = parseFloat(el.querySelector('.rec-val')?.value)||0;
+        if(!data || !valor){ erros++; continue; }
+        await FS.addConta({
+          ...base,
+          data, vPagar:valor, vPago:null,
+          grupo:`grp-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
+          createdBy:STATE.usuario,
+        });
+        geradas++;
+        await new Promise(r=>setTimeout(r,50)); // evitar rate-limit
+      }catch(e){ erros++; }
+    }
+
+    document.getElementById('ovRecorrentes').classList.remove('open');
+    if(erros) this.toast(`${geradas} gerada${geradas!==1?'s':''}, ${erros} com erro`,'info');
+    else      this.toast(`${geradas} conta${geradas!==1?'s':''} gerada${geradas!==1?'s':''} para ${anoDestino} ✅`,'success');
   },
 });
