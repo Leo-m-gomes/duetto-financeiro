@@ -498,14 +498,52 @@
       <div class="cfg-panel" id="cfgPanel-log">
         <div class="section-card">
           <div class="section-header">
-            <h3>📋 Log de Atividades Recentes</h3>
+            <h3>📋 Log de Atividades</h3>
             <button class="btn btn-ghost btn-sm" onclick="APP.cfgCarregarLog()">🔄 Atualizar</button>
+          </div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="fg" style="margin:0;min-width:130px">
+              <label>Data início</label>
+              <input type="date" id="logDataIni" style="padding:7px 10px">
+            </div>
+            <div class="fg" style="margin:0;min-width:130px">
+              <label>Data fim</label>
+              <input type="date" id="logDataFim" style="padding:7px 10px">
+            </div>
+            <div class="fg" style="margin:0;min-width:120px">
+              <label>Responsável</label>
+              <select id="logResp" style="padding:7px 10px">
+                <option value="">Todos</option>
+                <option>Leo</option>
+                <option>Pri</option>
+              </select>
+            </div>
+            <div class="fg" style="margin:0;min-width:140px">
+              <label>Tipo de evento</label>
+              <select id="logEvento" style="padding:7px 10px">
+                <option value="">Todos</option>
+                <option value="cadastro">➕ Cadastro</option>
+                <option value="edicao">✏️ Edição</option>
+                <option value="pagamento">✅ Pagamento</option>
+                <option value="desfazer_pagamento">↩ Desfazer pagamento</option>
+                <option value="exclusao">🗑 Exclusão</option>
+                <option value="restauracao">↺ Restauração</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="APP.cfgCarregarLog()">🔍 Filtrar</button>
+            <button class="btn btn-ghost btn-sm" onclick="APP.cfgLimparFiltrosLog()">✕ Limpar</button>
+            <span style="font-size:11px;color:var(--t4);margin-left:auto;align-self:center" id="logContador"></span>
           </div>
           <div style="padding:0">
             <div class="table-wrap">
               <table class="data-table">
-                <thead><tr><th>Data/Hora</th><th>Ação</th><th>Descrição</th><th>Usuário</th><th>Valor</th></tr></thead>
-                <tbody id="cfgLogBody"><tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t4)">Clique em Atualizar para carregar</td></tr></tbody>
+                <thead><tr>
+                  <th>Data/Hora</th><th>Evento</th><th>Descrição</th>
+                  <th>Detalhes</th><th>Usuário</th><th>Valor</th>
+                </tr></thead>
+                <tbody id="cfgLogBody">
+                  <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--t4)">Clique em Filtrar ou Atualizar para carregar</td></tr>
+                </tbody>
               </table>
             </div>
           </div>

@@ -165,38 +165,105 @@ fbAuth.getRedirectResult().catch(()=>{});
 // FIRESTORE OPERATIONS
 // ============================================================
 const FS = {
-  // ── CONTAS ──
-  async addConta(data){ const ref=await fbDb.collection('contas').add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); return ref.id; },
-  async updateConta(id,data){ await fbDb.collection('contas').doc(id).update({...data,updatedAt:firebase.firestore.FieldValue.serverTimestamp()}); },
 
-  // Soft delete: move para coleção 'lixeira' antes de apagar
+  // ── LOG INTERNO ── escreve evento imutável na coleção 'logs'
+  async _log(evento, contaId, contaNome, detalhes, extras){
+    try{
+      await fbDb.collection('logs').add({
+        evento,
+        contaId:   contaId  || null,
+        conta:     contaNome|| '—',
+        usuario:   STATE.usuario,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        detalhes:  detalhes || '',
+        ...extras,
+      });
+    }catch(e){ console.warn('Log error:', e); } // nunca bloqueia operação principal
+  },
+
+  // ── CONTAS ──
+  async addConta(data){
+    const ref = await fbDb.collection('contas').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await this._log('cadastro', ref.id, data.conta,
+      `Cadastrado por ${STATE.usuario}`,
+      {valor:data.vPagar, resp:data.resp, parcela:data.parcela||'1 de 1'}
+    );
+    return ref.id;
+  },
+
+  async updateConta(id, data){
+    // Captura estado ANTES para montar diff
+    const antes = await fbDb.collection('contas').doc(id).get().catch(()=>null);
+    await fbDb.collection('contas').doc(id).update({...data, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+
+    // Monta descrição das alterações
+    const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota'};
+    let alteracoes = [];
+    if(antes && antes.exists){
+      const ant = antes.data();
+      Object.keys(CAMPOS).forEach(campo=>{
+        const de   = String(ant[campo]||'');
+        const para = String(data[campo]!==undefined ? data[campo] : (ant[campo]||''));
+        if(data[campo]!==undefined && de!==para){
+          const label = CAMPOS[campo];
+          const deLabel   = campo==='formaId'  ? CACHE.resolveForma(de)
+                          : campo==='catId'     ? CACHE.resolveCat(de)
+                          : campo==='vPagar'    ? fmt(parseFloat(de)||0)
+                          : de;
+          const paraLabel = campo==='formaId'  ? CACHE.resolveForma(para)
+                          : campo==='catId'     ? CACHE.resolveCat(para)
+                          : campo==='vPagar'    ? fmt(parseFloat(para)||0)
+                          : para;
+          alteracoes.push(`${label}: "${deLabel}" → "${paraLabel}"`);
+        }
+      });
+    }
+    const nome = data.conta || (antes?.exists ? antes.data().conta : '—');
+    const detalhes = alteracoes.length ? alteracoes.join(' | ') : 'Atualização sem alterações detectadas';
+    await this._log('edicao', id, nome, detalhes, {valor:data.vPagar, alteracoes});
+  },
+
+  // Soft delete: move para 'lixeira' + registra no log
   async deleteConta(id, motivo){
     const snap = await fbDb.collection('contas').doc(id).get();
     if(!snap.exists) return;
     const dados = snap.data();
-    // Salvar na lixeira com metadados
     await fbDb.collection('lixeira').add({
       ...dados,
-      origemId:         id,
-      origemColecao:    'contas',
-      excluidoPor:      STATE.usuario,
-      excluidoEm:       new Date().toISOString(),
-      motivo:           motivo||'exclusão manual',
-      excluidoAt:       firebase.firestore.FieldValue.serverTimestamp(),
+      origemId:      id,
+      origemColecao: 'contas',
+      excluidoPor:   STATE.usuario,
+      excluidoEm:    new Date().toISOString(),
+      motivo:        motivo||'exclusão manual',
+      excluidoAt:    firebase.firestore.FieldValue.serverTimestamp(),
     });
-    // Agora apaga do banco principal
     await fbDb.collection('contas').doc(id).delete();
+    await this._log('exclusao', id, dados.conta,
+      `Excluído por ${STATE.usuario}${motivo?' — '+motivo:''}`,
+      {valor:dados.vPagar, resp:dados.resp, parcela:dados.parcela}
+    );
   },
+
   async pagarConta(id, quem, valorPago){
+    const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
+    const nome  = snap?.exists ? snap.data().conta : '—';
+    const parc  = snap?.exists ? snap.data().parcela : '';
     await fbDb.collection('contas').doc(id).update({
       vPago:  valorPago,
-      vPagar: valorPago, // valor pago vira o valor definitivo — cálculos ficam consistentes
+      vPagar: valorPago,
       paidBy: quem,
       paidAt: today(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    await this._log('pagamento', id, nome,
+      `Pagamento de ${fmt(valorPago)} registrado por ${quem}${parc?' ('+parc+')':''}`,
+      {valor:valorPago, resp:quem}
+    );
   },
+
   async desfazerPagamento(id, vPagarOriginal){
+    const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
+    const nome = snap?.exists ? snap.data().conta : '—';
     await fbDb.collection('contas').doc(id).update({
       vPago:  null,
       vPagar: vPagarOriginal,
@@ -204,6 +271,10 @@ const FS = {
       paidAt: firebase.firestore.FieldValue.delete(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+    await this._log('desfazer_pagamento', id, nome,
+      `Pagamento desfeito por ${STATE.usuario} — valor restaurado: ${fmt(vPagarOriginal)}`,
+      {valor:vPagarOriginal}
+    );
   },
 
   // ── SALÁRIOS ──
@@ -2537,46 +2608,85 @@ Object.assign(APP, {
   },
 
   // ── LOG DE ATIVIDADES ──
-  cfgCarregarLog(){
-    const tbody = document.getElementById('cfgLogBody');
+  cfgLimparFiltrosLog(){
+    ['logDataIni','logDataFim','logResp','logEvento'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    this.cfgCarregarLog();
+  },
+
+  async cfgCarregarLog(){
+    const tbody   = document.getElementById('cfgLogBody');
+    const counter = document.getElementById('logContador');
     if(!tbody) return;
+    tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--t4)">⏳ Carregando...</td></tr>`;
 
-    // Usa o CACHE já carregado em memória — sem necessidade de índice no Firestore
-    // Ordena por data de pagamento ou updatedAt no JavaScript
-    const rows = [...CACHE.contas]
-      .sort((a,b)=>{
-        // Extrai timestamp numérico para ordenação
-        const ta = a.updatedAt?.toMillis?.() || (a.paidAt ? new Date(a.paidAt).getTime() : 0);
-        const tb = b.updatedAt?.toMillis?.() || (b.paidAt ? new Date(b.paidAt).getTime() : 0);
-        return tb - ta;
-      })
-      .slice(0,100);
+    // Ler filtros
+    const dataIni  = document.getElementById('logDataIni')?.value  || '';
+    const dataFim  = document.getElementById('logDataFim')?.value  || '';
+    const respFilt = document.getElementById('logResp')?.value     || '';
+    const evFilt   = document.getElementById('logEvento')?.value   || '';
 
-    if(!rows.length){
-      tbody.innerHTML='<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--t4)">Nenhuma atividade encontrada</td></tr>';
+    // Buscar da coleção logs (ordenada por timestamp desc, limite 50)
+    let query = fbDb.collection('logs').orderBy('timestamp','desc').limit(50);
+    if(evFilt) query = query.where('evento','==',evFilt);
+    if(respFilt) query = query.where('usuario','==',respFilt);
+
+    const snap = await query.get().catch(()=>null);
+
+    if(!snap){
+      tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--red)">
+        Erro ao carregar. Crie o índice no Firestore Console:<br>
+        <code style="font-size:10px">logs → timestamp (desc)</code>
+      </td></tr>`;
       return;
     }
 
-    tbody.innerHTML = rows.map(c=>{
-      let acao, detalhe, usuario, valor, cor='';
-      if(c.vPago>0 && c.paidBy){
-        acao='✅ Pagamento'; detalhe=c.conta; usuario=c.paidBy; valor=fmt(c.vPago); cor='log-item-pago';
-      } else if(c.updatedBy && c.updatedBy!==c.createdBy){
-        acao='✏️ Edição'; detalhe=c.conta; usuario=c.updatedBy; valor=fmt(c.vPagar);
-      } else {
-        acao='➕ Cadastro'; detalhe=c.conta; usuario=c.createdBy||'—'; valor=fmt(c.vPagar);
-      }
-      // Formata data — tenta paidAt (string), depois updatedAt (Firestore Timestamp)
-      let dataStr = '—';
-      if(c.paidAt) dataStr = c.paidAt;
-      else if(c.updatedAt?.toDate) dataStr = c.updatedAt.toDate().toLocaleDateString('pt-BR');
+    let registros = snap.docs.map(d=>({_id:d.id,...d.data()}));
 
-      return`<tr class="${cor}">
-        <td style="font-size:11px;color:var(--t4);white-space:nowrap">${dataStr}</td>
-        <td>${acao}</td>
-        <td style="max-width:200px;white-space:normal">${detalhe}</td>
-        <td><span class="audit-chip">${usuario}</span></td>
-        <td class="${c.vPago>0?'pos':'neg'}">${valor}</td>
+    // Filtro de período no JS (timestamp é Firestore Timestamp)
+    if(dataIni){
+      const ini = new Date(dataIni+'T00:00:00');
+      registros = registros.filter(r=>r.timestamp?.toDate?.()>=ini);
+    }
+    if(dataFim){
+      const fim = new Date(dataFim+'T23:59:59');
+      registros = registros.filter(r=>r.timestamp?.toDate?.()<=fim);
+    }
+
+    if(counter) counter.textContent = `${registros.length} registro${registros.length!==1?'s':''} encontrado${registros.length!==1?'s':''}`;
+
+    if(!registros.length){
+      tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhum registro encontrado para os filtros aplicados</td></tr>`;
+      return;
+    }
+
+    // Ícones e cores por tipo de evento
+    const EVT = {
+      cadastro:          {icon:'➕', label:'Cadastro',          cor:'var(--blue)'},
+      edicao:            {icon:'✏️', label:'Edição',            cor:'var(--orange)'},
+      pagamento:         {icon:'✅', label:'Pagamento',         cor:'var(--green)'},
+      desfazer_pagamento:{icon:'↩',  label:'Desfazer pgto.',   cor:'var(--yellow)'},
+      exclusao:          {icon:'🗑', label:'Exclusão',          cor:'var(--red)'},
+      restauracao:       {icon:'↺',  label:'Restauração',      cor:'var(--palm)'},
+    };
+
+    tbody.innerHTML = registros.map(r=>{
+      const ev  = EVT[r.evento] || {icon:'•', label:r.evento, cor:'var(--t3)'};
+      const ts  = r.timestamp?.toDate?.();
+      const dt  = ts ? ts.toLocaleDateString('pt-BR') : '—';
+      const hr  = ts ? ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+      const val = r.valor!=null ? fmt(r.valor) : '—';
+      const valCor = ['pagamento','cadastro'].includes(r.evento) ? 'var(--green)'
+                   : r.evento==='exclusao' ? 'var(--red)' : 'var(--t2)';
+
+      return`<tr>
+        <td style="font-size:11px;color:var(--t4);white-space:nowrap">${dt}<br><span style="color:var(--t4)">${hr}</span></td>
+        <td style="white-space:nowrap"><span style="color:${ev.cor};font-weight:600">${ev.icon} ${ev.label}</span></td>
+        <td style="max-width:200px;white-space:normal;font-weight:500">${r.conta||'—'}</td>
+        <td style="max-width:280px;white-space:normal;font-size:11.5px;color:var(--t3)">${r.detalhes||'—'}</td>
+        <td><span class="audit-chip">${r.usuario||'—'}</span></td>
+        <td style="font-weight:600;color:${valCor};white-space:nowrap">${val}</td>
       </tr>`;
     }).join('');
   },
@@ -2686,10 +2796,8 @@ Object.assign(APP, {
     if(!snap.exists) return this.toast('Item não encontrado','error');
 
     const dados = snap.data();
-    // Remove metadados da lixeira antes de restaurar
     const {_lid, origemId, origemColecao, excluidoPor, excluidoEm, motivo, excluidoAt, ...dadosOriginais} = dados;
 
-    // Restaura com o ID original se possível, senão cria novo
     if(origemId){
       await fbDb.collection('contas').doc(origemId).set({
         ...dadosOriginais,
@@ -2706,8 +2814,12 @@ Object.assign(APP, {
       });
     }
 
-    // Remove da lixeira
     await fbDb.collection('lixeira').doc(lixeiraId).delete();
+    // Registra no log
+    await FS._log('restauracao', origemId||null, dados.conta,
+      `Restaurado da lixeira por ${STATE.usuario} (excluído originalmente por ${excluidoPor||'?'})`,
+      {valor:dados.vPagar, resp:dados.resp}
+    );
     this.toast(`"${dados.conta}" restaurado ✅`,'success');
     this.lixeiraCarregar();
   },
