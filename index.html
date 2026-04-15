@@ -378,6 +378,7 @@
         <button class="cfg-tab active" data-tab="usuarios"  onclick="APP.cfgTab('usuarios')">👥 Usuários</button>
         <button class="cfg-tab"        data-tab="backup"    onclick="APP.cfgTab('backup')">🛡️ Backup</button>
         <button class="cfg-tab"        data-tab="tabelas"   onclick="APP.cfgTab('tabelas')">📊 Tabelas Fiscais</button>
+        <button class="cfg-tab"        data-tab="lixeira"   onclick="APP.cfgTab('lixeira')">🗑️ Excluídos</button>
         <button class="cfg-tab"        data-tab="log"       onclick="APP.cfgTab('log')">📋 Log de Atividades</button>
         <button class="cfg-tab"        data-tab="prefs"     onclick="APP.cfgTab('prefs')">⚙️ Preferências</button>
       </div>
@@ -456,6 +457,38 @@
             </div>
             <div id="cfgTabelasContent">
               <p style="color:var(--t4);font-size:12.5px">Carregando tabelas...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: EXCLUÍDOS (LIXEIRA) -->
+      <div class="cfg-panel" id="cfgPanel-lixeira">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🗑️ Itens Excluídos</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-ghost btn-sm" onclick="APP.lixeiraCarregar()">🔄 Atualizar</button>
+              <button class="btn btn-danger btn-sm" onclick="APP.lixeiraEsvaziar()">⚠️ Esvaziar lixeira</button>
+            </div>
+          </div>
+          <div style="padding:14px">
+            <div class="alert alert-warning show" style="margin-bottom:14px;font-size:12.5px">
+              ⚠️ Itens aqui podem ser <strong>restaurados</strong> para o banco principal ou <strong>excluídos permanentemente</strong>. A exclusão permanente não tem recuperação.
+            </div>
+            <div id="lixeiraStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+          </div>
+          <div style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Descrição</th><th>Responsável</th><th>Categoria</th>
+                  <th>Valor</th><th>Excluído por</th><th>Excluído em</th><th>Ações</th>
+                </tr></thead>
+                <tbody id="lixeiraBody">
+                  <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--t4)">Clique em Atualizar para carregar</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </div>
