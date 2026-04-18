@@ -120,12 +120,14 @@
   <!-- DASHBOARD -->
   <div class="page active" id="page-dashboard">
     <div class="page-inner">
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-        <select class="filter-select" id="filtroAnoDash"></select>
-        <select class="filter-select" id="filtroMesDash"></select>
-        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('dashboard')">📅 Período</button>
-        <span id="periodoBadgeDash" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('dashboard')" title="Clique para remover"></span>
-        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+      <div class="dash-filters">
+        <div class="dash-filters-top">
+          <select class="filter-select" id="filtroAnoDash"></select>
+          <select class="filter-select" id="filtroMesDash"></select>
+          <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('dashboard')">📅 Período</button>
+          <span id="periodoBadgeDash" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('dashboard')" title="Clique para remover"></span>
+        </div>
+        <div class="dash-filters-resp">
           <span style="font-size:11px;color:var(--t4);font-weight:600">Filtrar:</span>
           <button class="resp-chip active" id="rc-todos" onclick="APP.setRespDash('')">Todos</button>
           <button class="resp-chip" id="rc-leo" onclick="APP.setRespDash('Leo')">Leo</button>

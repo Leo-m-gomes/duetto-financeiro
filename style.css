@@ -295,7 +295,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   #sbCollapseBtn{display:none !important}
   /* Overlay escuro atrás da sidebar quando aberta no mobile */
   .sidebar-overlay{display:block}
-  .kpi-grid{grid-template-columns:1fr 1fr}
+  .kpi-grid{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
   .totals-bar{grid-template-columns:1fr}
   .page-inner{padding:12px 14px}
@@ -351,6 +351,11 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 .resp-chip{padding:5px 13px;border-radius:99px;border:1.5px solid var(--border2);background:#fff;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
 .resp-chip:hover{border-color:var(--palm);color:var(--palm)}
 .resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
+
+/* ── DASHBOARD FILTERS ── */
+.dash-filters{margin-bottom:16px}
+.dash-filters-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.dash-filters-resp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 
 /* ── UPLOAD CARDS PAGE ── */
 #page-upload{width:100%;display:none}
@@ -664,9 +669,27 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   .section-card{border-radius:var(--r-sm)}
   .charts-row{grid-template-columns:1fr;gap:12px}
   .chart-card{min-height:220px}
-  .kpi-grid{grid-template-columns:1fr 1fr;gap:8px}
-  .kpi-card{padding:12px 14px}
-  .kpi-value{font-size:17px}
+
+  /* KPIs: 1 coluna para não transbordar */
+  .kpi-grid{grid-template-columns:1fr;gap:8px}
+  .kpi-card{padding:14px 16px}
+  .kpi-card.kpi-hero{padding:16px 18px}
+  .kpi-value{font-size:20px}
+  .kpi-card.kpi-hero .kpi-value{font-size:22px}
+  .kpi-icon{top:14px;right:14px;font-size:18px}
+
+  /* Dashboard filters: empilhados, 100% largura */
+  .dash-filters{margin-bottom:12px}
+  .dash-filters-top{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:8px}
+  .dash-filters-top .filter-select{width:100%;font-size:14px;padding:11px 14px}
+  .dash-filters-top .btn-sm{width:100%;justify-content:center;padding:10px 14px}
+  .dash-filters-resp{gap:8px;flex-wrap:wrap}
+  .resp-chip{padding:7px 16px;font-size:13px}
+
+  /* Insights: chips em coluna no mobile */
+  .insight-bar{flex-direction:column;gap:8px}
+  .insight-chip{border-radius:var(--r-sm);padding:10px 14px;font-size:13px}
+
   .pg-btn{padding:7px 11px;font-size:12px}
   .modal-overlay{padding:0;align-items:flex-end}
   .modal,.modal-md,.modal-lg,.modal-xl{
