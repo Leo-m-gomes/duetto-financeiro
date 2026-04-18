@@ -84,7 +84,7 @@
     <a class="nav-item" data-page="receitas" data-tooltip="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
     <a class="nav-item" data-page="salario" data-tooltip="Salários"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg><span>Salários</span></a>
     <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
-    <a class="nav-item" data-page="upload" data-tooltip="Upload Cards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
+    <a class="nav-item" data-page="upload" id="navUpload" data-tooltip="Upload Cards" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
     <a class="nav-item" data-page="config" data-tooltip="Configurações" id="navConfig" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Configurações</span></a>
   </nav>
   <div class="sb-footer">
@@ -162,7 +162,19 @@
       <!-- GRÁFICOS — depois dos pendentes no mobile (item 2) -->
       <div class="charts-row dash-order-charts">
         <div class="chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3></div><div class="chart-container"><canvas id="canvasCategoria"></canvas></div></div>
-        <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa 2026</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
+        <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
+      </div>
+
+      <!-- PARETO — Dashboard (sempre visível) -->
+      <div class="section-card pareto-card dash-order-charts" style="margin-top:0">
+        <div class="section-header">
+          <h3>📊 Pareto — Concentração de Despesas (80/20)</h3>
+          <span style="font-size:11px;color:var(--t4)">Categorias ordenadas do maior para o menor gasto</span>
+        </div>
+        <div class="pareto-layout" id="paretoDash">
+          <div class="pareto-chart-area"><canvas id="canvasParetoDash"></canvas></div>
+          <div class="pareto-table-area" id="paretoTableDash"></div>
+        </div>
       </div>
 
     </div>
@@ -257,16 +269,25 @@
   <!-- RELATÓRIO -->
   <div class="page" id="page-relatorio">
     <div class="page-inner">
-      <div style="display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center">
-        <select class="filter-select" id="relAno"></select>
-        <select class="filter-select" id="relMes"></select>
-        <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
-        <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
-        <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
-        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
-        <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>
-        <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ CSV</button>
-        <button class="btn btn-secondary btn-sm" onclick="APP.exportPDF()">📄 PDF</button>
+      <div class="rel-filters-wrap">
+        <button class="mob-filter-toggle rel-filter-toggle" id="btnRelFiltros" onclick="APP.toggleRelFiltros()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtros
+          <svg id="iconRelFiltros" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="rel-filters-body" id="relFiltersBody">
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <select class="filter-select" id="relAno"></select>
+            <select class="filter-select" id="relMes"></select>
+            <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
+            <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
+            <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
+            <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
+            <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>
+            <button class="btn btn-secondary btn-sm" id="btnCSV">⬇ CSV</button>
+            <button class="btn btn-secondary btn-sm" onclick="APP.exportPDF()">📄 PDF</button>
+          </div>
+        </div>
       </div>
       <div class="rel-kpis" id="relKpis"></div>
       <div class="section-card"><div class="table-wrap"><table class="data-table"><thead><tr>
@@ -282,6 +303,23 @@
         <th class="th-sort" onclick="APP.sortTable('rel','parcela')">Parcela<span class="sort-icon" data-col="parcela"></span></th>
         <th>Por</th><th>Nota</th>
       </tr></thead><tbody id="tbodyRel"></tbody></table></div></div>
+
+      <!-- PARETO — Relatório (com toggle) -->
+      <div class="section-card pareto-card" style="margin-top:14px">
+        <div class="section-header">
+          <h3>📊 Pareto — Concentração de Despesas (80/20)</h3>
+          <label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12.5px;color:var(--t3)">
+            <input type="checkbox" id="chkParetoRel" onchange="APP.toggleParetoRel()" checked style="accent-color:var(--palm);width:14px;height:14px">
+            Exibir gráfico
+          </label>
+        </div>
+        <div id="paretoRelWrap">
+          <div class="pareto-layout" id="paretoRel">
+            <div class="pareto-chart-area"><canvas id="canvasParetoRel"></canvas></div>
+            <div class="pareto-table-area" id="paretoTableRel"></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 

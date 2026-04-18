@@ -412,8 +412,10 @@ const APP = {
     if(chip) chip.textContent='👤 '+STATE.usuario;
     // Configurações só visível para Leo (admin)
     if(STATE.usuario==='Leo'){
-      const nav=document.getElementById('navConfig');
-      if(nav) nav.style.display='flex';
+      const navCfg=document.getElementById('navConfig');
+      if(navCfg) navCfg.style.display='flex';
+      const navUp=document.getElementById('navUpload');
+      if(navUp) navUp.style.display='flex';
     }
     this.renderPage('dashboard');
   },
@@ -458,6 +460,16 @@ const APP = {
     const icon=document.getElementById('iconDashFiltros');
     if(!body) return;
     const open=body.classList.toggle('dash-filters-open');
+    if(icon) icon.innerHTML=open
+      ?'<polyline points="18 15 12 9 6 15"/>'
+      :'<polyline points="6 9 12 15 18 9"/>';
+  },
+
+  toggleRelFiltros(){
+    const body=document.getElementById('relFiltersBody');
+    const icon=document.getElementById('iconRelFiltros');
+    if(!body) return;
+    const open=body.classList.toggle('rel-filters-open');
     if(icon) icon.innerHTML=open
       ?'<polyline points="18 15 12 9 6 15"/>'
       :'<polyline points="6 9 12 15 18 9"/>';
@@ -607,14 +619,14 @@ const APP = {
   },
 
   renderPage(p){
-    if((p==='backup'||p==='config') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
+    if((p==='backup'||p==='config'||p==='upload') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
     STATE.page=p;
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     const el=document.getElementById(`page-${p}`);
     if(el)el.classList.add('active');
     ({
       dashboard: ()=>this.renderDashboard(),
-      contas:    ()=>this.renderContas(),
+      contas:    ()=>{ if(document.getElementById('filtroStatus').value==='') document.getElementById('filtroStatus').value='pendente'; this.renderContas(); },
       receitas:  ()=>this.renderReceitas(),
       salario:   ()=>this.renderSalario(),
       relatorio: ()=>this.renderRelatorio(),
@@ -737,6 +749,7 @@ const APP = {
     }).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
 
     this.chartCategoria(mes,resp,baseContas);this.chartFluxo(baseContas,resp);
+    this.renderPareto('canvasParetoDash','paretoTableDash',contas);
   },
 
   _renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas){
@@ -814,18 +827,60 @@ const APP = {
     }
     const map={};contas.forEach(c=>{const n=CACHE.resolveCat(c.catId||c.cat);map[n]=(map[n]||0)+vEfetivo(c);});
     const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,9);
-    this.mkChart('canvasCategoria',{type:'doughnut',data:{labels:sorted.map(([k])=>k),datasets:[{data:sorted.map(([,v])=>v),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'right',labels:{color:'#374151',font:{size:10},boxWidth:10,padding:8}},tooltip:{callbacks:{label:ctx=>` ${ctx.label}: ${fmt(ctx.raw)}`}}}}});
+    const total = sorted.reduce((s,[,v])=>s+v,0);
+    this.mkChart('canvasCategoria',{
+      type:'doughnut',
+      data:{
+        labels:sorted.map(([k])=>k),
+        datasets:[{
+          data:sorted.map(([,v])=>v),
+          backgroundColor:COLORS,
+          borderWidth:3,
+          borderColor:'#fff',
+          hoverOffset:6,
+        }]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        cutout:'62%',
+        plugins:{
+          legend:{
+            position:'right',
+            labels:{color:'#374151',font:{size:10},boxWidth:10,padding:10,
+              generateLabels(chart){
+                const ds=chart.data.datasets[0];
+                return chart.data.labels.map((label,i)=>{
+                  const val=ds.data[i];
+                  const pct=total>0?((val/total)*100).toFixed(1):'0.0';
+                  return{text:`${label} ${pct}%`,fillStyle:ds.backgroundColor[i],hidden:false,index:i};
+                });
+              }
+            }
+          },
+          tooltip:{callbacks:{label:ctx=>{
+            const pct=total>0?((ctx.raw/total)*100).toFixed(1):'0.0';
+            return ` ${ctx.label}: ${fmt(ctx.raw)} (${pct}%)`;
+          }}}
+        }
+      }
+    });
   },
 
   chartFluxo(baseContas, resp){
-    // Recebe as contas já filtradas por ano/período do renderDashboard
-    // Isso garante que o gráfico usa exatamente os mesmos dados que os cards
-    const base = baseContas || CACHE.contas;
+    // O gráfico Receita×Despesa SEMPRE mostra os 12 meses do ano selecionado
+    // Ignora filtro de mês específico — usa todos os dados do ano
     resp = (resp !== undefined) ? resp : STATE.dashResp;
+    const anoVal = document.getElementById('filtroAnoDash')?.value || 'todos';
+    const ano    = anoVal === 'todos' ? null : parseInt(anoVal);
+
+    // Usa TODAS as contas do ano (não só o mês filtrado)
+    const contasAno = ano
+      ? CACHE.contas.filter(c => new Date(c.data+'T12:00').getFullYear() === ano)
+      : CACHE.contas;
 
     // Agrupa por mês com filtro de responsável — usa vEfetivo
     const despFilt = Array.from({length:12},(_,m)=>{
-      const porMes = base.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
+      const porMes = contasAno.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
       if(!resp) return porMes.reduce((s,c)=>s+vEfetivo(c),0);
       if(resp==='Leo & Pri') return porMes.filter(c=>c.resp==='Leo & Pri').reduce((s,c)=>s+vEfetivo(c),0);
       return porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').reduce((s,c)=>{
@@ -839,7 +894,53 @@ const APP = {
       CACHE.outras.forEach(r=>{const v=r.valores[m]||0;if(!resp)t+=v;else if(r.resp===resp)t+=v;else if(!r.resp||r.resp==='Ambos')t+=v/2;});
       return t;
     });
-    this.mkChart('canvasFluxo',{type:'bar',data:{labels:MESES,datasets:[{label:'Receita',data:rec,backgroundColor:'rgba(0,100,55,.15)',borderColor:'#006437',borderWidth:2,borderRadius:4},{label:'Despesas',data:despFilt,backgroundColor:'rgba(220,38,38,.12)',borderColor:'#dc2626',borderWidth:2,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#374151',font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'}},y:{ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)'}}}}});
+    const mesAtual = new Date().getMonth();
+    const anoAtualNum = new Date().getFullYear();
+    this.mkChart('canvasFluxo',{
+      type:'bar',
+      data:{
+        labels:MESES,
+        datasets:[
+          {
+            label:'Receita',
+            data:rec,
+            backgroundColor:rec.map((_,i)=>i===mesAtual&&(!ano||ano===anoAtualNum)?'rgba(0,100,55,.35)':'rgba(0,100,55,.15)'),
+            borderColor:'#006437',
+            borderWidth:2,
+            borderRadius:{topLeft:5,topRight:5},
+            borderSkipped:false,
+          },
+          {
+            label:'Despesas',
+            data:despFilt,
+            backgroundColor:despFilt.map((_,i)=>i===mesAtual&&(!ano||ano===anoAtualNum)?'rgba(220,38,38,.25)':'rgba(220,38,38,.12)'),
+            borderColor:'#dc2626',
+            borderWidth:2,
+            borderRadius:{topLeft:5,topRight:5},
+            borderSkipped:false,
+          }
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
+          tooltip:{
+            backgroundColor:'rgba(15,31,20,.92)',
+            padding:10,
+            cornerRadius:8,
+            callbacks:{
+              title:ctx=>MESES_F[ctx[0].dataIndex]||'',
+              label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`
+            }
+          }
+        },
+        scales:{
+          x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{display:false}},
+          y:{ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)',drawBorder:false}}
+        }
+      }
+    });
   },
 
   // ============================================================
@@ -1134,7 +1235,30 @@ const APP = {
     const outras=CACHE.outras.filter(r=>!filtroResp||!r.resp||r.resp===filtroResp);
     const salVals=Array.from({length:12},(_,m)=>{let t=0;sals.forEach(s=>{const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;});return t;});
     const outVals=Array.from({length:12},(_,m)=>outras.reduce((s,r)=>s+(r.valores[m]||0),0));
-    this.mkChart('canvasReceitas',{type:'bar',data:{labels:MESES,datasets:[{label:'Salários',data:salVals,backgroundColor:'rgba(0,100,55,.25)',borderColor:'#006437',borderWidth:2,borderRadius:4,stack:'a'},{label:'Outras',data:outVals,backgroundColor:'rgba(0,168,90,.2)',borderColor:'#00a85a',borderWidth:2,borderRadius:4,stack:'a'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#374151',font:{size:10}}},tooltip:{callbacks:{label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}}},scales:{x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{color:'rgba(0,0,0,.04)'},stacked:true},y:{stacked:true,ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)'}}}}});
+    this.mkChart('canvasReceitas',{
+      type:'bar',
+      data:{
+        labels:MESES,
+        datasets:[
+          {label:'Salários',data:salVals,backgroundColor:'rgba(0,100,55,.28)',borderColor:'#006437',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'},
+          {label:'Outras',data:outVals,backgroundColor:'rgba(0,168,90,.22)',borderColor:'#00a85a',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'}
+        ]
+      },
+      options:{
+        responsive:true,maintainAspectRatio:false,
+        plugins:{
+          legend:{labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
+          tooltip:{
+            backgroundColor:'rgba(15,31,20,.92)',padding:10,cornerRadius:8,
+            callbacks:{title:ctx=>MESES_F[ctx[0].dataIndex]||'',label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}
+          }
+        },
+        scales:{
+          x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{display:false},stacked:true},
+          y:{stacked:true,ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)',drawBorder:false}}
+        }
+      }
+    });
   },
 
   // ============================================================
@@ -1413,6 +1537,11 @@ const APP = {
         <td data-label="Nota" style="font-size:10.5px;color:var(--t4);max-width:100px;white-space:normal">${c.nota||'—'}</td>
       </tr>`;
     }).join('')||'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--t4)">Nenhum dado para este filtro</td></tr>';
+
+    // Pareto do Relatório — respeita o toggle
+    if(document.getElementById('chkParetoRel')?.checked !== false){
+      this.renderPareto('canvasParetoRel','paretoTableRel', data);
+    }
   },
 
   exportCSV(){
@@ -3241,5 +3370,162 @@ Object.assign(APP, {
 
     if(erros)  this.toast(`${ok} pago${ok>1?'s':''}, ${erros} com erro`,'info');
     else       this.toast(`${ok} conta${ok>1?'s':''} paga${ok>1?'s':''} com sucesso ✅`,'success');
+  },
+});
+
+// ============================================================
+// PARETO CHART — Dashboard e Relatório
+// ============================================================
+Object.assign(APP, {
+
+  // Calcula dados do Pareto a partir de um array de contas
+  _calcPareto(contas){
+    const map = {};
+    contas.forEach(c=>{
+      const n = CACHE.resolveCat(c.catId||c.cat)||'Outros';
+      map[n] = (map[n]||0) + vEfetivo(c);
+    });
+    const sorted = Object.entries(map).sort((a,b)=>b[1]-a[1]);
+    const total  = sorted.reduce((s,[,v])=>s+v,0);
+    let acum = 0;
+    return sorted.map(([cat,val])=>{
+      acum += val;
+      return {cat, val, pct:total>0?(val/total*100):0, acum:total>0?(acum/total*100):0};
+    });
+  },
+
+  renderPareto(canvasId, tableId, contas){
+    if(!contas||!contas.length){
+      const el=document.getElementById(tableId);
+      if(el)el.innerHTML='<p style="padding:20px;color:var(--t4);font-size:12px">Sem dados para o período.</p>';
+      return;
+    }
+    const dados = this._calcPareto(contas);
+    if(!dados.length) return;
+
+    // ── Tabela lateral ──
+    const tableEl = document.getElementById(tableId);
+    if(tableEl){
+      const is80 = dados.findIndex(d=>d.acum>=80);
+      tableEl.innerHTML=`
+        <table>
+          <thead><tr><th>Categoria</th><th style="text-align:right">Valor (R$)</th><th style="text-align:right">% Acum.</th></tr></thead>
+          <tbody>
+            ${dados.map((d,i)=>`
+              <tr class="${i===is80?'pareto-80':''}">
+                <td>${d.cat}</td>
+                <td class="pareto-val">${fmt(d.val)}</td>
+                <td class="pareto-pct">${d.acum.toFixed(1)}%</td>
+              </tr>`).join('')}
+            <tr>
+              <td>TOTAL</td>
+              <td class="pareto-val">${fmt(dados.reduce((s,d)=>s+d.val,0))}</td>
+              <td class="pareto-pct">100%</td>
+            </tr>
+          </tbody>
+        </table>`;
+    }
+
+    // ── Gráfico combinado: barra + linha ──
+    const labels = dados.map(d=>d.cat);
+    const valores = dados.map(d=>d.val);
+    const acums   = dados.map(d=>d.acum);
+    const total   = dados.reduce((s,d)=>s+d.val,0);
+
+    // Ponto onde acumulado passa de 80%
+    const idx80 = dados.findIndex(d=>d.acum>=80);
+
+    // Cores das barras: destaque nas que compõem os 80%
+    const barColors = dados.map((_,i)=>
+      i<=idx80 ? 'rgba(0,100,55,.7)' : 'rgba(0,100,55,.2)'
+    );
+    const barBorders = dados.map((_,i)=>
+      i<=idx80 ? '#006437' : '#00a85a'
+    );
+
+    this.mkChart(canvasId,{
+      type:'bar',
+      data:{
+        labels,
+        datasets:[
+          {
+            type:'bar',
+            label:'Valor (R$)',
+            data:valores,
+            backgroundColor:barColors,
+            borderColor:barBorders,
+            borderWidth:2,
+            borderRadius:{topLeft:5,topRight:5},
+            borderSkipped:false,
+            yAxisID:'y',
+            order:2,
+          },
+          {
+            type:'line',
+            label:'% Acumulado',
+            data:acums,
+            borderColor:'#1d4ed8',
+            backgroundColor:'rgba(29,78,216,.08)',
+            borderWidth:2.5,
+            pointBackgroundColor:acums.map(a=>a>=80&&a-dados[acums.indexOf(a)-1]?.acum>=0&&acums.indexOf(a)===idx80?'#ffffff':'#1d4ed8'),
+            pointBorderColor:acums.map((_,i)=>i===idx80?'#1d4ed8':'#1d4ed8'),
+            pointRadius:acums.map((_,i)=>i===idx80?7:3),
+            pointBorderWidth:acums.map((_,i)=>i===idx80?2.5:1.5),
+            fill:true,
+            tension:.35,
+            yAxisID:'y2',
+            order:1,
+          }
+        ]
+      },
+      options:{
+        responsive:true,
+        maintainAspectRatio:false,
+        plugins:{
+          legend:{
+            labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:14}
+          },
+          tooltip:{
+            backgroundColor:'rgba(15,31,20,.92)',
+            padding:10,cornerRadius:8,
+            callbacks:{
+              title:ctx=>ctx[0].label,
+              label:ctx=>{
+                if(ctx.dataset.type==='bar'||ctx.dataset.label==='Valor (R$)'){
+                  const pct = total>0?(ctx.raw/total*100).toFixed(1):0;
+                  return ` Valor: ${fmt(ctx.raw)} (${pct}%)`;
+                }
+                return ` Acumulado: ${ctx.raw.toFixed(1)}%`;
+              }
+            }
+          },
+          // Linha de 80% como anotação visual via afterDraw
+          annotation:{},
+        },
+        scales:{
+          x:{
+            ticks:{color:'#9ca3af',font:{size:9},maxRotation:35},
+            grid:{display:false},
+          },
+          y:{
+            position:'left',
+            ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},
+            grid:{color:'rgba(0,0,0,.04)',drawBorder:false},
+          },
+          y2:{
+            position:'right',
+            min:0,max:100,
+            ticks:{color:'#1d4ed8',font:{size:10},callback:v=>`${v}%`},
+            grid:{display:false},
+          }
+        }
+      }
+    });
+  },
+
+  toggleParetoRel(){
+    const chk  = document.getElementById('chkParetoRel');
+    const wrap = document.getElementById('paretoRelWrap');
+    if(wrap) wrap.style.display = chk?.checked ? 'block' : 'none';
   },
 });
