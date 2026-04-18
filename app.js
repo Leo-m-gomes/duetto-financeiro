@@ -2732,13 +2732,12 @@ Object.assign(APP, {
     const respFilt = document.getElementById('logResp')?.value     || '';
     const evFilt   = document.getElementById('logEvento')?.value   || '';
 
-    // ── Busca simples: só orderBy + limit (evita índices compostos)
-    // Todos os filtros são aplicados no JavaScript após receber os dados
-    // Buscamos mais registros quando há filtros ativos para compensar
-    const limite = (respFilt || evFilt || dataIni || dataFim) ? 500 : 50;
+    // ── Busca: sem filtros de período = limite 50 / com período = busca tudo
+    // Filtros de evento e usuário são sempre feitos em JS para evitar índices compostos
+    const temPeriodo = dataIni || dataFim;
     const snap = await fbDb.collection('logs')
       .orderBy('timestamp','desc')
-      .limit(limite)
+      .limit(temPeriodo ? 10000 : 500) // com período busca tudo; sem período busca 500 para filtrar depois
       .get()
       .catch(()=>null);
 
@@ -2782,11 +2781,18 @@ Object.assign(APP, {
       });
     }
 
-    // Limitar a 50 após filtros
+    // Limitar a 50 somente quando não há filtro de período
     const total = registros.length;
-    registros = registros.slice(0,50);
+    if(!temPeriodo) registros = registros.slice(0,50);
 
-    if(counter) counter.textContent = `${registros.length} registro${registros.length!==1?'s':''} encontrado${registros.length!==1?'s':''}${total>50?' (mostrando 50 mais recentes)':''}`;
+    const mostrando = registros.length;
+    if(counter){
+      if(temPeriodo){
+        counter.textContent = `${mostrando} registro${mostrando!==1?'s':''} no período`;
+      } else {
+        counter.textContent = `${mostrando} registro${mostrando!==1?'s':''} encontrado${mostrando!==1?'s':''}${total>50?' (últimos 50)':''}`;
+      }
+    }
 
     if(!registros.length){
       tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhum registro encontrado para os filtros aplicados</td></tr>`;
