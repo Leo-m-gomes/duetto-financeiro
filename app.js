@@ -2732,34 +2732,61 @@ Object.assign(APP, {
     const respFilt = document.getElementById('logResp')?.value     || '';
     const evFilt   = document.getElementById('logEvento')?.value   || '';
 
-    // Buscar da coleção logs (ordenada por timestamp desc, limite 50)
-    let query = fbDb.collection('logs').orderBy('timestamp','desc').limit(50);
-    if(evFilt) query = query.where('evento','==',evFilt);
-    if(respFilt) query = query.where('usuario','==',respFilt);
-
-    const snap = await query.get().catch(()=>null);
+    // ── Busca simples: só orderBy + limit (evita índices compostos)
+    // Todos os filtros são aplicados no JavaScript após receber os dados
+    // Buscamos mais registros quando há filtros ativos para compensar
+    const limite = (respFilt || evFilt || dataIni || dataFim) ? 500 : 50;
+    const snap = await fbDb.collection('logs')
+      .orderBy('timestamp','desc')
+      .limit(limite)
+      .get()
+      .catch(()=>null);
 
     if(!snap){
       tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--red)">
-        Erro ao carregar. Crie o índice no Firestore Console:<br>
-        <code style="font-size:10px">logs → timestamp (desc)</code>
+        ⚠️ Erro ao carregar. Verifique se o índice existe no Firestore:<br>
+        <code style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;margin-top:6px;display:inline-block">
+          Coleção: logs · Campo: timestamp · Ordem: Descending
+        </code>
       </td></tr>`;
       return;
     }
 
     let registros = snap.docs.map(d=>({_id:d.id,...d.data()}));
 
-    // Filtro de período no JS (timestamp é Firestore Timestamp)
+    // ── Todos os filtros em JavaScript ── sem índices compostos necessários
+
+    // Filtro de usuário/responsável
+    if(respFilt){
+      registros = registros.filter(r=>r.usuario===respFilt);
+    }
+
+    // Filtro de tipo de evento
+    if(evFilt){
+      registros = registros.filter(r=>r.evento===evFilt);
+    }
+
+    // Filtro de período (timestamp é Firestore Timestamp)
     if(dataIni){
       const ini = new Date(dataIni+'T00:00:00');
-      registros = registros.filter(r=>r.timestamp?.toDate?.()>=ini);
+      registros = registros.filter(r=>{
+        const t = r.timestamp?.toDate?.();
+        return t && t >= ini;
+      });
     }
     if(dataFim){
       const fim = new Date(dataFim+'T23:59:59');
-      registros = registros.filter(r=>r.timestamp?.toDate?.()<=fim);
+      registros = registros.filter(r=>{
+        const t = r.timestamp?.toDate?.();
+        return t && t <= fim;
+      });
     }
 
-    if(counter) counter.textContent = `${registros.length} registro${registros.length!==1?'s':''} encontrado${registros.length!==1?'s':''}`;
+    // Limitar a 50 após filtros
+    const total = registros.length;
+    registros = registros.slice(0,50);
+
+    if(counter) counter.textContent = `${registros.length} registro${registros.length!==1?'s':''} encontrado${registros.length!==1?'s':''}${total>50?' (mostrando 50 mais recentes)':''}`;
 
     if(!registros.length){
       tbody.innerHTML=`<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhum registro encontrado para os filtros aplicados</td></tr>`;
