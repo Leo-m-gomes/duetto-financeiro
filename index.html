@@ -178,8 +178,9 @@
         <div class="total-pill green"><label>Pago</label><div class="val" id="totalPago">R$ 0</div></div>
       </div>
       <span style="font-size:11.5px;color:var(--t4);display:block;margin-bottom:8px" id="contasInfo"></span>
-      <div class="section-card">
-        <div class="table-wrap"><table class="data-table"><thead><tr>
+      <div class="section-card contas-card">
+        <div class="table-wrap contas-table-wrap"><table class="data-table" id="tblContas"><thead><tr>
+          <th class="th-chk desk-only"><input type="checkbox" id="chkSelectAll" title="Selecionar todos" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer" onclick="APP.toggleSelectAll(this)"></th>
           <th class="th-sort" onclick="APP.sortTable('contas','#')">#<span class="sort-icon" data-col="#"></span></th>
           <th class="th-sort" onclick="APP.sortTable('contas','conta')">Descrição<span class="sort-icon" data-col="conta"></span></th>
           <th class="th-sort" onclick="APP.sortTable('contas','resp')">Responsável<span class="sort-icon" data-col="resp"></span></th>
@@ -193,6 +194,18 @@
           <th>Por</th><th>Ações</th>
         </tr></thead><tbody id="tbodyContas"></tbody></table></div>
         <div class="table-pagination" id="pgContas"></div>
+      </div>
+
+      <!-- BARRA DE PAGAMENTO EM MASSA — desktop only, aparece quando há seleção -->
+      <div id="barraPagamento" class="barra-pagamento desk-only" style="display:none">
+        <div class="barra-pag-info">
+          <span class="barra-pag-count" id="barraCount">0 contas selecionadas</span>
+          <span class="barra-pag-total" id="barraTotal">Total: R$ 0,00</span>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <button class="btn btn-ghost btn-sm" onclick="APP.limparSelecao()">✕ Limpar seleção</button>
+          <button class="btn btn-primary" onclick="APP.abrirPagamentoMassa()">✅ Pagar selecionadas</button>
+        </div>
       </div>
     </div>
   </div>
@@ -995,6 +1008,35 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close="ovRecorrentes">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.recGerarContas()">✅ Gerar contas selecionadas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAGAMENTO EM MASSA -->
+<div class="modal-overlay" id="ovPagMassa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>✅ Confirmar Pagamentos</h2>
+      <button class="modal-close" data-close="ovPagMassa">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div style="padding:14px 20px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span style="font-size:12.5px;color:var(--t3)">Ajuste os valores se necessário. O total atualiza automaticamente.</span>
+        <div style="font-size:14px;font-weight:700;color:var(--palm)">Total: <span id="pagMassaTotal">R$ 0,00</span></div>
+      </div>
+      <div style="overflow-y:auto;max-height:420px">
+        <table class="data-table" id="tblPagMassa">
+          <thead><tr>
+            <th>Descrição</th><th>Responsável</th><th>Categoria</th>
+            <th>Valor Original</th><th>Valor a Pagar (R$)</th>
+          </tr></thead>
+          <tbody id="tbodyPagMassa"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovPagMassa">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.confirmarPagamentoMassa()" id="btnConfirmarMassa">✅ Confirmar todos</button>
     </div>
   </div>
 </div>

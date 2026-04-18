@@ -138,6 +138,47 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 
 /* ── TABLE ── */
 .table-wrap{overflow-x:auto;max-height:480px;overflow-y:auto}
+
+/* ── Contas: tabela ocupa altura disponível no desktop ── */
+#page-contas .contas-card{display:flex;flex-direction:column}
+.contas-table-wrap{
+  overflow-x:auto;
+  overflow-y:auto;
+  /* Altura dinâmica: viewport - topbar - filtros - totals - info - pagination */
+  max-height:calc(100vh - var(--sh) - 280px);
+  min-height:300px;
+  flex:1;
+}
+
+/* ── Checkbox de seleção ── */
+.th-chk{width:36px;text-align:center;padding:0 4px 0 12px}
+.td-chk{width:36px;text-align:center;padding:0 4px 0 12px}
+.desk-only{display:table-cell}
+
+/* ── Barra de pagamento em massa ── */
+.barra-pagamento{
+  position:sticky;bottom:0;
+  background:var(--palm);
+  color:#fff;
+  border-radius:0 0 var(--r) var(--r);
+  padding:12px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  box-shadow:0 -4px 20px rgba(0,100,55,.25);
+  animation:slideUpBar .2s ease;
+  z-index:10;
+}
+@keyframes slideUpBar{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.barra-pag-info{display:flex;flex-direction:column;gap:2px}
+.barra-pag-count{font-size:13px;font-weight:600;color:rgba(255,255,255,.9)}
+.barra-pag-total{font-size:16px;font-weight:700;color:#fff}
+.barra-pagamento .btn-ghost{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)}
+.barra-pagamento .btn-ghost:hover{background:rgba(255,255,255,.25)}
+.barra-pagamento .btn-primary{background:#fff;color:var(--palm);border:none;font-weight:700}
+.barra-pagamento .btn-primary:hover{background:rgba(255,255,255,.9)}
 .data-table{width:100%;border-collapse:collapse;font-size:12px}
 .data-table thead{position:sticky;top:0;z-index:10}
 .data-table th{background:#f8fbf9;color:var(--t4);font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
@@ -508,6 +549,8 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 
   /* ════ TOPBAR ════ */
   .topbar{padding:0 10px;gap:6px;flex-wrap:nowrap;height:auto;min-height:var(--sh)}
+  /* Esconde elementos desktop-only no mobile */
+  .desk-only{display:none!important}
   .topbar-title{font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #topbarBtns{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;flex-shrink:0}
   #topbarBtns .btn span{display:none}
@@ -564,6 +607,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   .data-table thead{display:none}
   .data-table{border:none;background:transparent}
   .table-wrap{overflow-x:unset;max-height:unset;border:none;background:transparent;box-shadow:none}
+  .contas-table-wrap{max-height:unset;min-height:unset;overflow-x:unset;overflow-y:unset}
   .data-table tbody{display:flex;flex-direction:column;gap:10px;padding:0}
 
   /* Card: grid 2 colunas */
