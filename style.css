@@ -393,10 +393,14 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 .resp-chip:hover{border-color:var(--palm);color:var(--palm)}
 .resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
 
-/* ── DASHBOARD FILTERS ── */
+/* ── DASHBOARD FILTERS (desktop) ── */
 .dash-filters{margin-bottom:16px}
 .dash-filters-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
 .dash-filters-resp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+/* Toggle button: hidden on desktop, shown on mobile via media query */
+.dash-filter-toggle{display:none}
+/* Body: always visible on desktop */
+.dash-filters-body{display:flex;flex-direction:column;gap:8px}
 
 /* ── UPLOAD CARDS PAGE ── */
 #page-upload{width:100%;display:none}
@@ -723,12 +727,105 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   .kpi-icon{top:14px;right:14px;font-size:18px}
 
   /* Dashboard filters: empilhados, 100% largura */
-  .dash-filters{margin-bottom:12px}
+  /* ════ DASHBOARD MOBILE — 4 itens ════ */
+
+  /* Item 3: Filtros colapsáveis no mobile */
+  .dash-filter-toggle{
+    display:flex;align-items:center;gap:7px;width:100%;
+    padding:11px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);
+    font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--t2);
+    cursor:pointer;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)
+  }
+  .dash-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
+  .dash-filters-body{
+    display:none;flex-direction:column;gap:8px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:12px;margin-bottom:10px;
+    animation:fadeIn .15s ease
+  }
+  .dash-filters-body.dash-filters-open{display:flex}
+  .dash-filters{margin-bottom:0}
   .dash-filters-top{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:8px}
   .dash-filters-top .filter-select{width:100%;font-size:14px;padding:11px 14px}
   .dash-filters-top .btn-sm{width:100%;justify-content:center;padding:10px 14px}
   .dash-filters-resp{gap:8px;flex-wrap:wrap}
   .resp-chip{padding:7px 16px;font-size:13px}
+
+  /* Item 1: KPIs em grade 2x2 com padding reduzido */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+    margin-bottom:12px
+  }
+  .kpi-card{padding:12px 14px}
+  .kpi-card.kpi-hero{padding:12px 14px}
+  .kpi-value{font-size:18px}
+  .kpi-card.kpi-hero .kpi-value{font-size:20px}
+  .kpi-label{margin-bottom:6px;font-size:9px}
+  .kpi-sub{font-size:10px}
+  .kpi-icon{top:10px;right:10px;font-size:16px}
+
+  /* Item 2: Reordenar seções via flexbox order */
+  .dash-page-inner{
+    display:flex;
+    flex-direction:column
+  }
+  .dash-order-alert   {order:1}
+  .dash-order-kpi     {order:2}
+  .dash-order-insights{order:3}
+  .dash-order-pendentes{order:4}  /* Pendentes ANTES dos gráficos */
+  .dash-order-charts  {order:5}   /* Gráficos por último */
+  /* Filtros e outros elementos ficam na ordem natural (order:0 padrão) */
+
+  /* Item 4: Célula de status largura total no mobile (como rodapé do card) */
+  #tblPendentes thead{display:none}
+  #tblPendentes tbody{display:flex;flex-direction:column;gap:8px;padding:8px}
+  #tblPendentes tr.pend-mob-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-sm);
+    overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.07)
+  }
+  #tblPendentes tr.pend-mob-row td{
+    display:flex;flex-direction:column;
+    padding:8px 12px;font-size:13px;
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border)
+  }
+  #tblPendentes tr.pend-mob-row td[data-label]::before{
+    content:attr(data-label);
+    font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--t4);margin-bottom:3px
+  }
+  #tblPendentes tr.pend-mob-row td[data-label="Descrição"]{
+    grid-column:1/-1;border-right:none;
+    background:var(--palm-lt);padding:10px 14px;
+    font-size:13.5px;font-weight:600
+  }
+  #tblPendentes tr.pend-mob-row td[data-label="Descrição"]::before{display:none}
+  #tblPendentes tr.pend-mob-row td[data-label="Valor"],
+  #tblPendentes tr.pend-mob-row td[data-label="Responsável"]{border-right:none}
+  #tblPendentes tr.pend-mob-row td[data-label="Vencimento"],
+  #tblPendentes tr.pend-mob-row td[data-label="Valor"]{border-bottom:none}
+  /* Item 4: Status = rodapé full-width colorido */
+  #tblPendentes tr.pend-mob-row td.pend-status-cell{
+    grid-column:1/-1;
+    border-right:none;border-bottom:none;
+    flex-direction:row;align-items:center;justify-content:center;
+    gap:8px;padding:10px 14px;font-size:13.5px;font-weight:700
+  }
+  #tblPendentes tr.pend-mob-row td.pend-status-cell::before{display:none}
+  #tblPendentes tr.pend-mob-row td.pend-atr{
+    background:var(--orange-lt);color:var(--orange)
+  }
+  #tblPendentes tr.pend-mob-row td.pend-ok{
+    background:var(--red-lt);color:var(--red)
+  }
 
   /* Insights: chips em coluna no mobile */
   .insight-bar{flex-direction:column;gap:8px}

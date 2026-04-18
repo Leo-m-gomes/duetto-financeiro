@@ -119,32 +119,52 @@
 
   <!-- DASHBOARD -->
   <div class="page active" id="page-dashboard">
-    <div class="page-inner">
-      <div class="dash-filters">
-        <div class="dash-filters-top">
-          <select class="filter-select" id="filtroAnoDash"></select>
-          <select class="filter-select" id="filtroMesDash"></select>
-          <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('dashboard')">📅 Período</button>
-          <span id="periodoBadgeDash" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('dashboard')" title="Clique para remover"></span>
-        </div>
-        <div class="dash-filters-resp">
-          <span style="font-size:11px;color:var(--t4);font-weight:600">Filtrar:</span>
-          <button class="resp-chip active" id="rc-todos" onclick="APP.setRespDash('')">Todos</button>
-          <button class="resp-chip" id="rc-leo" onclick="APP.setRespDash('Leo')">Leo</button>
-          <button class="resp-chip" id="rc-pri" onclick="APP.setRespDash('Pri')">Pri</button>
+    <div class="page-inner dash-page-inner">
+
+      <!-- FILTROS — colapsáveis no mobile (item 3) -->
+      <div class="dash-filters" id="dashFiltersWrapper">
+        <button class="mob-filter-toggle dash-filter-toggle" id="btnDashFiltros" onclick="APP.toggleDashFiltros()">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+          Filtros
+          <svg id="iconDashFiltros" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </button>
+        <div class="dash-filters-body" id="dashFiltersBody">
+          <div class="dash-filters-top">
+            <select class="filter-select" id="filtroAnoDash"></select>
+            <select class="filter-select" id="filtroMesDash"></select>
+            <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('dashboard')">📅 Período</button>
+            <span id="periodoBadgeDash" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('dashboard')" title="Clique para remover"></span>
+          </div>
+          <div class="dash-filters-resp">
+            <span style="font-size:11px;color:var(--t4);font-weight:600">Filtrar:</span>
+            <button class="resp-chip active" id="rc-todos" onclick="APP.setRespDash('')">Todos</button>
+            <button class="resp-chip" id="rc-leo" onclick="APP.setRespDash('Leo')">Leo</button>
+            <button class="resp-chip" id="rc-pri" onclick="APP.setRespDash('Pri')">Pri</button>
+          </div>
         </div>
       </div>
-      <div id="dashInfoBanner" style="display:none" class="overdue-alert" onclick="APP.goPage('contas')"></div>
-      <div class="kpi-grid" id="kpiGrid"></div>
-      <div class="insight-bar" id="insightBar"></div>
-      <div class="charts-row">
+
+      <!-- ALERTA DE ATRASO -->
+      <div id="dashInfoBanner" style="display:none" class="overdue-alert dash-order-alert" onclick="APP.goPage('contas')"></div>
+
+      <!-- KPIs (item 1: 2x2 no mobile) -->
+      <div class="kpi-grid dash-order-kpi" id="kpiGrid"></div>
+
+      <!-- INSIGHTS -->
+      <div class="insight-bar dash-order-insights" id="insightBar"></div>
+
+      <!-- PENDENTES — primeiro no mobile (item 2) -->
+      <div class="section-card dash-pendentes-card dash-order-pendentes">
+        <div class="section-header"><h3>Pendentes do Mês</h3><span class="badge-n" id="pendentesCount">0</span></div>
+        <div class="table-wrap"><table class="data-table" id="tblPendentes"><thead><tr><th>Descrição</th><th>Responsável</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tbodyPendentes"></tbody></table></div>
+      </div>
+
+      <!-- GRÁFICOS — depois dos pendentes no mobile (item 2) -->
+      <div class="charts-row dash-order-charts">
         <div class="chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3></div><div class="chart-container"><canvas id="canvasCategoria"></canvas></div></div>
         <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa 2026</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
       </div>
-      <div class="section-card">
-        <div class="section-header"><h3>Pendentes do Mês</h3><span class="badge-n" id="pendentesCount">0</span></div>
-        <div class="table-wrap"><table class="data-table"><thead><tr><th>Descrição</th><th>Responsável</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tbodyPendentes"></tbody></table></div>
-      </div>
+
     </div>
   </div>
 

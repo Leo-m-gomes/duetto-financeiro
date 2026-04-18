@@ -453,6 +453,16 @@ const APP = {
       :'<polyline points="6 9 12 15 18 9"/>';
   },
 
+  toggleDashFiltros(){
+    const body=document.getElementById('dashFiltersBody');
+    const icon=document.getElementById('iconDashFiltros');
+    if(!body) return;
+    const open=body.classList.toggle('dash-filters-open');
+    if(icon) icon.innerHTML=open
+      ?'<polyline points="18 15 12 9 6 15"/>'
+      :'<polyline points="6 9 12 15 18 9"/>';
+  },
+
   restoreSidebarState(){
     const isMobile = window.innerWidth <= 768;
     const sb   = document.getElementById('sidebar');
@@ -714,7 +724,16 @@ const APP = {
     document.getElementById('pendentesCount').textContent=pendList.length;
     document.getElementById('tbodyPendentes').innerHTML=pendList.slice(0,8).map(c=>{
       const atr=isOverdue(c);const catNome=CACHE.resolveCat(c.catId||c.cat);
-      return`<tr><td><strong>${c.conta}</strong>${c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':''}</td><td>${c.resp}</td><td>${catNome}</td><td style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td><td class="neg">${fmt(c.vPagar)}</td><td><span class="badge ${atr?'bg-atr':'bg-pend'}">${atr?'● Atrasado':'● Pendente'}</span></td></tr>`;
+      return`<tr class="mob-card pend-mob-row">
+        <td data-label="Descrição"><strong>${c.conta}</strong>${c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':''}</td>
+        <td data-label="Responsável">${c.resp}</td>
+        <td data-label="Categoria">${catNome}</td>
+        <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
+        <td data-label="Valor" class="neg">${fmt(c.vPagar)}</td>
+        <td data-label="Status" class="pend-status-cell ${atr?'pend-atr':'pend-ok'}">
+          <span class="badge ${atr?'bg-atr':'bg-pend'}">${atr?'● Atrasado':'● Pendente'}</span>
+        </td>
+      </tr>`;
     }).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
 
     this.chartCategoria(mes,resp,baseContas);this.chartFluxo(baseContas,resp);
