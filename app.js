@@ -420,13 +420,27 @@ const APP = {
 
   // ── SIDEBAR ──
   toggleSidebar(){
+    const isMobile = window.innerWidth <= 768;
+    if(isMobile){
+      // Mobile: usa open/close com overlay — nunca collapsed
+      this.closeSidebarMobile();
+      return;
+    }
+    // Desktop: comportamento de recolher/expandir original
     const sb=document.getElementById('sidebar');
     const icon=document.getElementById('sbCollapseIcon');
     const collapsed=sb.classList.toggle('collapsed');
     localStorage.setItem('dt_sb_collapsed',collapsed?'1':'0');
-    icon.innerHTML=collapsed
+    if(icon) icon.innerHTML=collapsed
       ?'<polyline points="9 18 15 12 9 6"/>'
       :'<polyline points="15 18 9 12 15 6"/>';
+  },
+
+  closeSidebarMobile(){
+    const sb      = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    sb.classList.remove('open');
+    if(overlay) overlay.style.display='none';
   },
 
   toggleFiltros(){
@@ -438,12 +452,20 @@ const APP = {
       ?'<polyline points="18 15 12 9 6 15"/>'
       :'<polyline points="6 9 12 15 18 9"/>';
   },
+
   restoreSidebarState(){
+    const isMobile = window.innerWidth <= 768;
+    const sb   = document.getElementById('sidebar');
+    const icon = document.getElementById('sbCollapseIcon');
+    // No mobile: garante que não há classe 'collapsed' que cria vão
+    if(isMobile){
+      sb.classList.remove('collapsed');
+      return;
+    }
+    // Desktop: restaura estado salvo
     if(localStorage.getItem('dt_sb_collapsed')==='1'){
-      const sb=document.getElementById('sidebar');
-      const icon=document.getElementById('sbCollapseIcon');
       sb.classList.add('collapsed');
-      if(icon)icon.innerHTML='<polyline points="9 18 15 12 9 6"/>';
+      if(icon) icon.innerHTML='<polyline points="9 18 15 12 9 6"/>';
     }
   },
 
@@ -464,10 +486,17 @@ const APP = {
         if(el.dataset.page==='receitas')document.getElementById('btnNovaReceita').style.display='flex';
         if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
         document.getElementById('sidebar').classList.remove('open');
+        const ov=document.getElementById('sidebarOverlay');
+        if(ov) ov.style.display='none';
         this.renderPage(el.dataset.page);
       });
     });
-    document.getElementById('menuToggle').addEventListener('click',()=>document.getElementById('sidebar').classList.toggle('open'));
+    document.getElementById('menuToggle').addEventListener('click',()=>{
+      const sb      = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const isOpen  = sb.classList.toggle('open');
+      if(overlay) overlay.style.display = isOpen ? 'block' : 'none';
+    });
   },
 
   goPage(p){ document.querySelector(`.nav-item[data-page="${p}"]`).click(); },

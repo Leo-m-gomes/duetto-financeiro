@@ -288,7 +288,13 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
-  .main{margin-left:0}.menu-toggle{display:flex}
+  /* No mobile: main sempre ocupa tela toda — sem margem da sidebar */
+  .main{margin-left:0 !important}
+  .menu-toggle{display:flex}
+  /* Esconde botão de recolher/expandir — só faz sentido no desktop */
+  #sbCollapseBtn{display:none !important}
+  /* Overlay escuro atrás da sidebar quando aberta no mobile */
+  .sidebar-overlay{display:block}
   .kpi-grid{grid-template-columns:1fr 1fr}
   .form-grid{grid-template-columns:1fr}
   .totals-bar{grid-template-columns:1fr}
