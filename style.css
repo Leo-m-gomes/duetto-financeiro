@@ -560,7 +560,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   #topbarBtns .btn span{display:none}
   #topbarBtns .btn svg{display:block}
   #topbarBtns .btn{padding:7px 9px;min-width:unset}
-  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita{display:none!important}
+  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita,#btnGerarRec{display:none!important}
 
   /* ════ FILTROS recolhíveis ════ */
   .mob-filter-toggle{
