@@ -813,6 +813,9 @@ const APP = {
   },
 
   chartCategoria(mes,resp,baseContas){
+    const dark = document.documentElement.classList.contains('dark');
+    const textColor  = dark ? 'rgba(235,235,245,.85)' : '#374151';
+    const borderColor = dark ? '#2c2c2e' : '#fff';
     const base = baseContas || CACHE.contas;
     let contas;
     if(mes===null){
@@ -836,7 +839,7 @@ const APP = {
           data:sorted.map(([,v])=>v),
           backgroundColor:COLORS,
           borderWidth:3,
-          borderColor:'#fff',
+          borderColor,
           hoverOffset:6,
         }]
       },
@@ -846,7 +849,7 @@ const APP = {
         plugins:{
           legend:{
             position:'right',
-            labels:{color:'#374151',font:{size:10},boxWidth:10,padding:10,
+            labels:{color:textColor,font:{size:10},boxWidth:10,padding:10,
               generateLabels(chart){
                 const ds=chart.data.datasets[0];
                 return chart.data.labels.map((label,i)=>{
@@ -857,10 +860,13 @@ const APP = {
               }
             }
           },
-          tooltip:{callbacks:{label:ctx=>{
-            const pct=total>0?((ctx.raw/total)*100).toFixed(1):'0.0';
-            return ` ${ctx.label}: ${fmt(ctx.raw)} (${pct}%)`;
-          }}}
+          tooltip:{
+            backgroundColor:'rgba(15,31,20,.92)',padding:10,cornerRadius:8,
+            callbacks:{label:ctx=>{
+              const pct=total>0?((ctx.raw/total)*100).toFixed(1):'0.0';
+              return ` ${ctx.label}: ${fmt(ctx.raw)} (${pct}%)`;
+            }}
+          }
         }
       }
     });
@@ -896,6 +902,18 @@ const APP = {
     });
     const mesAtual = new Date().getMonth();
     const anoAtualNum = new Date().getFullYear();
+    const dark = document.documentElement.classList.contains('dark');
+    const curMes = !ano || ano===anoAtualNum;
+    // Cores adaptadas ao tema
+    const recStrong  = dark ? 'rgba(50,215,75,.55)'  : 'rgba(0,100,55,.35)';
+    const recLight   = dark ? 'rgba(50,215,75,.14)'  : 'rgba(0,100,55,.15)';
+    const despStrong = dark ? 'rgba(255,69,58,.45)'  : 'rgba(220,38,38,.25)';
+    const despLight  = dark ? 'rgba(255,69,58,.12)'  : 'rgba(220,38,38,.12)';
+    const recBorder  = dark ? '#32d74b' : '#006437';
+    const despBorder = dark ? '#ff453a' : '#dc2626';
+    const tickColor  = dark ? 'rgba(235,235,245,.4)' : '#9ca3af';
+    const gridColor  = dark ? 'rgba(255,255,255,.05)': 'rgba(0,0,0,.04)';
+    const textColor  = dark ? 'rgba(235,235,245,.85)': '#374151';
     this.mkChart('canvasFluxo',{
       type:'bar',
       data:{
@@ -904,8 +922,8 @@ const APP = {
           {
             label:'Receita',
             data:rec,
-            backgroundColor:rec.map((_,i)=>i===mesAtual&&(!ano||ano===anoAtualNum)?'rgba(0,100,55,.35)':'rgba(0,100,55,.15)'),
-            borderColor:'#006437',
+            backgroundColor:rec.map((_,i)=>i===mesAtual&&curMes?recStrong:recLight),
+            borderColor:recBorder,
             borderWidth:2,
             borderRadius:{topLeft:5,topRight:5},
             borderSkipped:false,
@@ -913,8 +931,8 @@ const APP = {
           {
             label:'Despesas',
             data:despFilt,
-            backgroundColor:despFilt.map((_,i)=>i===mesAtual&&(!ano||ano===anoAtualNum)?'rgba(220,38,38,.25)':'rgba(220,38,38,.12)'),
-            borderColor:'#dc2626',
+            backgroundColor:despFilt.map((_,i)=>i===mesAtual&&curMes?despStrong:despLight),
+            borderColor:despBorder,
             borderWidth:2,
             borderRadius:{topLeft:5,topRight:5},
             borderSkipped:false,
@@ -924,7 +942,7 @@ const APP = {
       options:{
         responsive:true,maintainAspectRatio:false,
         plugins:{
-          legend:{labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
+          legend:{labels:{color:textColor,font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
           tooltip:{
             backgroundColor:'rgba(15,31,20,.92)',
             padding:10,
@@ -936,8 +954,8 @@ const APP = {
           }
         },
         scales:{
-          x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{display:false}},
-          y:{ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)',drawBorder:false}}
+          x:{ticks:{color:tickColor,font:{size:10}},grid:{display:false}},
+          y:{ticks:{color:tickColor,font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:gridColor,drawBorder:false}}
         }
       }
     });
@@ -1002,12 +1020,12 @@ const APP = {
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
-        <td data-label="A Pagar" class="neg">${fmt(ef)}</td>
-        <td data-label="Pago" class="${pago?'pos':'dim'}">${pago?fmt(c.vPago):'—'}</td>
-        <td data-label="Pendente" class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
+        <td data-label="A Pagar" class="money neg">${fmt(ef)}</td>
+        <td data-label="Pago" class="money ${pago?'pos':'dim'}">${pago?fmt(c.vPago):'—'}</td>
+        <td data-label="Pendente" class="money ${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
         <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
-        <td data-label="Parcela" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
-        <td data-label="Por">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
+        <td data-label="Parcela" class="col-hide" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
+        <td data-label="Por" class="col-hide">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
         <td data-label="Ações" style="white-space:nowrap">
           <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>
           ${!pago?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
@@ -1015,7 +1033,7 @@ const APP = {
           ${hasGrupo?`<button class="action-btn parcs" title="Parcelamento" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
           <button class="action-btn del" title="Excluir" onclick="APP.deleteConta('${c.id}')">✕</button>
         </td></tr>`;
-    }).join('')||'<tr><td colspan="13" style="text-align:center;padding:28px;color:var(--t4)">Nenhum resultado encontrado</td></tr>';
+    }).join('')||`<tr><td colspan="13" style="padding:0;border:none"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma conta encontrada</div><div class="empty-sub">Tente ajustar os filtros ou adicione uma nova conta.</div></div></td></tr>`;
 
     // Limpa seleção ao re-renderizar
     this.atualizarBarraPagamento();
@@ -1063,12 +1081,18 @@ const APP = {
   },
 
   async confirmarPagamento(){
-    const id    = document.getElementById('pgContaId').value;
-    const valor = parseFloat(document.getElementById('pgValorPago').value);
-    if(!valor||valor<=0) return this.toast('Informe um valor válido','error');
-    await FS.pagarConta(id, STATE.usuario, valor);
-    document.getElementById('ovPagamento').classList.remove('open');
-    this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
+    const btn  = document.querySelector('#ovPagamento .btn-primary');
+    if(btn) btn.classList.add('loading');
+    try{
+      const id    = document.getElementById('pgContaId').value;
+      const valor = parseFloat(document.getElementById('pgValorPago').value);
+      if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
+      await FS.pagarConta(id, STATE.usuario, valor);
+      document.getElementById('ovPagamento').classList.remove('open');
+      this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
+    }finally{
+      if(btn) btn.classList.remove('loading');
+    }
   },
 
   async deleteConta(id){
@@ -1235,27 +1259,31 @@ const APP = {
     const outras=CACHE.outras.filter(r=>!filtroResp||!r.resp||r.resp===filtroResp);
     const salVals=Array.from({length:12},(_,m)=>{let t=0;sals.forEach(s=>{const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;});return t;});
     const outVals=Array.from({length:12},(_,m)=>outras.reduce((s,r)=>s+(r.valores[m]||0),0));
+    const _drk = document.documentElement.classList.contains('dark');
+    const _tc  = _drk ? 'rgba(235,235,245,.4)' : '#9ca3af';
+    const _gc  = _drk ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.04)';
+    const _lc  = _drk ? 'rgba(235,235,245,.85)' : '#374151';
     this.mkChart('canvasReceitas',{
       type:'bar',
       data:{
         labels:MESES,
         datasets:[
-          {label:'Salários',data:salVals,backgroundColor:'rgba(0,100,55,.28)',borderColor:'#006437',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'},
-          {label:'Outras',data:outVals,backgroundColor:'rgba(0,168,90,.22)',borderColor:'#00a85a',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'}
+          {label:'Salários',data:salVals,backgroundColor:_drk?'rgba(50,215,75,.22)':'rgba(0,100,55,.28)',borderColor:_drk?'#32d74b':'#006437',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'},
+          {label:'Outras',data:outVals,backgroundColor:_drk?'rgba(50,215,75,.12)':'rgba(0,168,90,.22)',borderColor:_drk?'#30d158':'#00a85a',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'}
         ]
       },
       options:{
         responsive:true,maintainAspectRatio:false,
         plugins:{
-          legend:{labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
+          legend:{labels:{color:_lc,font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
           tooltip:{
             backgroundColor:'rgba(15,31,20,.92)',padding:10,cornerRadius:8,
             callbacks:{title:ctx=>MESES_F[ctx[0].dataIndex]||'',label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}
           }
         },
         scales:{
-          x:{ticks:{color:'#9ca3af',font:{size:10}},grid:{display:false},stacked:true},
-          y:{stacked:true,ticks:{color:'#9ca3af',font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:'rgba(0,0,0,.04)',drawBorder:false}}
+          x:{ticks:{color:_tc,font:{size:10}},grid:{display:false},stacked:true},
+          y:{stacked:true,ticks:{color:_tc,font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:_gc,drawBorder:false}}
         }
       }
     });
@@ -1528,15 +1556,15 @@ const APP = {
         <td data-label="Resp.">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria">${catNome}</td>
-        <td data-label="A Pagar" class="neg">${fmt(ef)}</td>
-        <td data-label="Pago" class="${c.vPago>0?'pos':'dim'}">${c.vPago>0?fmt(c.vPago):'—'}</td>
-        <td data-label="Pendente" class="${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
+        <td data-label="A Pagar" class="money neg">${fmt(ef)}</td>
+        <td data-label="Pago" class="money ${c.vPago>0?'pos':'dim'}">${c.vPago>0?fmt(c.vPago):'—'}</td>
+        <td data-label="Pendente" class="money ${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
         <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
-        <td data-label="Parcela" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
-        <td data-label="Por">${c.updatedBy||c.createdBy?`<span class="audit-chip">${c.updatedBy||c.createdBy}</span>`:''}</td>
+        <td data-label="Parcela" class="col-hide" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
+        <td data-label="Por" class="col-hide">${c.updatedBy||c.createdBy?`<span class="audit-chip">${c.updatedBy||c.createdBy}</span>`:''}</td>
         <td data-label="Nota" style="font-size:10.5px;color:var(--t4);max-width:100px;white-space:normal">${c.nota||'—'}</td>
       </tr>`;
-    }).join('')||'<tr><td colspan="12" style="text-align:center;padding:28px;color:var(--t4)">Nenhum dado para este filtro</td></tr>';
+    }).join('')||`<tr><td colspan="12" style="padding:0;border:none"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Nenhum dado para este filtro</div><div class="empty-sub">Tente ajustar os filtros de período, categoria ou responsável.</div></div></td></tr>`;
 
     // Pareto do Relatório — respeita o toggle
     if(document.getElementById('chkParetoRel')?.checked !== false){
@@ -1608,15 +1636,18 @@ const APP = {
   calcTotal(){ const v=parseFloat(document.getElementById('fVP').value)||0;const q=parseInt(document.getElementById('fQP').value)||1;document.getElementById('fVT').value=(v*q).toFixed(2); },
 
   async saveConta(){
+    const btn=document.getElementById('btnSalvarConta');
+    if(btn) btn.classList.add('loading');
+    try{
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
     const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseFloat(document.getElementById('fVP').value)||0,vPago:null,parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
-    if(!c.conta)return this.toast('Descrição é obrigatória','error');
-    if(!c.resp)return this.toast('Selecione o responsável','error');
-    if(!catId)return this.toast('Selecione a categoria','error');
-    if(!formaId)return this.toast('Selecione a forma de pagamento','error');
-    if(!c.data)return this.toast('Informe a data','error');
-    if(!c.vPagar)return this.toast('Informe o valor','error');
+    if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
+    if(!c.resp){this.toast('Selecione o responsável','error');return;}
+    if(!catId){this.toast('Selecione a categoria','error');return;}
+    if(!formaId){this.toast('Selecione a forma de pagamento','error');return;}
+    if(!c.data){this.toast('Informe a data','error');return;}
+    if(!c.vPagar){this.toast('Informe o valor','error');return;}
 
     if(STATE.editContaId){
       await FS.updateConta(STATE.editContaId,{...c,updatedBy:STATE.usuario});
@@ -1635,6 +1666,7 @@ const APP = {
       this.toast('Conta cadastrada ✅','success');
     }
     document.getElementById('ovConta').classList.remove('open');STATE.editContaId=null;
+    }finally{ if(btn) btn.classList.remove('loading'); }
   },
 
   // ── RECEITA MODAL ──
@@ -2452,6 +2484,8 @@ Object.assign(APP, {
     STATE.darkMode = !STATE.darkMode;
     document.documentElement.classList.toggle('dark', STATE.darkMode);
     localStorage.setItem('dt_dark', STATE.darkMode?'1':'0');
+    // Re-renderiza página atual para atualizar gráficos com as cores corretas
+    this.renderPage(STATE.page);
   },
 
   initDark(){
