@@ -642,11 +642,21 @@ const APP = {
     STATE.charts[id]=new Chart(c,cfg);return STATE.charts[id];
   },
 
+  // ── Tema visual por responsável ──
+  // Aplica/remove classe no <html> — apenas variáveis CSS, zero impacto em layout
+  _aplicarTemaResp(resp){
+    const root = document.documentElement;
+    root.classList.remove('theme-pri','theme-leo');
+    if(resp==='Pri') root.classList.add('theme-pri');
+    else if(resp==='Leo') root.classList.add('theme-leo');
+  },
+
   setRespDash(r){
     STATE.dashResp=r;
     document.querySelectorAll('#rc-todos,#rc-leo,#rc-pri').forEach(b=>{b.classList.remove('active');});
     const ids={'':'rc-todos','Leo':'rc-leo','Pri':'rc-pri'};
     document.getElementById(ids[r])?.classList.add('active');
+    this._aplicarTemaResp(r);
     this.renderDashboard();
   },
 
@@ -969,6 +979,7 @@ const APP = {
     const ano=document.getElementById('filtroAnoContas').value;
     const mes=document.getElementById('filtroMesContas').value;
     const resp=document.getElementById('filtroRespContas').value;
+    this._aplicarTemaResp(resp);
     const cat=document.getElementById('filtroCatContas').value;
     const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;
@@ -1584,7 +1595,7 @@ const APP = {
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
-    const p       = STATE.periodo; // filtro de período (tem prioridade sobre ano/mês)
+    this._aplicarTemaResp(resp);
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
 
