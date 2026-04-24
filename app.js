@@ -1259,31 +1259,118 @@ const APP = {
     const outras=CACHE.outras.filter(r=>!filtroResp||!r.resp||r.resp===filtroResp);
     const salVals=Array.from({length:12},(_,m)=>{let t=0;sals.forEach(s=>{const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;});return t;});
     const outVals=Array.from({length:12},(_,m)=>outras.reduce((s,r)=>s+(r.valores[m]||0),0));
-    const _drk = document.documentElement.classList.contains('dark');
-    const _tc  = _drk ? 'rgba(235,235,245,.4)' : '#9ca3af';
-    const _gc  = _drk ? 'rgba(255,255,255,.05)' : 'rgba(0,0,0,.04)';
-    const _lc  = _drk ? 'rgba(235,235,245,.85)' : '#374151';
+    const dark = document.documentElement.classList.contains('dark');
+
+    // ── Paleta diferenciada: verde escuro (Salários) vs menta vibrante (Outras)
+    const salColor    = dark ? 'rgba(0,100,55,.75)'    : 'rgba(0,100,55,.82)';
+    const salBorder   = dark ? '#32d74b'                : '#006437';
+    const outColor    = dark ? 'rgba(52,211,153,.55)'  : 'rgba(52,211,153,.80)';
+    const outBorder   = dark ? '#34d399'                : '#059669';
+    const tickColor   = dark ? 'rgba(235,235,245,.45)' : '#9ca3af';
+    const gridColor   = dark ? 'rgba(255,255,255,.05)' : '#e8edf2';
+    const legendColor = dark ? 'rgba(235,235,245,.85)' : '#374151';
+    const tooltipBg   = dark ? 'rgba(28,28,30,.97)'    : 'rgba(15,31,20,.95)';
+
+    // Total por mês para exibir no tooltip
+    const totVals = salVals.map((v,i)=>v+(outVals[i]||0));
+
     this.mkChart('canvasReceitas',{
       type:'bar',
       data:{
-        labels:MESES,
+        labels: MESES,
         datasets:[
-          {label:'Salários',data:salVals,backgroundColor:_drk?'rgba(50,215,75,.22)':'rgba(0,100,55,.28)',borderColor:_drk?'#32d74b':'#006437',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'},
-          {label:'Outras',data:outVals,backgroundColor:_drk?'rgba(50,215,75,.12)':'rgba(0,168,90,.22)',borderColor:_drk?'#30d158':'#00a85a',borderWidth:2,borderRadius:{topLeft:5,topRight:5},borderSkipped:false,stack:'a'}
+          {
+            label: 'Salários',
+            data: salVals,
+            backgroundColor: salColor,
+            borderColor: salBorder,
+            borderWidth: 1.5,
+            borderRadius: { topLeft:4, topRight:4 },
+            borderSkipped: false,
+            barPercentage: 0.62,
+            categoryPercentage: 0.75,
+            stack: 'receitas',
+          },
+          {
+            label: 'Outras Receitas',
+            data: outVals,
+            backgroundColor: outColor,
+            borderColor: outBorder,
+            borderWidth: 1.5,
+            borderRadius: { topLeft:4, topRight:4 },
+            borderSkipped: false,
+            barPercentage: 0.62,
+            categoryPercentage: 0.75,
+            stack: 'receitas',
+          }
         ]
       },
       options:{
-        responsive:true,maintainAspectRatio:false,
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: { duration:800, easing:'easeInOutCubic' },
         plugins:{
-          legend:{labels:{color:_lc,font:{size:10},usePointStyle:true,pointStyle:'circle',padding:16}},
+          legend:{
+            position: 'top',
+            align: 'end',
+            labels:{
+              color: legendColor,
+              font:{ size:11, family:'DM Sans, system-ui, sans-serif', weight:'500' },
+              boxWidth: 10,
+              boxHeight: 10,
+              borderRadius: 3,
+              useBorderRadius: true,
+              usePointStyle: false,
+              padding: 16,
+            }
+          },
           tooltip:{
-            backgroundColor:'rgba(15,31,20,.92)',padding:10,cornerRadius:8,
-            callbacks:{title:ctx=>MESES_F[ctx[0].dataIndex]||'',label:ctx=>` ${ctx.dataset.label}: ${fmt(ctx.raw)}`}
+            backgroundColor: tooltipBg,
+            titleColor: '#fff',
+            bodyColor: 'rgba(255,255,255,.75)',
+            padding: { top:10, bottom:10, left:14, right:14 },
+            cornerRadius: 10,
+            boxPadding: 5,
+            callbacks:{
+              title: ctx => MESES_F[ctx[0].dataIndex] || '',
+              label: ctx => {
+                const pct = totVals[ctx.dataIndex] > 0
+                  ? ((ctx.raw / totVals[ctx.dataIndex]) * 100).toFixed(1)
+                  : '0.0';
+                return `  ${ctx.dataset.label}: ${fmt(ctx.raw)} (${pct}%)`;
+              },
+              afterBody: ctx => {
+                const i = ctx[0].dataIndex;
+                return [`  Total: ${fmt(totVals[i])}`];
+              },
+              afterBodyColor: () => 'rgba(255,255,255,.5)',
+            }
           }
         },
         scales:{
-          x:{ticks:{color:_tc,font:{size:10}},grid:{display:false},stacked:true},
-          y:{stacked:true,ticks:{color:_tc,font:{size:10},callback:v=>`R$${(v/1000).toFixed(0)}k`},grid:{color:_gc,drawBorder:false}}
+          x:{
+            stacked: true,
+            grid: { display:false },
+            ticks:{
+              color: tickColor,
+              font:{ size:10, family:'DM Sans, system-ui, sans-serif' }
+            }
+          },
+          y:{
+            stacked: true,
+            min: 0,
+            grid:{
+              color: gridColor,
+              drawBorder: false,
+              lineWidth: 1,
+            },
+            ticks:{
+              color: tickColor,
+              font:{ size:10, family:'DM Sans, system-ui, sans-serif' },
+              callback: v => `R$${(v/1000).toFixed(0)}k`,
+              maxTicksLimit: 6,
+            }
+          }
         }
       }
     });
