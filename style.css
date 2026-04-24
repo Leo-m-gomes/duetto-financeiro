@@ -718,12 +718,10 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   .charts-row{grid-template-columns:1fr;gap:12px}
   .chart-card{min-height:220px}
 
-  /* KPIs: 1 coluna para não transbordar */
-  .kpi-grid{grid-template-columns:1fr;gap:8px}
-  .kpi-card{padding:14px 16px}
-  .kpi-card.kpi-hero{padding:16px 18px}
-  .kpi-value{font-size:20px}
-  .kpi-card.kpi-hero .kpi-value{font-size:22px}
+  /* KPIs: 1 coluna em tablets médios */
+  .kpi-grid{grid-template-columns:1fr;gap:10px}
+  .kpi-card,.kpi-card.kpi-hero{padding:14px 16px}
+  .kpi-value,.kpi-card.kpi-hero .kpi-value{font-size:20px}
   .kpi-icon{top:14px;right:14px;font-size:18px}
 
   /* Dashboard filters: empilhados, 100% largura */
@@ -752,20 +750,29 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   .dash-filters-resp{gap:8px;flex-wrap:wrap}
   .resp-chip{padding:7px 16px;font-size:13px}
 
-  /* Item 1: KPIs em grade 2x2 com padding reduzido */
+  /* Item 1: KPIs em grade 2x2 — altura uniforme entre todos os cards */
   .kpi-grid{
     display:grid;
     grid-template-columns:1fr 1fr;
+    grid-auto-rows:1fr;
     gap:8px;
-    margin-bottom:12px
+    margin-bottom:12px;
+    align-items:stretch;
   }
-  .kpi-card{padding:12px 14px}
-  .kpi-card.kpi-hero{padding:12px 14px}
-  .kpi-value{font-size:18px}
-  .kpi-card.kpi-hero .kpi-value{font-size:20px}
-  .kpi-label{margin-bottom:6px;font-size:9px}
-  .kpi-sub{font-size:10px}
-  .kpi-icon{top:10px;right:10px;font-size:16px}
+  /* !important necessário para sobrescrever regras globais de .kpi-hero */
+  .kpi-card,
+  .kpi-card.kpi-hero{
+    padding:11px 12px !important;
+    min-height:70px;
+  }
+  .kpi-value,
+  .kpi-card.kpi-hero .kpi-value{
+    font-size:16px !important;
+    margin-bottom:3px;
+  }
+  .kpi-label{margin-bottom:3px;font-size:9px;letter-spacing:.5px}
+  .kpi-sub{font-size:9.5px;line-height:1.3}
+  .kpi-icon{top:8px;right:10px;font-size:14px;opacity:.6}
 
   /* Item 2: Reordenar seções via flexbox order */
   .dash-page-inner{
