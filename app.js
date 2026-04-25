@@ -22,6 +22,64 @@ const fbDb   = firebase.firestore();
 const MESES   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MESES_F = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const COLORS  = ['#006437','#00a85a','#d97706','#dc2626','#2563eb','#7c3aed','#0891b2','#ea580c','#65a30d','#64748b'];
+
+// ══════════════════════════════════════════════════════════════
+// HELPERS DUAL-THEME PARA CHART.JS (M03)
+// Adaptam paleta e defaults conforme o modo claro/escuro ativo.
+// Chamados dinamicamente em cada render, garantindo re-render
+// correto após APP.toggleDark (que invoca renderPage).
+// ══════════════════════════════════════════════════════════════
+
+/**
+ * Retorna a paleta de cores adequada ao tema vigente.
+ * Tema claro: paleta verde Palmeiras + apoios sóbrios.
+ * Tema escuro: paleta Apple-style com saturação ajustada para contraste.
+ * @returns {string[]} Array de 10 cores hexadecimais.
+ */
+function getChartColors() {
+  const dark = document.documentElement.classList.contains('dark');
+  return dark
+    ? [
+        '#32d74b', // verde Apple, cor primaria
+        '#0a84ff', // azul Apple
+        '#ff9f0a', // laranja Apple
+        '#ff453a', // vermelho Apple
+        '#bf5af2', // roxo Apple
+        '#64d2ff', // ciano Apple
+        '#ffd60a', // amarelo Apple
+        '#30d158', // verde menta
+        '#5e5ce6', // indigo Apple
+        '#ac8c00', // dourado dessaturado
+      ]
+    : [
+        '#006437', // verde Palmeiras, cor primaria
+        '#2563eb', // azul institucional
+        '#d97706', // laranja
+        '#dc2626', // vermelho
+        '#7c3aed', // roxo
+        '#0891b2', // ciano
+        '#ea580c', // laranja escuro
+        '#65a30d', // lima
+        '#4f46e5', // indigo
+        '#64748b', // slate, neutro
+      ];
+}
+
+/**
+ * Retorna defaults de texto, borda e grid para Chart.js conforme o tema.
+ * Centraliza a logica de cor que antes estava duplicada em cada grafico.
+ * @returns {{color:string, borderColor:string, gridColor:string, tooltipBg:string}}
+ */
+function getChartDefaults() {
+  const dark = document.documentElement.classList.contains('dark');
+  return {
+    color:       dark ? 'rgba(235,235,245,0.85)' : '#374151',
+    borderColor: dark ? 'rgba(58,58,60,1)'        : '#e8edf2',
+    gridColor:   dark ? 'rgba(255,255,255,0.05)'  : 'rgba(0,0,0,0.04)',
+    tooltipBg:   dark ? 'rgba(28,28,30,0.97)'     : 'rgba(15,31,20,0.92)',
+  };
+}
+
 const fmt     = v => v==null||isNaN(v)?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtN    = v => v==null||isNaN(v)?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d.toLocaleDateString('pt-BR'); };
@@ -384,10 +442,31 @@ fbAuth.onAuthStateChanged(async user => {
   setupListeners();
 });
 
+/**
+ * Alterna a visibilidade entre as telas principais.
+ * M11: quando a transição é screenLoading -> screenApp, aplica fade-out
+ *      suave no loading antes de remover do layout, evitando "salto" visual.
+ */
 function show(screenId){
-  ['screenLoading','screenLogin','screenDenied','screenApp'].forEach(id=>{
-    const el=document.getElementById(id);
-    if(el) el.style.display=(id===screenId?'flex':'none');
+  const screens = ['screenLoading','screenLogin','screenDenied','screenApp'];
+  const loadingEl = document.getElementById('screenLoading');
+  const isLoadingActive = loadingEl && loadingEl.style.display !== 'none' && loadingEl.style.display !== '';
+  // M11: fade-out do loading apenas quando saindo do screenLoading para outra tela
+  if (isLoadingActive && screenId !== 'screenLoading' && loadingEl) {
+    loadingEl.classList.add('fade-out');
+    setTimeout(() => {
+      loadingEl.classList.remove('fade-out');
+      screens.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = (id === screenId ? 'flex' : 'none');
+      });
+    }, 400); // duração do fade definida no CSS (transition: opacity .4s)
+    return;
+  }
+  // Comportamento padrão: troca instantânea
+  screens.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (id === screenId ? 'flex' : 'none');
   });
 }
 
@@ -410,13 +489,15 @@ const APP = {
     this.restoreSidebarState();
     const chip=document.getElementById('sbUserChip');
     if(chip) chip.textContent='👤 '+STATE.usuario;
-    // Configurações só visível para Leo (admin)
+    // Configurações só visível para Leo (admin), conforme regra de segurança v1.0
     if(STATE.usuario==='Leo'){
       const navCfg=document.getElementById('navConfig');
       if(navCfg) navCfg.style.display='flex';
       const navUp=document.getElementById('navUpload');
       if(navUp) navUp.style.display='flex';
     }
+    // M06: ativa indicador de scroll na topbar (sombra dinâmica)
+    this.initTopbarScroll();
     this.renderPage('dashboard');
   },
 
@@ -442,7 +523,11 @@ const APP = {
     const sb      = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     sb.classList.remove('open');
-    if(overlay) overlay.style.display='none';
+    // M07-sidebar: remove .visible primeiro (fade-out), depois oculta
+    if(overlay) {
+      overlay.classList.remove('visible');
+      setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
   },
 
   toggleFiltros(){
@@ -509,7 +594,10 @@ const APP = {
         if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
         document.getElementById('sidebar').classList.remove('open');
         const ov=document.getElementById('sidebarOverlay');
-        if(ov) ov.style.display='none';
+        if(ov) {
+          ov.classList.remove('visible');
+          setTimeout(() => { ov.style.display = 'none'; }, 300);
+        }
         this.renderPage(el.dataset.page);
       });
     });
@@ -517,7 +605,16 @@ const APP = {
       const sb      = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebarOverlay');
       const isOpen  = sb.classList.toggle('open');
-      if(overlay) overlay.style.display = isOpen ? 'block' : 'none';
+      if(overlay) {
+        if(isOpen) {
+          // M07-sidebar: exibe primeiro, depois aplica .visible para acionar fade-in CSS
+          overlay.style.display = 'block';
+          requestAnimationFrame(() => overlay.classList.add('visible'));
+        } else {
+          overlay.classList.remove('visible');
+          setTimeout(() => { overlay.style.display = 'none'; }, 300);
+        }
+      }
     });
   },
 
@@ -532,8 +629,9 @@ const APP = {
   },
 
   modals(){
-    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>document.getElementById(b.dataset.close).classList.remove('open')));
-    document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)ov.classList.remove('open');}));
+    // M10: usa APP.closeModal para acionar animação de saída antes de remover .open
+    document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>APP.closeModal(b.dataset.close)));
+    document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)APP.closeModal(ov.id);}));
     document.getElementById('btnLimparConta').addEventListener('click',()=>this.clearConta());
     document.getElementById('btnSalvarConta').addEventListener('click',()=>this.saveConta());
     document.getElementById('fVP').addEventListener('input',()=>this.calcTotal());
@@ -841,13 +939,15 @@ const APP = {
     const map={};contas.forEach(c=>{const n=CACHE.resolveCat(c.catId||c.cat);map[n]=(map[n]||0)+vEfetivo(c);});
     const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,9);
     const total = sorted.reduce((s,[,v])=>s+v,0);
+    // M03: paleta adaptada ao tema (claro/escuro), garantindo contraste no dark
+    const chartColors = getChartColors();
     this.mkChart('canvasCategoria',{
       type:'doughnut',
       data:{
         labels:sorted.map(([k])=>k),
         datasets:[{
           data:sorted.map(([,v])=>v),
-          backgroundColor:COLORS,
+          backgroundColor:chartColors,
           borderWidth:3,
           borderColor,
           hoverOffset:6,
@@ -859,7 +959,7 @@ const APP = {
         plugins:{
           legend:{
             position:'right',
-            labels:{color:textColor,font:{size:10},boxWidth:10,padding:10,
+            labels:{color:textColor,font:{size:11},boxWidth:10,padding:10,
               generateLabels(chart){
                 const ds=chart.data.datasets[0];
                 return chart.data.labels.map((label,i)=>{
@@ -2586,6 +2686,78 @@ Object.assign(APP, {
     this.renderPage(STATE.page);
   },
 
+  // ══════════════════════════════════════════════════════════════
+  // HELPERS DE UI: FECHAMENTO ANIMADO DE MODAL, FADE DE LOADING,
+  // SCROLL DA TOPBAR (M06, M10, M11)
+  // ══════════════════════════════════════════════════════════════
+
+  /**
+   * Fecha um modal com animação de saída (M10).
+   * Aplica .closing por 180ms (duração da animação CSS), depois
+   * remove .open e .closing, restaurando o estado inicial.
+   * Seguro: se o modal já estiver fechado, não faz nada.
+   * @param {string} id - ID do elemento .modal-overlay (ex: 'ovConta')
+   */
+  closeModal(id){
+    const ov = document.getElementById(id);
+    if(!ov || !ov.classList.contains('open')) return;
+    // Adiciona classe que dispara a animação de saída via CSS
+    ov.classList.add('closing');
+    // Aguarda a animação completar (180ms = duração CSS) antes de ocultar
+    setTimeout(() => {
+      ov.classList.remove('open', 'closing');
+    }, 180);
+  },
+
+  /**
+   * Aplica fade-out no screenLoading antes de ocultá-lo (M11).
+   * Helper alternativo para uso direto, caso seja necessário ocultar
+   * o loading sem trocar para outra tela. A função `show()` global
+   * já invoca esta lógica automaticamente.
+   */
+  hideLoading(){
+    const el = document.getElementById('screenLoading');
+    if(!el || el.style.display === 'none') return;
+    el.classList.add('fade-out');
+    setTimeout(() => {
+      el.style.display = 'none';
+      el.classList.remove('fade-out');
+    }, 400);
+  },
+
+  /**
+   * Inicializa o listener de scroll da topbar (M06).
+   * Adiciona/remove a classe .scrolled conforme o conteúdo rola,
+   * acionando a sombra de "flutuação" via CSS. Usa rAF throttle
+   * para evitar layout thrashing.
+   * Idempotente: pode ser chamada múltiplas vezes sem efeito colateral.
+   */
+  initTopbarScroll(){
+    if(this._topbarScrollInit) return;
+    this._topbarScrollInit = true;
+    const topbar = document.querySelector('.topbar');
+    if(!topbar) return;
+    // O scroll real ocorre no .main (não no window) devido ao layout fixo da sidebar
+    const scrollEl = document.querySelector('.main') || window;
+    let ticking = false;
+    const onScroll = () => {
+      if(ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const scrollTop = (scrollEl === window)
+          ? window.pageYOffset
+          : scrollEl.scrollTop;
+        topbar.classList.toggle('scrolled', scrollTop > 8);
+        ticking = false;
+      });
+    };
+    scrollEl.addEventListener('scroll', onScroll, { passive: true });
+    // Fallback: também escuta scroll no window (caso o layout mude no futuro)
+    if(scrollEl !== window) {
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
+  },
+
   initDark(){
     if(STATE.darkMode) document.documentElement.classList.add('dark');
   },
@@ -3567,12 +3739,18 @@ Object.assign(APP, {
     // Ponto onde acumulado passa de 80%
     const idx80 = dados.findIndex(d=>d.acum>=80);
 
+    // M03: cores Pareto adaptadas ao tema (claro/escuro)
+    const dark = document.documentElement.classList.contains('dark');
+    const paretoStrong   = dark ? 'rgba(50,215,75,0.65)'  : 'rgba(0,100,55,0.70)';
+    const paretoLight    = dark ? 'rgba(50,215,75,0.18)'  : 'rgba(0,100,55,0.20)';
+    const paretoBorder   = dark ? '#32d74b'                : '#006437';
+    const paretoBorderLt = dark ? '#5fdf75'                : '#00a85a';
     // Cores das barras: destaque nas que compõem os 80%
     const barColors = dados.map((_,i)=>
-      i<=idx80 ? 'rgba(0,100,55,.7)' : 'rgba(0,100,55,.2)'
+      i<=idx80 ? paretoStrong : paretoLight
     );
     const barBorders = dados.map((_,i)=>
-      i<=idx80 ? '#006437' : '#00a85a'
+      i<=idx80 ? paretoBorder : paretoBorderLt
     );
 
     this.mkChart(canvasId,{
@@ -3615,10 +3793,10 @@ Object.assign(APP, {
         maintainAspectRatio:false,
         plugins:{
           legend:{
-            labels:{color:'#374151',font:{size:10},usePointStyle:true,pointStyle:'circle',padding:14}
+            labels:{color:getChartDefaults().color,font:{size:11},usePointStyle:true,pointStyle:'circle',padding:14}
           },
           tooltip:{
-            backgroundColor:'rgba(15,31,20,.92)',
+            backgroundColor:getChartDefaults().tooltipBg,
             padding:10,cornerRadius:8,
             callbacks:{
               title:ctx=>ctx[0].label,
