@@ -181,6 +181,9 @@ const STATE = {
   sortContas:{col:null, dir:1},   // col=nome da coluna, dir=1 asc / -1 desc
   sortRel:   {col:null, dir:1},
   darkMode:  localStorage.getItem('dt_dark')==='1',
+  // R14: Modo Privacidade. Por design NÃO persiste em localStorage.
+  // Sempre inicia desativado para que valores não fiquem ocultos sem o usuário saber.
+  hideValues: false,
 };
 
 // ============================================================
@@ -2688,6 +2691,27 @@ Object.assign(APP, {
     localStorage.setItem('dt_dark', STATE.darkMode?'1':'0');
     // Re-renderiza página atual para atualizar gráficos com as cores corretas
     this.renderPage(STATE.page);
+  },
+
+  /**
+   * R14: Alterna o Modo Privacidade (ocultar valores monetários).
+   * Aplica/remove a classe .privacy-mode no <html>, que via CSS aplica blur
+   * em valores de KPIs, células .money, totais e barra de pagamento em massa.
+   *
+   * Decisão de design: estado NÃO persiste em localStorage. Cada nova sessão
+   * inicia com valores visíveis, evitando que o usuário esqueça que valores
+   * estão ocultos. Para alternar, basta clicar no botão na topbar.
+   */
+  togglePrivacy(){
+    STATE.hideValues = !STATE.hideValues;
+    document.documentElement.classList.toggle('privacy-mode', STATE.hideValues);
+    // Alterna ícones do botão (olho aberto ↔ olho cortado)
+    const iconOn  = document.getElementById('iconPrivacyOn');
+    const iconOff = document.getElementById('iconPrivacyOff');
+    if(iconOn)  iconOn.style.display  = STATE.hideValues ? 'none'  : 'block';
+    if(iconOff) iconOff.style.display = STATE.hideValues ? 'block' : 'none';
+    const btn = document.getElementById('btnTogglePrivacy');
+    if(btn) btn.title = STATE.hideValues ? 'Mostrar valores' : 'Ocultar valores';
   },
 
   // ══════════════════════════════════════════════════════════════

@@ -16,6 +16,15 @@
   --t1:#0f1f14; --t2:#374151; --t3:#6b7280; --t4:#9ca3af;
   --r:16px; --r-sm:10px;
   --sw:230px; --sh:60px;
+  /* ── DESIGN TOKENS DE ESPAÇAMENTO (v1.1) ──
+     Tokens unificados aplicados como referência global. Os tokens em si são
+     constantes (não dimensões aplicadas), portanto válidos em :root conforme R2/R3.
+     A APLICAÇÃO dos tokens em padding/margin/gap segue as regras de @media. */
+  --sp-1: 6px;   /* extra-pequeno: gap interno de chips, badges */
+  --sp-2: 10px;  /* pequeno: entre rótulo e valor, dentro de cards */
+  --sp-3: 14px;  /* médio: entre cards de uma mesma linha (KPIs) */
+  --sp-4: 22px;  /* padrão: entre seções principais do dashboard */
+  --sp-5: 32px;  /* grande: respiração ampla entre blocos lógicos distintos */
   --shadow-sm: 0 1px 4px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.03);
   --shadow:    0 4px 20px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
   --shadow-lg: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
@@ -1381,4 +1390,115 @@ html { transition: --palm .25s ease; }
 
 /* ══════════════════════════════════════════════════════
    FIM DO BLOCO DE MELHORIAS UI/UX v1.0
+   ══════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, BLOCO DE MELHORIAS v1.1
+   Bugfixes visuais e novas features (Abril 2026)
+   Aditivo. Conforme R1 a R12 + novas regras R13, R14, R15.
+   ══════════════════════════════════════════════════════ */
+
+/* ── R4 reforço: KPI grid com altura uniforme ──
+   Sem grid-auto-rows:1fr, o card .kpi-hero (com padding maior por M01)
+   ficava mais alto que os outros 3, quebrando alinhamento horizontal. */
+.kpi-grid {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+}
+
+/* ── R15: Ordem fixa do Dashboard em TODOS os breakpoints ──
+   As regras dash-order-* estavam apenas em @media(max-width:640px), portanto
+   no desktop "Pendentes do Mês" aparecia no meio da tela. Agora a ordem
+   lógica é uniforme: filtros → atraso → KPIs → insights → gráficos → pendentes. */
+.dash-page-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.dash-order-alert     { order: 1; }
+.dash-order-kpi       { order: 2; }
+.dash-order-insights  { order: 3; }
+.dash-order-charts    { order: 4; }
+.dash-order-pendentes { order: 5; }
+/* O wrapper de filtros (sem classe dash-order-*) fica em order:0 (default), ou seja, primeiro */
+
+/* ── R13: Sistema de Espaçamento entre Seções ──
+   Como .dash-page-inner agora aplica gap, removemos margin-bottom redundantes
+   dos elementos filhos para evitar dupla aplicação de espaço. */
+.dash-page-inner > .kpi-grid,
+.dash-page-inner > .insight-bar,
+.dash-page-inner > .section-card,
+.dash-page-inner > .charts-row,
+.dash-page-inner > .pareto-card,
+.dash-page-inner > .dash-filters,
+.dash-page-inner > .overdue-alert {
+  margin-bottom: 0;
+}
+
+/* ── Outras páginas: aplicar mesmo padrão de espaçamento ──
+   Padroniza o rítmo vertical entre seções nas demais telas. */
+#page-contas .page-inner,
+#page-receitas .page-inner,
+#page-salarios .page-inner,
+#page-relatorio .page-inner,
+#page-upload .page-inner,
+#page-config .page-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+/* Remove margin-bottom redundante dentro dessas páginas */
+#page-contas .page-inner > *,
+#page-receitas .page-inner > *,
+#page-salarios .page-inner > *,
+#page-relatorio .page-inner > *,
+#page-upload .page-inner > *,
+#page-config .page-inner > * {
+  margin-bottom: 0;
+}
+
+/* ── R14: MODO PRIVACIDADE ──
+   Aplica blur em valores monetários quando html.privacy-mode está ativo.
+   Inicia sempre desativado (sem persistência em localStorage por design),
+   garantindo que valores não fiquem escondidos sem o usuário saber. */
+.privacy-mode .kpi-value,
+.privacy-mode .kpi-sub,
+.privacy-mode .money,
+.privacy-mode .rel-kpi .val,
+.privacy-mode .total-pill .val,
+.privacy-mode .ai-totals strong,
+.privacy-mode .barra-pagamento-info strong {
+  filter: blur(7px);
+  user-select: none;
+  transition: filter 0.25s ease;
+}
+/* Saldo do dashboard (kpi-hero): blur ligeiramente maior para destaque */
+.privacy-mode .kpi-card.kpi-hero .kpi-value {
+  filter: blur(9px);
+}
+/* Botão de privacidade: indicação visual quando ativo */
+.privacy-mode #btnTogglePrivacy {
+  background: var(--palm-lt);
+  color: var(--palm);
+}
+.dark.privacy-mode #btnTogglePrivacy {
+  background: rgba(50,215,75,0.15);
+  color: var(--palm);
+}
+
+/* ── Mobile: gap menor para preservar densidade em telas pequenas ── */
+@media (max-width: 640px) {
+  .dash-page-inner,
+  #page-contas .page-inner,
+  #page-receitas .page-inner,
+  #page-salarios .page-inner,
+  #page-relatorio .page-inner,
+  #page-upload .page-inner,
+  #page-config .page-inner {
+    gap: var(--sp-3);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   FIM DO BLOCO DE MELHORIAS v1.1
    ══════════════════════════════════════════════════════ */
