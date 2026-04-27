@@ -1698,6 +1698,10 @@ const APP = {
     this._aplicarTemaResp(resp);
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
+    // BUGFIX: variável `p` (período do Relatório) era usada sem declaração,
+    // causando ReferenceError que abortava toda a renderização (KPIs, tabela e Pareto vazios).
+    // Padrão alinhado com renderDashboard (STATE.periodoDash) e renderContas (STATE.periodoContas).
+    const p = STATE.periodo;
 
     let data = CACHE.contas;
 
@@ -2731,30 +2735,41 @@ Object.assign(APP, {
    * acionando a sombra de "flutuação" via CSS. Usa rAF throttle
    * para evitar layout thrashing.
    * Idempotente: pode ser chamada múltiplas vezes sem efeito colateral.
+   *
+   * BUGFIX: o scroll real ocorre no window (body), não no .main.
+   * O .main não declara overflow:auto no CSS (linha 59 do style.css),
+   * portanto o listener anterior nunca disparava. Agora escuta tanto
+   * no window quanto em qualquer elemento com overflow ativo.
    */
   initTopbarScroll(){
     if(this._topbarScrollInit) return;
     this._topbarScrollInit = true;
     const topbar = document.querySelector('.topbar');
     if(!topbar) return;
-    // O scroll real ocorre no .main (não no window) devido ao layout fixo da sidebar
-    const scrollEl = document.querySelector('.main') || window;
     let ticking = false;
     const onScroll = () => {
       if(ticking) return;
       ticking = true;
       requestAnimationFrame(() => {
-        const scrollTop = (scrollEl === window)
-          ? window.pageYOffset
-          : scrollEl.scrollTop;
+        // Lê o scroll de window (default em layouts sem overflow customizado)
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
         topbar.classList.toggle('scrolled', scrollTop > 8);
         ticking = false;
       });
     };
-    scrollEl.addEventListener('scroll', onScroll, { passive: true });
-    // Fallback: também escuta scroll no window (caso o layout mude no futuro)
-    if(scrollEl !== window) {
-      window.addEventListener('scroll', onScroll, { passive: true });
+    // Listener primário: window (cobre o caso real do Duetto)
+    window.addEventListener('scroll', onScroll, { passive: true });
+    // Fallback defensivo: caso o layout futuro mude .main para overflow:auto
+    const mainEl = document.querySelector('.main');
+    if(mainEl) {
+      mainEl.addEventListener('scroll', () => {
+        if(ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          topbar.classList.toggle('scrolled', mainEl.scrollTop > 8);
+          ticking = false;
+        });
+      }, { passive: true });
     }
   },
 

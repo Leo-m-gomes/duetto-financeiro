@@ -1284,6 +1284,7 @@ html { transition: --palm .25s ease; }
 
   /* ── M08 Filtros colapsáveis, animação suave de altura ── */
   /* Substitui display:none/flex pela técnica max-height (mantém display:flex sempre) */
+  /* Safari iOS: valor 800px previne clipping em listas longas (M08 v1.1) */
   .filter-group {
     max-height: 0;
     overflow: hidden;
@@ -1297,7 +1298,7 @@ html { transition: --palm .25s ease; }
     display: flex;
   }
   .filter-group.mob-filters-open {
-    max-height: 600px;
+    max-height: 800px;
     opacity: 1;
     padding: 12px;
   }
@@ -1311,7 +1312,7 @@ html { transition: --palm .25s ease; }
   }
   .dash-filters-body.dash-filters-open,
   .rel-filters-body.rel-filters-open {
-    max-height: 600px;
+    max-height: 800px;
     opacity: 1;
   }
 
@@ -1353,6 +1354,22 @@ html { transition: --palm .25s ease; }
    ══════════════════════════════════════════════════════ */
 .dark .topbar {
   background: rgba(28,28,30,0.92);
+}
+/* BUGFIX dark mode: resp-chip estava com background:#fff fixo (linha 392),
+   ficando ilegível no tema escuro. Override aplica superfície escura e contraste correto. */
+.dark .resp-chip {
+  background: var(--surface);
+  color: var(--t3);
+  border-color: var(--border2);
+}
+.dark .resp-chip:hover {
+  border-color: var(--palm);
+  color: var(--palm);
+}
+.dark .resp-chip.active {
+  background: var(--palm);
+  color: #1c1c1e;
+  border-color: var(--palm);
 }
 @media (max-width: 640px) {
   /* Dark: gradiente do header do mob-card adaptado */
