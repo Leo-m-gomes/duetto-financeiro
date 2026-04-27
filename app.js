@@ -1199,7 +1199,7 @@ const APP = {
       const valor = parseFloat(document.getElementById('pgValorPago').value);
       if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
       await FS.pagarConta(id, STATE.usuario, valor);
-      document.getElementById('ovPagamento').classList.remove('open');
+      APP.closeModal('ovPagamento');
       this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
     }finally{
       if(btn) btn.classList.remove('loading');
@@ -1240,7 +1240,7 @@ const APP = {
     if(!confirm(`Marcar ${parcs.length} parcela(s) como pagas?`))return;
     await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,c.vPagar)));
     this.toast(`${parcs.length} parcela(s) pagas`,'success');
-    document.getElementById('ovParcelas').classList.remove('open');
+    APP.closeModal('ovParcelas');
   },
   async parcsPayEarly(){
     const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!(c.vPago>0));
@@ -1249,7 +1249,7 @@ const APP = {
     const nota=prompt('Observação:')||'Pagamento antecipado';
     await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,parseFloat(val)/parcs.length)));
     this.toast('Pagamento antecipado registrado','success');
-    document.getElementById('ovParcelas').classList.remove('open');
+    APP.closeModal('ovParcelas');
   },
   async parcsPayOne(id){
     if(!confirm('Pagar esta parcela?'))return;
@@ -1266,7 +1266,7 @@ const APP = {
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
     if(!confirm(`Excluir TODAS as ${parcs.length} parcelas?\n\nEsta ação não pode ser desfeita.`))return;
     await Promise.all(parcs.map(c=>FS.deleteConta(c.id)));
-    document.getElementById('ovParcelas').classList.remove('open');
+    APP.closeModal('ovParcelas');
     this.toast('Parcelamento excluído','success');
   },
   parcsApplyDesc(){
@@ -1286,7 +1286,7 @@ const APP = {
       return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseFloat(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
     }));
     this.toast('Alterações salvas','success');
-    document.getElementById('ovParcelas').classList.remove('open');
+    APP.closeModal('ovParcelas');
   },
 
   // ============================================================
@@ -1564,7 +1564,7 @@ const APP = {
       await fbDb.collection('salarios').add({nome,pessoa,historico:[histEntry],createdBy:STATE.usuario});
       this.toast(`${nome} cadastrado!`,'success');
     }
-    document.getElementById('ovSalario').classList.remove('open');
+    APP.closeModal('ovSalario');
     document.getElementById('sNome').disabled=false;STATE.editSalPessoa=null;
   },
 
@@ -1629,7 +1629,7 @@ const APP = {
       const tetoINSS=parseFloat(document.getElementById('edTetoINSS').value)||908.86;
       const vigencia=document.getElementById('vigencia').value;
       await FS.saveTabelas({ir,inss,dedDep,tetoINSS,vigencia});
-      document.getElementById('ovTabelas').classList.remove('open');
+      APP.closeModal('ovTabelas');
       this.toast('Tabelas fiscais atualizadas! ✅','success');
     }catch(e){this.toast('JSON inválido. Verifique o formato.','error');}
   },
@@ -1658,7 +1658,7 @@ const APP = {
     if(t==='dashboard')     STATE.periodoDash   = p;
     else if(t==='contas')   STATE.periodoContas = p;
     else                    STATE.periodo       = p;
-    document.getElementById('ovPeriodo').classList.remove('open');
+    APP.closeModal('ovPeriodo');
     this._atualizarPeriodoBadge(t, p);
     if(t==='dashboard')   this.renderDashboard();
     else if(t==='contas') { STATE.pg=1; this.renderContas(); }
@@ -1670,7 +1670,7 @@ const APP = {
     if(t==='dashboard')   STATE.periodoDash   = null;
     else if(t==='contas') STATE.periodoContas = null;
     else                  STATE.periodo       = null;
-    document.getElementById('ovPeriodo').classList.remove('open');
+    APP.closeModal('ovPeriodo');
     this._atualizarPeriodoBadge(t, null);
     if(t==='dashboard')   this.renderDashboard();
     else if(t==='contas') { STATE.pg=1; this.renderContas(); }
@@ -1863,7 +1863,7 @@ const APP = {
       }
       this.toast('Conta cadastrada ✅','success');
     }
-    document.getElementById('ovConta').classList.remove('open');STATE.editContaId=null;
+    APP.closeModal('ovConta');STATE.editContaId=null;
     }finally{ if(btn) btn.classList.remove('loading'); }
   },
 
@@ -1899,7 +1899,7 @@ const APP = {
     if(ini===-1){ valores.fill(val); }
     else{ const mesF=(fim===-1||fim<ini)?ini:fim; for(let m=ini;m<=mesF;m++)valores[m]=val; }
     await FS.addOutra({desc,resp,valores,createdBy:STATE.usuario,createdAt:today()});
-    document.getElementById('ovReceita').classList.remove('open');
+    APP.closeModal('ovReceita');
     this.toast(`"${desc}" criada ✅`,'success');
   },
 
@@ -2136,7 +2136,7 @@ Object.assign(APP, {
     wb.Workbook.Sheets[mi].Hidden=1;
 
     XLSX.writeFile(wb,nome+'.xlsx');
-    document.getElementById('ovModelo').classList.remove('open');
+    APP.closeModal('ovModelo');
     this.toast(`"${nome}.xlsx" gerada ✅`,'success');
   },
 
@@ -3158,7 +3158,7 @@ Object.assign(APP, {
       const vigencia= vigEl.value;
       await FS.saveTabelas({ir,inss,dedDep,tetoINSS,vigencia});
       // Fechar modal se estiver aberto
-      document.getElementById('ovTabelas').classList.remove('open');
+      APP.closeModal('ovTabelas');
       this.toast('Tabelas fiscais atualizadas ✅','success');
       setTimeout(()=>this.cfgCarregarTabelasDisplay(), 1000);
     }catch(e){ this.toast('JSON inválido: '+e.message,'error'); }
@@ -3546,7 +3546,7 @@ Object.assign(APP, {
       }catch(e){ erros++; }
     }
 
-    document.getElementById('ovRecorrentes').classList.remove('open');
+    APP.closeModal('ovRecorrentes');
     if(erros) this.toast(`${geradas} gerada${geradas!==1?'s':''}, ${erros} com erro`,'info');
     else      this.toast(`${geradas} conta${geradas!==1?'s':''} gerada${geradas!==1?'s':''} para ${anoDestino} ✅`,'success');
   },
@@ -3669,7 +3669,7 @@ Object.assign(APP, {
 
     btn.disabled = false;
     btn.textContent = '✅ Confirmar todos';
-    document.getElementById('ovPagMassa').classList.remove('open');
+    APP.closeModal('ovPagMassa');
     this.limparSelecao();
 
     if(erros)  this.toast(`${ok} pago${ok>1?'s':''}, ${erros} com erro`,'info');
