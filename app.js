@@ -1,6 +1,11 @@
 // ============================================================
 // DUETTO FINANCEIRO — Firebase Integration
 // ============================================================
+"use strict";
+// Modo estrito ativado em v3.1+. Detecta erros silenciosos como variáveis
+// não declaradas (foi assim que descobrimos o bug do "p" em renderRelatorio).
+// Em caso de erro novo após este deploy, abrir DevTools (F12) > Console
+// para ver a linha exata do problema.
 
 // ── CONFIGURAÇÃO FIREBASE ──
 const FB_CONFIG = {
