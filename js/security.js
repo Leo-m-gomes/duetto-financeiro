@@ -229,15 +229,38 @@ fbAuth.onAuthStateChanged(async user => {
   }
 
   // ── Cenário 3: usuário autorizado ──
-  // O nome interno (Leo/Pri) é gravado em FIN_STATE.usuario pelo módulo
-  // financeiro.js, que ouvirá um evento custom dispatched aqui (alternativa
-  // futura mais limpa). Por compatibilidade, mantemos a gravação direta:
-  if (window.FIN_STATE) {
-    FIN_STATE.usuario = SEC.getUsuario();
-  } else if (window.STATE) {
-    // Compatibilidade durante a transição: STATE ainda é o objeto antigo.
-    STATE.usuario = SEC.getUsuario();
+  // Grava o nome interno (Leo/Pri) no objeto de estado da aplicação.
+  //
+  // BUG FIX (Fase 1.2.1): a versão anterior usava `if (window.STATE)`, mas
+  // `STATE` é declarado com `const` em app.js, e variáveis declaradas com
+  // `const`/`let` no top-level de scripts clássicos NÃO se tornam propriedades
+  // de `window`. Resultado: o fallback nunca executava, STATE.usuario ficava
+  // string vazia, e a checagem `if(STATE.usuario==='Leo')` em APP.boot() não
+  // exibia os menus de admin (navConfig, navUpload).
+  //
+  // A correção usa referência direta a STATE (acessível por lexical scope
+  // entre scripts clássicos no escopo global). O try/catch protege caso
+  // `app.js` seja removido futuramente, sem quebrar o login.
+  //
+  // Em paralelo, populamos FIN_STATE quando ele existir (Fase 1.4 em diante)
+  // e disparamos um evento custom `duetto:auth-ready` para desacoplar
+  // futuros consumidores. Quem quiser ouvir:
+  //   document.addEventListener('duetto:auth-ready', e => e.detail.usuario)
+  const usuario = SEC.getUsuario();
+  try {
+    if (typeof STATE !== 'undefined' && STATE) {
+      STATE.usuario = usuario;
+    }
+  } catch (e) {
+    // STATE ainda não existe (cenário Fase 1.4+ onde app.js legado foi removido).
+    // Não é erro: FIN_STATE assume o lugar.
   }
+  if (window.FIN_STATE) {
+    FIN_STATE.usuario = usuario;
+  }
+  document.dispatchEvent(new CustomEvent('duetto:auth-ready', {
+    detail: { usuario, email: SEC.getEmail() }
+  }));
 
   const msg = document.getElementById('loadingMsg');
   if (msg) msg.textContent = 'Carregando dados...';
