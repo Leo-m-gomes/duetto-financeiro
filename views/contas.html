@@ -1,0 +1,86 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, view contas.html
+═══════════════════════════════════════════════════════════════════════════
+  Fragmento HTML carregado dinamicamente pelo router.js.
+
+  Conteúdo: extração LITERAL do bloco #page-contas do index.html legado
+  (linhas 195-254), preservando IDs, classes e onclick handlers.
+
+  ATENÇÃO:
+   • IDs preservados: overdueAlert, btnToggleFiltros, filtrosAtivosCount,
+     filterGroupContas, searchContas, filtroAnoContas, filtroMesContas,
+     filtroRespContas, filtroCatContas, filtroFormaContas, filtroStatus,
+     filtroRecorrente, periodoBadgeContas, totalGeral, totalPendente,
+     totalPago, contasInfo, tblContas, chkSelectAll, tbodyContas, pgContas,
+     barraPagamento, barraCount, barraTotal.
+   • Classes preservadas: page, page-inner, overdue-alert, filters-bar,
+     mob-filter-toggle, filter-group, filter-input, filter-select,
+     totals-bar, total-pill, section-card, contas-card, table-wrap,
+     contas-table-wrap, data-table, th-chk, th-sort, sort-icon, desk-only,
+     barra-pagamento, barra-pag-info, barra-pag-count, barra-pag-total.
+   • A tabela mantém data-label nos td (injetado pelo APP.renderContas)
+     para o padrão mob-card funcionar no mobile.
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+<div class="page" id="page-contas">
+  <div class="page-inner">
+    <div class="overdue-alert" id="overdueAlert" onclick="APP.filtrarAtrasadas()"></div>
+    <div class="filters-bar">
+      <button class="mob-filter-toggle" onclick="APP.toggleFiltros()" id="btnToggleFiltros">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+        Filtros
+        <span id="filtrosAtivosCount" style="display:none;background:var(--palm);color:#fff;border-radius:99px;padding:1px 7px;font-size:10px;font-weight:700"></span>
+        <svg id="iconFiltros" viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div class="filter-group" id="filterGroupContas">
+        <input type="text" class="filter-input" id="searchContas" placeholder="🔍 Buscar...">
+        <select class="filter-select" id="filtroAnoContas"></select>
+        <select class="filter-select" id="filtroMesContas"></select>
+        <select class="filter-select" id="filtroRespContas"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
+        <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
+        <select class="filter-select" id="filtroFormaContas"><option value="">Todas as formas</option></select>
+        <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
+        <select class="filter-select" id="filtroRecorrente"><option value="">Todas as contas</option><option value="sim">🔁 Recorrentes</option><option value="nao">Não recorrentes</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('contas')">📅 Período</button>
+        <span id="periodoBadgeContas" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4;border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('contas')" title="Clique para remover"></span>
+      </div>
+    </div>
+    <div class="totals-bar">
+      <div class="total-pill blue"><label>Total</label><div class="val" id="totalGeral">R$ 0</div></div>
+      <div class="total-pill orange"><label>Pendente</label><div class="val" id="totalPendente">R$ 0</div></div>
+      <div class="total-pill green"><label>Pago</label><div class="val" id="totalPago">R$ 0</div></div>
+    </div>
+    <span style="font-size:11.5px;color:var(--t4);display:block;margin-bottom:8px" id="contasInfo"></span>
+    <div class="section-card contas-card">
+      <div class="table-wrap contas-table-wrap"><table class="data-table" id="tblContas"><thead><tr>
+        <th class="th-chk desk-only"><input type="checkbox" id="chkSelectAll" title="Selecionar todos" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer" onclick="APP.toggleSelectAll(this)"></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','#')">#<span class="sort-icon" data-col="#"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','conta')">Descrição<span class="sort-icon" data-col="conta"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','resp')">Responsável<span class="sort-icon" data-col="resp"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','forma')">Forma<span class="sort-icon" data-col="forma"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','cat')">Categoria<span class="sort-icon" data-col="cat"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','vPagar')">A Pagar<span class="sort-icon" data-col="vPagar"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','vPago')">Pago<span class="sort-icon" data-col="vPago"></span></th>
+        <th>Pendente</th>
+        <th class="th-sort" onclick="APP.sortTable('contas','data')">Vencimento<span class="sort-icon" data-col="data"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('contas','parcela')">Parcela<span class="sort-icon" data-col="parcela"></span></th>
+        <th>Por</th><th>Ações</th>
+      </tr></thead><tbody id="tbodyContas"></tbody></table></div>
+      <div class="table-pagination" id="pgContas"></div>
+    </div>
+
+    <!-- BARRA DE PAGAMENTO EM MASSA, desktop only, aparece quando há seleção -->
+    <div id="barraPagamento" class="barra-pagamento desk-only" style="display:none">
+      <div class="barra-pag-info">
+        <span class="barra-pag-count" id="barraCount">0 contas selecionadas</span>
+        <span class="barra-pag-total" id="barraTotal">Total: R$ 0,00</span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn btn-ghost btn-sm" onclick="APP.limparSelecao()">✕ Limpar seleção</button>
+        <button class="btn btn-primary" onclick="APP.abrirPagamentoMassa()">✅ Pagar selecionadas</button>
+      </div>
+    </div>
+  </div>
+</div>
