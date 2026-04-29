@@ -78,6 +78,12 @@ const ROUTER = (() => {
   /**
    * ID do container onde os modais são injetados. Definido no shell do
    * index.html como <div id="appModals"></div> próximo do toast.
+   *
+   * NOTA HISTÓRICA (Fase 1.4-C hotfix):
+   * Originalmente este valor era 'modalsContainer'. Foi alterado para
+   * 'appModals' para alinhar com o shell, que usa 'appModals' por
+   * simetria com 'appMain'. O bug de "Container não encontrado" em
+   * produção foi causado pela divergência entre estes dois arquivos.
    */
   const MODALS_CONTAINER_ID = 'appModals';
 
@@ -371,68 +377,6 @@ const ROUTER = (() => {
    */
   function getCurrentPage() {
     return currentPage;
-  }
-
-  /* ═════════════════════════════════════════════════════════════════════
-     INJEÇÃO DE FRAGMENTOS PRIVADOS (prefixo underscore)
-     ═════════════════════════════════════════════════════════════════════
-     Convenção: arquivos como views/_modals.html, views/_widgets.html etc.
-     são fragmentos auxiliares carregados UMA VEZ no boot, fora do fluxo
-     normal de rotas.
-
-     Diferenças em relação a navigate():
-       - Não atualizam currentPage nem chrome (sidebar, topbar)
-       - Não disparam evento `duetto:view-loaded`
-       - Vão para containers específicos, não para #appMain
-     ═════════════════════════════════════════════════════════════════════ */
-
-  /**
-   * Carrega views/_modals.html e injeta em #modalsContainer.
-   * Idempotente: se os modais já foram injetados (verificado pela presença
-   * de #ovConta no DOM), não faz nada.
-   *
-   * Por que existe: APP.modals() do app.js legado faz addEventListener em
-   * elementos internos dos modais (btnSalvarConta, fVP, sSal, etc.) durante
-   * o boot. Se os modais não estiverem no DOM nesse momento, todos esses
-   * getElementById retornam null e o boot inteiro crasha.
-   *
-   * Esta função GARANTE que todos os 13 modais existam no DOM ANTES de
-   * APP.boot() ser chamado. Deve ser awaitada na sequência de inicialização
-   * do shell.
-   *
-   * IMPORTANTE: o fragmento é injetado em #modalsContainer (NÃO no shell
-   * geral), para que fique fora de #screenApp (que tem display:none antes
-   * do login). Modais devem ser raízes do <body> para overlay fullscreen
-   * funcionar corretamente.
-   *
-   * @returns {Promise<void>}
-   * @throws {Error} se o container não existe ou o fetch falha
-   */
-  async function injectModals() {
-    // Idempotência: detecta se já há modais no DOM. Útil para hot-reload.
-    if (document.getElementById('ovConta')) {
-      console.info('[ROUTER] Modais já presentes no DOM, injeção pulada.');
-      return;
-    }
-
-    const container = document.getElementById('modalsContainer');
-    if (!container) {
-      throw new Error('Container #modalsContainer não encontrado no shell. ' +
-        'Adicione <div id="modalsContainer"></div> no body do index.html antes do </body>.');
-    }
-
-    try {
-      const response = await fetch('views/_modals.html', { cache: 'no-cache' });
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status} ao carregar views/_modals.html`);
-      }
-      const html = await response.text();
-      container.innerHTML = html;
-      console.info('[ROUTER] Modais injetados com sucesso.');
-    } catch (err) {
-      console.error('[ROUTER] Falha ao injetar modais:', err);
-      throw err;  // Repassa: o boot deve abortar se modais falham
-    }
   }
 
   return {
