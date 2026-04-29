@@ -68,6 +68,20 @@ const ROUTER = (() => {
   };
 
   /**
+   * Caminho do fragmento que contém todos os 13 modais globais.
+   * Carregado uma única vez no boot via ROUTER.injectModals().
+   * Centralizado em const para facilitar mudança futura (ex: separar
+   * modais por domínio em arquivos diferentes).
+   */
+  const MODALS_FILE = 'views/_modals.html';
+
+  /**
+   * ID do container onde os modais são injetados. Definido no shell do
+   * index.html como <div id="appModals"></div> próximo do toast.
+   */
+  const MODALS_CONTAINER_ID = 'appModals';
+
+  /**
    * ID do container onde as views são injetadas. Definido no shell do
    * index.html. Centralizar em const evita string mágica espalhada.
    */
@@ -96,6 +110,18 @@ const ROUTER = (() => {
    * rapidamente em dois itens da sidebar).
    */
   const inFlight = new Map();
+
+  /**
+   * Indica se os modais globais já foram injetados na sessão atual.
+   * injectModals() é idempotente: chamar duas vezes não duplica injeção.
+   */
+  let modalsLoaded = false;
+
+  /**
+   * Promise da injeção de modais em andamento. Permite que múltiplos
+   * callers chamem injectModals() em paralelo recebendo a mesma Promise.
+   */
+  let modalsInFlight = null;
 
   /* ═════════════════════════════════════════════════════════════════════
      HELPERS PRIVADOS
@@ -278,6 +304,65 @@ const ROUTER = (() => {
    */
   function clearCache() {
     viewCache.clear();
+    modalsLoaded = false;
+    modalsInFlight = null;
+  }
+
+  /**
+   * Injeta os 13 modais globais no container #appModals do shell.
+   *
+   * COMPORTAMENTO:
+   *   • Idempotente: chamadas subsequentes não duplicam injeção
+   *   • Concorrência segura: múltiplos chamadores recebem a mesma Promise
+   *   • Em caso de falha de fetch, lança erro para o orquestrador decidir
+   *     (sem fallback silencioso, pois sem modais o app não funciona)
+   *
+   * QUANDO CHAMAR:
+   *   No boot do app, ANTES de APP.modals() (que adiciona listeners aos
+   *   data-close dos modais). A ordem correta é:
+   *     await ROUTER.injectModals()
+   *     APP.modals()         // agora encontra os elementos no DOM
+   *     APP.boot()           // resto do boot
+   *
+   * NA FASE 1.4-A: esta função existe mas NÃO é chamada por ninguém ainda
+   * (o legado ainda tem os modais embutidos no index.html). Será religada
+   * na Fase 1.4-B junto com a promoção do shell.
+   *
+   * @returns {Promise<void>}
+   */
+  async function injectModals() {
+    // Idempotência: se já carregou, não refaz nada.
+    if (modalsLoaded) return;
+
+    // Concorrência: se já há injeção em andamento, aguarda a mesma.
+    if (modalsInFlight) return modalsInFlight;
+
+    modalsInFlight = (async () => {
+      const container = document.getElementById(MODALS_CONTAINER_ID);
+      if (!container) {
+        throw new Error(
+          `Container #${MODALS_CONTAINER_ID} não encontrado no DOM. ` +
+          `Adicione <div id="${MODALS_CONTAINER_ID}"></div> ao shell antes ` +
+          `do <div class="toast" id="toast">.`
+        );
+      }
+      const response = await fetch(MODALS_FILE, { cache: 'no-cache' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ao carregar ${MODALS_FILE}`);
+      }
+      const html = await response.text();
+      container.innerHTML = html;
+      modalsLoaded = true;
+      // Notifica módulos que os modais estão prontos (caso queiram
+      // adicionar listeners adicionais sem depender do APP.modals legado).
+      document.dispatchEvent(new CustomEvent('duetto:modals-loaded', {
+        detail: { container }
+      }));
+    })().finally(() => {
+      modalsInFlight = null;
+    });
+
+    return modalsInFlight;
   }
 
   /**
@@ -288,11 +373,74 @@ const ROUTER = (() => {
     return currentPage;
   }
 
+  /* ═════════════════════════════════════════════════════════════════════
+     INJEÇÃO DE FRAGMENTOS PRIVADOS (prefixo underscore)
+     ═════════════════════════════════════════════════════════════════════
+     Convenção: arquivos como views/_modals.html, views/_widgets.html etc.
+     são fragmentos auxiliares carregados UMA VEZ no boot, fora do fluxo
+     normal de rotas.
+
+     Diferenças em relação a navigate():
+       - Não atualizam currentPage nem chrome (sidebar, topbar)
+       - Não disparam evento `duetto:view-loaded`
+       - Vão para containers específicos, não para #appMain
+     ═════════════════════════════════════════════════════════════════════ */
+
+  /**
+   * Carrega views/_modals.html e injeta em #modalsContainer.
+   * Idempotente: se os modais já foram injetados (verificado pela presença
+   * de #ovConta no DOM), não faz nada.
+   *
+   * Por que existe: APP.modals() do app.js legado faz addEventListener em
+   * elementos internos dos modais (btnSalvarConta, fVP, sSal, etc.) durante
+   * o boot. Se os modais não estiverem no DOM nesse momento, todos esses
+   * getElementById retornam null e o boot inteiro crasha.
+   *
+   * Esta função GARANTE que todos os 13 modais existam no DOM ANTES de
+   * APP.boot() ser chamado. Deve ser awaitada na sequência de inicialização
+   * do shell.
+   *
+   * IMPORTANTE: o fragmento é injetado em #modalsContainer (NÃO no shell
+   * geral), para que fique fora de #screenApp (que tem display:none antes
+   * do login). Modais devem ser raízes do <body> para overlay fullscreen
+   * funcionar corretamente.
+   *
+   * @returns {Promise<void>}
+   * @throws {Error} se o container não existe ou o fetch falha
+   */
+  async function injectModals() {
+    // Idempotência: detecta se já há modais no DOM. Útil para hot-reload.
+    if (document.getElementById('ovConta')) {
+      console.info('[ROUTER] Modais já presentes no DOM, injeção pulada.');
+      return;
+    }
+
+    const container = document.getElementById('modalsContainer');
+    if (!container) {
+      throw new Error('Container #modalsContainer não encontrado no shell. ' +
+        'Adicione <div id="modalsContainer"></div> no body do index.html antes do </body>.');
+    }
+
+    try {
+      const response = await fetch('views/_modals.html', { cache: 'no-cache' });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status} ao carregar views/_modals.html`);
+      }
+      const html = await response.text();
+      container.innerHTML = html;
+      console.info('[ROUTER] Modais injetados com sucesso.');
+    } catch (err) {
+      console.error('[ROUTER] Falha ao injetar modais:', err);
+      throw err;  // Repassa: o boot deve abortar se modais falham
+    }
+  }
+
   return {
     navigate,
     refreshView,
     clearCache,
-    getCurrentPage
+    getCurrentPage,
+    injectModals
   };
 })();
 
