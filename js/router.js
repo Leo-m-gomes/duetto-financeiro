@@ -73,7 +73,7 @@ const ROUTER = (() => {
    * Centralizado em const para facilitar mudança futura (ex: separar
    * modais por domínio em arquivos diferentes).
    */
-  const MODALS_FILE = 'views/_modals.html';
+  const MODALS_FILE = 'views/modals.html';
 
   /**
    * ID do container onde os modais são injetados. Definido no shell do
