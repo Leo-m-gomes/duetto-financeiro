@@ -1,0 +1,133 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, MÓDULO theme.css
+   ═══════════════════════════════════════════════════════════════════════════
+   Responsabilidade: tokens globais, reset universal, dark mode, scrollbar.
+   Não contém: layout, componentes, tabelas, regras específicas de página.
+
+   ESTRATÉGIA DE EXTRAÇÃO
+   ───────────────────────────────────────────────────────────────────────────
+   Este arquivo é CÓPIA LITERAL (bit-a-bit) das seguintes faixas do legado
+   style.css, sem modificação de valores ou ordem:
+     - Linhas 1 a 39   (:root + reset + scrollbar)
+     - Linhas 432 a 464 (.dark)
+     - Linhas 1364 a 1389 (overrides .dark mobile do mob-card)
+
+   Adições NOVAS (claramente marcadas):
+     - Tokens --ui-z-* para a hierarquia de modal/sub-modal/toast
+     - Token --ui-radius-pill para uso comum em badges
+
+   PRESERVAÇÃO MOBILE
+   ───────────────────────────────────────────────────────────────────────────
+   Este arquivo NÃO contém regras @media (apenas tokens e reset).
+   Os ajustes responsivos vivem em layout.css, components.css e tables.css.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   VARIÁVEIS GLOBAIS, modo claro (default)
+   Cópia literal das linhas 1 a 34 do style.css legado.
+   ───────────────────────────────────────────────────────────────────────── */
+:root {
+  --palm:    #006437;
+  --palm-dk: #004d2a;
+  --palm-lt: #e8f5ee;
+  --palm-md: #00a85a;
+  --bg:      #f0f2f5;
+  --surface: #ffffff;
+  --border:  #e8edf2;
+  --border2: #d1d9e0;
+  --hover:   #f0faf4;
+  --red:     #dc2626; --red-lt:    #fef2f2;
+  --orange:  #ea580c; --orange-lt: #fff7ed;
+  --blue:    #2563eb; --blue-lt:   #eff4ff;
+  --green:   #16a34a; --green-lt:  #f0fdf4;
+  --yellow:  #d97706; --yellow-lt: #fffbeb;
+  --t1:#0f1f14; --t2:#374151; --t3:#6b7280; --t4:#9ca3af;
+  --r:16px; --r-sm:10px;
+  --sw:230px; --sh:60px;
+  /* ── DESIGN TOKENS DE ESPAÇAMENTO (v1.1) ──
+     Tokens unificados aplicados como referência global. Os tokens em si são
+     constantes (não dimensões aplicadas), portanto válidos em :root conforme R2/R3.
+     A APLICAÇÃO dos tokens em padding/margin/gap segue as regras de @media. */
+  --sp-1: 6px;   /* extra-pequeno: gap interno de chips, badges */
+  --sp-2: 10px;  /* pequeno: entre rótulo e valor, dentro de cards */
+  --sp-3: 14px;  /* médio: entre cards de uma mesma linha (KPIs) */
+  --sp-4: 22px;  /* padrão: entre seções principais do dashboard */
+  --sp-5: 32px;  /* grande: respiração ampla entre blocos lógicos distintos */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.03);
+  --shadow:    0 4px 20px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-b:'DM Sans',system-ui,sans-serif;
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+
+  /* ── NOVO: hierarquia de z-index para modais e sub-modais ──
+     Centralizar evita "z-index war" entre módulos.
+     Valores espaçados em 100 para acomodar futuros níveis sem realocação. */
+  --ui-z-toast:    2000;  /* sempre acima de tudo */
+  --ui-z-submodal: 1100;  /* sub-modal sobre modal */
+  --ui-z-modal:    1000;  /* modais principais (compatível com z-index legado) */
+  --ui-z-sidebar:   200;  /* sidebar e overlays mobile */
+  --ui-z-sticky:     50;  /* topbar, headers fixos */
+
+  /* ── NOVO: raio "pill" frequente em badges e chips ── */
+  --ui-radius-pill: 99px;
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESET UNIVERSAL
+   Cópia literal das linhas 35 a 37 do style.css legado.
+   ───────────────────────────────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex;min-height:100vh}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   SCROLLBAR
+   Cópia literal das linhas 38 a 39 do style.css legado.
+   ───────────────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DARK MODE
+   Cópia literal das linhas 432 a 464 do style.css legado.
+   ATENÇÃO: as regras `.dark .X` específicas (linhas 467-1390 do legado)
+   ficam nos respectivos arquivos modulares (layout.css, components.css,
+   tables.css), não aqui. Aqui ficam APENAS os overrides de tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.dark{
+  /* Apple-style: cinza escuro estratificado, não preto puro */
+  --bg:      #1c1c1e;   /* fundo geral, cinza carvão Apple */
+  --surface: #2c2c2e;   /* cards, modais, sidebar */
+  --surface2:#3a3a3c;   /* inputs, hover, elementos secundários */
+  --border:  #3a3a3c;   /* bordas suaves */
+  --border2: #48484a;   /* bordas com mais contraste */
+  --hover:   #3a3a3c;
+
+  /* Texto, hierarquia clara em branco/cinza */
+  --t1: #f2f2f7;        /* primário, quase branco Apple */
+  --t2: #ebebf5cc;      /* secundário */
+  --t3: #ebebf566;      /* terciário, cinza médio */
+  --t4: #ebebf53d;      /* placeholder, labels */
+
+  /* Sombras mais profundas */
+  --shadow-sm:0 1px 4px rgba(0,0,0,.5);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.6);
+
+  /* Manter cores funcionais vibrantes mas ligeiramente dessaturadas */
+  --palm:    #32d74b;   /* verde Apple */
+  --palm-lt: rgba(50,215,75,.12);
+  --red:     #ff453a;
+  --red-lt:  rgba(255,69,58,.12);
+  --yellow:  #ffd60a;
+  --yellow-lt:rgba(255,214,10,.1);
+  --blue:    #0a84ff;
+  --blue-lt: rgba(10,132,255,.12);
+  --orange:  #ff9f0a;
+  --orange-lt:rgba(255,159,10,.12);
+  --green:   #32d74b;
+  --green-lt:rgba(50,215,75,.12);
+}

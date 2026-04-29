@@ -18,6 +18,14 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- ── DUETTO FINANCEIRO, MÓDULOS DE CSS (Fase 1.2) ── -->
+<!-- Ordem importa: theme.css define tokens usados pelos demais -->
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/tables.css">
+
+<!-- style.css legado mantido temporariamente para preservar 100% do layout
+     atual durante a refatoração progressiva. Será reduzido na Fase 1.4. -->
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -81,6 +89,10 @@
   <nav class="sb-nav">
     <a class="nav-item active" data-page="dashboard" data-tooltip="Dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
     <a class="nav-item" data-page="contas" data-tooltip="Contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
+    <a class="nav-item" data-page="notas" href="#" title="Notas e Ações">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
+      <span>Notas</span>
+    </a>
     <a class="nav-item" data-page="receitas" data-tooltip="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
     <a class="nav-item" data-page="salario" data-tooltip="Salários"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg><span>Salários</span></a>
     <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
@@ -1107,6 +1119,244 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- ── DUETTO FINANCEIRO, MÓDULOS DE JS (Fase 1.2) ── -->
+<!-- Ordem CRÍTICA: firebase-config DEVE carregar antes do security -->
+<script src="js/firebase-config.js"></script>
+<script src="js/security.js"></script>
+
+<!-- app.js legado mantido temporariamente. Será reduzido na Fase 1.4
+     conforme funções migram para módulos especializados. -->
 <script src="app.js"></script>
+
+  <!-- MODAL NOTAS -->
+  <div class="nt-modal-overlay" id="ntModalOverlay">
+    <div class="nt-modal">
+      <div class="nt-modal-header">
+        <h3 id="ntModalTitle">Nova Nota</h3>
+        <div class="nt-modal-header-actions">
+          <button class="nt-btn nt-btn-secondary" id="ntBtnAddItem">+ Item</button>
+          <button class="nt-modal-close" data-nt-close="ntModalOverlay">&times;</button>
+        </div>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-form-section-title">Dados Cadastrais</div>
+        <div class="nt-fg-grid">
+          <div class="nt-fg nt-fg-full">
+            <label>Título *</label>
+            <input type="text" id="ntF_titulo" placeholder="Ex: Renovar seguro do carro">
+          </div>
+          <div class="nt-fg nt-fg-full">
+            <label>Descrição Geral</label>
+            <textarea id="ntF_descricao" rows="3" placeholder="Detalhes..."></textarea>
+          </div>
+          <div class="nt-fg">
+            <label>Tipo *</label>
+            <select id="ntF_tipo">
+              <option value="anotacao">Anotação</option>
+              <option value="acao">Ação</option>
+            </select>
+          </div>
+          <div class="nt-fg">
+            <label>Status *</label>
+            <select id="ntF_status">
+              <option value="ativa">Ativa</option>
+              <option value="concluida">Concluída</option>
+            </select>
+          </div>
+          <div class="nt-fg" id="ntFG_prazo">
+            <label>Prazo *</label>
+            <input type="date" id="ntF_prazo">
+          </div>
+          <div class="nt-fg nt-fg-full" id="ntFG_resp">
+            <label>Responsável *</label>
+            <select id="ntF_resp">
+              <option value="">Selecione...</option>
+              <option value="Leo">Leo</option>
+              <option value="Pri">Pri</option>
+              <option value="Leo & Pri">Leo & Pri</option>
+            </select>
+          </div>
+        </div>
+        <div class="nt-form-section-title">Notas Adicionais</div>
+        <div class="nt-items-empty-block" id="ntItemsEmpty">Nenhum item adicionado.</div>
+        <div class="nt-items-wrap hidden" id="ntItemsWrap">
+          <table class="nt-items-table" id="ntItemsTable">
+            <thead>
+              <tr>
+                <th style="width:28%">Descrição</th>
+                <th style="width:14%">Data</th>
+                <th style="width:24%">Nota</th>
+                <th class="nt-num" style="width:14%">Previsto</th>
+                <th class="nt-num" style="width:14%">Realizado</th>
+                <th style="width:6%"></th>
+              </tr>
+            </thead>
+            <tbody id="ntItemsBody"></tbody>
+          </table>
+        </div>
+        <div class="nt-totals" id="ntItemsTotals" style="display:none">
+          <div class="nt-total-card">
+            <label>Total Previsto</label>
+            <div class="v" id="ntTotalPrevisto">R$ 0,00</div>
+          </div>
+          <div class="nt-total-card realizado">
+            <label>Total Realizado</label>
+            <div class="v" id="ntTotalRealizado">R$ 0,00</div>
+          </div>
+        </div>
+      </div>
+      <div class="nt-modal-footer">
+        <button class="nt-btn nt-btn-danger" id="ntBtnDelete" style="display:none">Excluir</button>
+        <span style="flex:1"></span>
+        <button class="nt-btn nt-btn-ghost" data-nt-close="ntModalOverlay">Cancelar</button>
+        <button class="nt-btn nt-btn-primary" id="ntBtnSave">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nt-submodal-overlay" id="ntItemModalOverlay">
+    <div class="nt-submodal">
+      <div class="nt-modal-header">
+        <h3 id="ntItemModalTitle">Novo Item</h3>
+        <button class="nt-modal-close" data-nt-close="ntItemModalOverlay">&times;</button>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-fg-grid">
+          <div class="nt-fg nt-fg-full">
+            <label>Descrição *</label>
+            <input type="text" id="ntI_descricao">
+          </div>
+          <div class="nt-fg">
+            <label>Data</label>
+            <input type="date" id="ntI_data">
+          </div>
+          <div class="nt-fg">
+            <label>Valor Previsto (R$)</label>
+            <input type="text" id="ntI_vPrevisto" inputmode="decimal" placeholder="0,00">
+          </div>
+          <div class="nt-fg">
+            <label>Valor Realizado (R$)</label>
+            <input type="text" id="ntI_vRealizado" inputmode="decimal" placeholder="0,00">
+          </div>
+          <div class="nt-fg nt-fg-full">
+            <label>Nota / Observação</label>
+            <textarea id="ntI_nota" rows="2"></textarea>
+          </div>
+        </div>
+      </div>
+      <div class="nt-modal-footer">
+        <button class="nt-btn nt-btn-danger" id="ntBtnDeleteItem" style="display:none">Excluir item</button>
+        <span style="flex:1"></span>
+        <button class="nt-btn nt-btn-ghost" data-nt-close="ntItemModalOverlay">Cancelar</button>
+        <button class="nt-btn nt-btn-primary" id="ntBtnSaveItem">Salvar item</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nt-modal-overlay" id="ntPeriodoOverlay">
+    <div class="nt-modal" style="max-width:480px">
+      <div class="nt-modal-header">
+        <h3>📅 Filtro por Período</h3>
+        <button class="nt-modal-close" data-nt-close="ntPeriodoOverlay">&times;</button>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-periodo-info" id="ntPeriodoInfo">Define um intervalo de meses dentro de um único ano.</div>
+        <div class="nt-fg" style="margin-top:14px">
+          <label>Ano *</label>
+          <input type="number" id="ntPeriodoAno" min="2019" max="2035">
+        </div>
+        <div class="nt-fg-grid" style="margin-top:14px">
+          <div class="nt-fg">
+            <label>Mês inicial *</label>
+            <select id="ntPeriodoMesIni">
+              <option value="">Selecione...</option>
+              <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+              <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+              <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+              <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+          </div>
+          <div class="nt-fg">
+            <label>Mês final *</label>
+            <select id="ntPeriodoMesFim">
+              <option value="">Selecione...</option>
+              <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+              <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+              <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+              <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div class="nt-modal-footer">
+        <button class="nt-btn nt-btn-ghost" id="ntBtnLimparPeriodo">Limpar filtro</button>
+        <span style="flex:1"></span>
+        <button class="nt-btn nt-btn-ghost" data-nt-close="ntPeriodoOverlay">Cancelar</button>
+        <button class="nt-btn nt-btn-primary" id="ntBtnAplicarPeriodo">Aplicar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nt-modal-overlay" id="ntColumnsOverlay">
+    <div class="nt-modal" style="max-width:560px">
+      <div class="nt-modal-header">
+        <h3>Configurar Colunas da Lista</h3>
+        <button class="nt-modal-close" data-nt-close="ntColumnsOverlay">&times;</button>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-cols-help">Marque para exibir e arraste para reordenar.</div>
+        <div class="nt-cols-list" id="ntColumnsList" style="margin-top:14px"></div>
+      </div>
+      <div class="nt-modal-footer">
+        <button class="nt-btn nt-btn-ghost" id="ntBtnResetColumns">Restaurar padrão</button>
+        <span style="flex:1"></span>
+        <button class="nt-btn nt-btn-ghost" data-nt-close="ntColumnsOverlay">Cancelar</button>
+        <button class="nt-btn nt-btn-primary" id="ntBtnSaveColumns">Salvar</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="nt-modal-overlay" id="ntTrashOverlay">
+    <div class="nt-modal" style="max-width:900px">
+      <div class="nt-modal-header">
+        <h3>Lixeira de Notas</h3>
+        <button class="nt-modal-close" data-nt-close="ntTrashOverlay">&times;</button>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-items-wrap">
+          <table class="nt-items-table">
+            <thead>
+              <tr><th>Título</th><th>Tipo</th><th>Autor</th><th>Excluído por</th><th>Excluído em</th><th style="width:140px"></th></tr>
+            </thead>
+            <tbody id="ntTrashBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="nt-modal-footer"><button class="nt-btn nt-btn-ghost" data-nt-close="ntTrashOverlay">Fechar</button></div>
+    </div>
+  </div>
+
+  <div class="nt-modal-overlay" id="ntLogOverlay">
+    <div class="nt-modal" style="max-width:900px">
+      <div class="nt-modal-header">
+        <h3>Log de Atividades</h3>
+        <button class="nt-modal-close" data-nt-close="ntLogOverlay">&times;</button>
+      </div>
+      <div class="nt-modal-body">
+        <div class="nt-items-wrap">
+          <table class="nt-items-table">
+            <thead>
+              <tr><th style="width:160px">Data e hora</th><th style="width:120px">Evento</th><th>Detalhes</th><th style="width:80px">Usuário</th></tr>
+            </thead>
+            <tbody id="ntLogBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="nt-modal-footer"><button class="nt-btn nt-btn-ghost" data-nt-close="ntLogOverlay">Fechar</button></div>
+    </div>
+  </div>
+  <div class="nt-toast" id="ntToast"></div>
+
 </body>
 </html>
