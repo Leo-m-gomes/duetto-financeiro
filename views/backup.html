@@ -1,0 +1,74 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, view backup.html
+═══════════════════════════════════════════════════════════════════════════
+  Fragmento HTML carregado dinamicamente pelo router.js no container
+  #appMain. Sem <html>, <head>, <body>, <script>.
+
+  Conteúdo: extração LITERAL das linhas 405-456 do index.html legado.
+
+  ROTA RESTRITA: backup é adminOnly:true em ROUTES (router.js).
+  Apenas Leo acessa.
+
+  IDs preservados (consultados por APP.renderBackup e módulo de Backup):
+    bkpStatsContas, bkpStatsRec, bkpStatsSalarios, bkpStatsCats,
+    bkpStatsFormas, bkpUltimoBackup, btnBaixarBackup, btnRestaurarBackup,
+    fileBackup, bkpInfoArquivo, bkpAlertOk, bkpAlertErr.
+
+  Classes preservadas: page, page-inner, section-card, section-header,
+  bkp-stats, bkp-grid, overdue-alert.
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+  <div class="page" id="page-backup">
+    <div class="page-inner">
+      <div style="max-width:700px;margin:0 auto">
+        <!-- HEADER CARD -->
+        <div class="section-card" style="margin-bottom:16px">
+          <div class="section-header">
+            <h3>🛡️ Backup do Sistema</h3>
+            <span style="font-size:11px;color:var(--t4);background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa;border-radius:99px;padding:2px 10px;font-weight:600">Acesso restrito — Leo</span>
+          </div>
+          <div style="padding:18px">
+            <div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:12px 16px;font-size:13px;color:#1e40af;margin-bottom:20px;line-height:1.6">
+              ℹ️ O backup exporta <strong>todas as coleções</strong> do banco de dados em tempo real: contas, salários, outras receitas, categorias, formas de pagamento, cartões e histórico de importações.<br>
+              Recomendado fazer <strong>mensalmente</strong> ou antes de grandes importações.
+            </div>
+
+            <!-- STATS DO BANCO -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px" id="backupStats">
+              <div class="up-stat"><label>Contas</label><div class="sv" id="bkContas">—</div></div>
+              <div class="up-stat"><label>Salários</label><div class="sv" id="bkSalarios">—</div></div>
+              <div class="up-stat"><label>Categorias</label><div class="sv" id="bkCats">—</div></div>
+              <div class="up-stat"><label>Importações</label><div class="sv" id="bkImps">—</div></div>
+            </div>
+
+            <!-- BOTÕES DE BACKUP -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+              <button class="btn btn-primary" onclick="APP.backupJSON()" id="btnBackupJSON" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar JSON
+              </button>
+              <button class="btn btn-secondary" onclick="APP.backupExcel()" id="btnBackupExcel" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar Excel
+              </button>
+              <button class="btn btn-secondary" onclick="APP.backupAmbos()" style="flex:1;justify-content:center;min-width:180px">
+                <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                Exportar JSON + Excel
+              </button>
+            </div>
+
+            <!-- HISTÓRICO DE BACKUPS -->
+            <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico desta sessão</div>
+            <div id="backupHistorico" style="color:var(--t4);font-size:12.5px">Nenhum backup realizado nesta sessão.</div>
+          </div>
+        </div>
+
+        <!-- AVISO RESTAURAÇÃO -->
+        <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:12px 16px;font-size:12.5px;color:#92400e">
+          ⚠️ <strong>Sobre restauração:</strong> em caso de necessidade de restaurar os dados, entre em contato com o desenvolvedor do sistema. O arquivo JSON gerado contém toda a estrutura necessária para a recuperação completa.
+        </div>
+      </div>
+    </div>
+  </div>
