@@ -602,37 +602,45 @@ const APP = {
 
   selects(){
     const anoAtual = new Date().getFullYear();
+    const mesAtual = new Date().getMonth();
+
+    // Helper para popular select de ano (já existia, mantido).
     const mkAno = (id) => {
       const s=document.getElementById(id); if(!s)return;
+      // Idempotência: se já populou, não duplica.
+      if(s.options.length > 0) return;
       s.appendChild(new Option('Todos os anos','todos'));
       for(let a=2019;a<=2035;a++) s.appendChild(new Option(a,a));
       s.value = String(anoAtual);
     };
 
-    // Filtros cat/forma
+    // ── Helper NOVO: popular select de mês com tolerância a null ──
+    // Uniformiza o padrão dos 3 selects de mês (Dash, Contas, Relatório).
+    // Idempotente: re-execuções não duplicam opções (importante quando
+    // selects() é chamado uma vez no boot e novamente após cada view load).
+    const mkMes = (id) => {
+      const s=document.getElementById(id); if(!s)return;
+      if(s.options.length > 0) return;
+      s.appendChild(new Option('Todos os meses','todos'));
+      MESES_F.forEach((m,i) => s.appendChild(new Option(m,i)));
+      s.value = String(mesAtual);
+    };
+
+    // Filtros cat/forma (já tinham guard, mantidos como estavam).
     CACHE.getAllCats().forEach(c=>{ ['filtroCatContas','relCat'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(c.nome,c.nome)); }); });
     CACHE.getAllFormas().forEach(f=>{ ['filtroFormaContas','relForma'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(f.nome,f.id)); }); });
 
-    // Ano + Mês Dashboard
+    // ── Ano + Mês Dashboard ──
     mkAno('filtroAnoDash');
-    const mDash=document.getElementById('filtroMesDash');
-    mDash.appendChild(new Option('Todos os meses','todos'));
-    MESES_F.forEach((m,i)=>mDash.appendChild(new Option(m,i)));
-    mDash.value=String(new Date().getMonth());
+    mkMes('filtroMesDash');
 
-    // Ano + Mês Contas
+    // ── Ano + Mês Contas ──
     mkAno('filtroAnoContas');
-    const mContas=document.getElementById('filtroMesContas');
-    mContas.appendChild(new Option('Todos os meses','todos'));
-    MESES_F.forEach((m,i)=>mContas.appendChild(new Option(m,i)));
-    mContas.value=String(new Date().getMonth());
+    mkMes('filtroMesContas');
 
-    // Ano + Mês Relatório
+    // ── Ano + Mês Relatório ──
     mkAno('relAno');
-    const rMes=document.getElementById('relMes');
-    rMes.appendChild(new Option('Todos os meses','todos'));
-    MESES_F.forEach((m,i)=>rMes.appendChild(new Option(m,i)));
-    rMes.value=String(new Date().getMonth());
+    mkMes('relMes');
   },
 
   filtros(){
@@ -666,7 +674,12 @@ const APP = {
       const el=document.getElementById(id);
       if(el)el.addEventListener('change',()=>this.renderRelatorio());
     });
-    document.getElementById('btnCSV').addEventListener('click',()=>this.exportCSV());
+    // ── btnCSV vive em views/relatorio.html, pode estar ausente no boot ──
+    // Em modo shell, este listener será adicionado quando a view de Relatório
+    // for carregada (responsabilidade da Fase 1.4-D extração para relatorios.js).
+    // Por ora, guard nulo defensivo evita crash do boot.
+    const btnCSV = document.getElementById('btnCSV');
+    if(btnCSV) btnCSV.addEventListener('click',()=>this.exportCSV());
   },
 
   renderPage(p){
@@ -675,9 +688,22 @@ const APP = {
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     const el=document.getElementById(`page-${p}`);
     if(el)el.classList.add('active');
+
+    // ── Re-popular selects DEPOIS da view estar no DOM ──
+    // No modo shell, as views são injetadas após boot. selects() rodou
+    // no boot quando os elementos não existiam (e foram skipados pelos
+    // guards do PATCH 1). Re-chamar agora popula os selects da view ativa.
+    // selects() é idempotente: não duplica opções se já populadas.
+    if(typeof this.selects === 'function') this.selects();
+
     ({
       dashboard: ()=>this.renderDashboard(),
-      contas:    ()=>{ if(document.getElementById('filtroStatus').value==='') document.getElementById('filtroStatus').value='pendente'; this.renderContas(); },
+      contas:    ()=>{
+        // Guard nulo: filtroStatus vive em views/contas.html
+        const fs = document.getElementById('filtroStatus');
+        if(fs && fs.value === '') fs.value = 'pendente';
+        this.renderContas();
+      },
       receitas:  ()=>this.renderReceitas(),
       salario:   ()=>this.renderSalario(),
       relatorio: ()=>this.renderRelatorio(),
