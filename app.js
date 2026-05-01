@@ -7,10 +7,21 @@
 // Em caso de erro novo após este deploy, abrir DevTools (F12) > Console
 // para ver a linha exata do problema.
 
-// ── FIREBASE: configuração e ALLOWED_EMAILS migrados para js/firebase-config.js
-//             e js/security.js na Fase 1.2 da refatoração modular.
-//             fbAuth e fbDb agora vêm do escopo global via window.fbAuth/fbDb.
-//             Esta seção será inteiramente removida na Fase 1.4.
+// ── CONFIGURAÇÃO FIREBASE ──
+const FB_CONFIG = {
+  apiKey:            "AIzaSyAq74uNulXvgJBF1R2j-obAS9mFIR-42IM",
+  authDomain:        "duetto-financeiro.firebaseapp.com",
+  projectId:         "duetto-financeiro",
+  storageBucket:     "duetto-financeiro.firebasestorage.app",
+  messagingSenderId: "891169172213",
+  appId:             "1:891169172213:web:69a746240d17a6bb2673bc"
+};
+
+const ALLOWED_EMAILS = ['leonardo.phn7@gmail.com', 'pri.alverim@gmail.com'];
+
+firebase.initializeApp(FB_CONFIG);
+const fbAuth = firebase.auth();
+const fbDb   = firebase.firestore();
 
 // ── HELPERS ──
 const MESES   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -183,10 +194,38 @@ const STATE = {
 // ============================================================
 // AUTH
 // ============================================================
-// ── AUTH: objeto migrado para js/security.js (SEC).
-//         window.AUTH = SEC mantido como alias até a Fase 1.4 remover
-//         os onclick="AUTH.X()" do HTML legado.
-//         O listener onAuthStateChanged também foi movido para security.js.
+const AUTH = {
+  signInGoogle(){
+    const btn = document.getElementById('btnGoogle');
+    btn.disabled = true;
+    btn.innerHTML = '<span style="display:inline-block;width:16px;height:16px;border:2px solid #ccc;border-top-color:#006437;border-radius:50%;animation:spin .7s linear infinite"></span> Entrando...';
+    const provider = new firebase.auth.GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: 'select_account' });
+    fbAuth.signInWithPopup(provider)
+      .then(()=>{ /* onAuthStateChanged cuida do resto */ })
+      .catch(err=>{
+        btn.disabled = false;
+        btn.innerHTML = iconGoogle + ' Entrar com Google';
+        // Popup fechado pelo usuário — não mostrar erro
+        if(['auth/popup-closed-by-user','auth/cancelled-popup-request'].includes(err.code)) return;
+        // Fallback para redirect em browsers que bloqueiam popup
+        if(err.code === 'auth/popup-blocked'){
+          fbAuth.signInWithRedirect(provider);
+          return;
+        }
+        alert('Erro ao entrar: ' + err.message);
+      });
+  },
+  signOut(){
+    if(!confirm('Sair do Duetto Financeiro?')) return;
+    fbAuth.signOut();
+  }
+};
+
+const iconGoogle = '<svg width="20" height="20" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>';
+
+// Captura resultado de redirect caso tenha sido usado como fallback
+fbAuth.getRedirectResult().catch(()=>{});
 
 // ============================================================
 // FIRESTORE OPERATIONS
@@ -392,8 +431,24 @@ async function seedIfEmpty(){
 // ============================================================
 // AUTH STATE OBSERVER
 // ============================================================
-// ── ON AUTH STATE CHANGED: movido para js/security.js.
-//         O listener lá grava STATE.usuario via fallback compatível.
+fbAuth.onAuthStateChanged(async user => {
+  if(!user){
+    show('screenLogin');
+    document.getElementById('loadingMsg').textContent='Conectando...';
+    return;
+  }
+  if(!ALLOWED_EMAILS.includes(user.email)){
+    document.getElementById('deniedEmail').textContent=user.email;
+    show('screenDenied');
+    return;
+  }
+  // Autorizado
+  STATE.usuario = user.email === 'leonardo.phn7@gmail.com' ? 'Leo' : 'Pri';
+  document.getElementById('loadingMsg').textContent='Carregando dados...';
+  show('screenLoading');
+  await seedIfEmpty();
+  setupListeners();
+});
 
 /**
  * Alterna a visibilidade entre as telas principais.
@@ -434,35 +489,10 @@ const APP = {
     this._ready=true;
     CACHE._ready.add('_appShown');
     show('screenApp');
-    // boot() é async desde Fase 1.4-B (pode aguardar ROUTER.injectModals).
-    // Não usamos await aqui porque onCacheReady é chamado a partir de listeners
-    // do Firestore que não são async. O .catch garante visibilidade de erros
-    // de boot que de outra forma virariam unhandled promise rejection.
-    this.boot().catch(err => {
-      console.error('[APP.boot] Falha no boot:', err);
-      if(this.toast) this.toast('Erro ao iniciar o sistema: ' + err.message, 'error');
-    });
+    this.boot();
   },
 
-  // Async desde Fase 1.4-B: pode awaitar ROUTER.injectModals quando shell ativo.
-  async boot(){
-    // ── DETECÇÃO DE CENÁRIO ──
-    // Se existe #appMain (container de views do shell), estamos no shell;
-    // do contrário, estamos no legado (index.html com páginas embutidas).
-    // O detect é por presença de elemento, não por flag, para que a mesma
-    // build de app.js funcione nos dois index.html sem alteração.
-    const isShellMode = !!document.getElementById('appMain');
-
-    // No modo shell, os modais NÃO estão no DOM até injectModals carregar
-    // o fragmento views/_modals.html. Aguardamos antes de chamar this.modals(),
-    // que adiciona listeners aos data-close de cada modal.
-    if(isShellMode && window.ROUTER && typeof ROUTER.injectModals === 'function'){
-      await ROUTER.injectModals();
-    }
-
-    // A partir daqui, comportamento idêntico ao legado, com uma exceção:
-    // this.nav() agora delega a ROUTER.navigate quando shell ativo (PATCH 3).
-    // this.modals() é tolerante a elementos null (PATCH 4).
+  boot(){
     this.nav(); this.topBtns(); this.modals(); this.selects(); this.filtros();
     this.restoreSidebarState();
     const chip=document.getElementById('sbUserChip');
@@ -476,14 +506,7 @@ const APP = {
     }
     // M06: ativa indicador de scroll na topbar (sombra dinâmica)
     this.initTopbarScroll();
-
-    // No modo shell, ROUTER.navigate carrega a view dashboard.html via fetch
-    // e depois chama APP.renderPage('dashboard'). No modo legado, chama direto.
-    if(isShellMode && window.ROUTER && typeof ROUTER.navigate === 'function'){
-      await ROUTER.navigate('dashboard');
-    } else {
-      this.renderPage('dashboard');
-    }
+    this.renderPage('dashboard');
   },
 
   // ── SIDEBAR ──
@@ -563,64 +586,32 @@ const APP = {
 
   // ── NAV ──
   nav(){
-    // Detecta uma vez no boot do nav. Se shell ativa, ROUTER.navigate cuida
-    // do fetch da view; do contrário, renderPage roda direto sobre o DOM legado.
-    const isShellMode = !!document.getElementById('appMain') && !!window.ROUTER;
-
     document.querySelectorAll('.nav-item').forEach(el=>{
       el.addEventListener('click',e=>{
         e.preventDefault();
-        const page = el.dataset.page;
-
-        // ── UI auxiliar (highlight, título, visibilidade dos botões da topbar) ──
-        // Mantida idêntica em ambos os cenários. ROUTER.navigate também atualiza
-        // o pageTitle e a classe active dos nav-items, mas executar duas vezes
-        // não é problema (operação idempotente).
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
-        ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
-          const btn = document.getElementById(id);
-          if(btn) btn.style.display='none';
-        });
+        ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>document.getElementById(id).style.display='none');
         // Nova Conta: só aparece na tela Contas
         const paginasComNovaConta = ['contas'];
-        const btnNova = document.getElementById('btnNovaConta');
-        if(btnNova) btnNova.style.display = paginasComNovaConta.includes(page) ? 'flex' : 'none';
-        if(page==='contas'){ const b=document.getElementById('btnGerarRec'); if(b) b.style.display='flex'; }
-        if(page==='salario'){
-          const b1=document.getElementById('btnNovoSalario'); if(b1) b1.style.display='flex';
-          const b2=document.getElementById('btnAtualizarTabelas'); if(b2) b2.style.display='flex';
-        }
-        if(page==='receitas'){ const b=document.getElementById('btnNovaReceita'); if(b) b.style.display='flex'; }
-        if(page==='contas'){ const b=document.getElementById('btnCSVContas'); if(b) b.style.display='flex'; }
-
-        // ── Fechamento da sidebar mobile ──
-        const sb = document.getElementById('sidebar');
-        if(sb) sb.classList.remove('open');
-        const ov = document.getElementById('sidebarOverlay');
+        document.getElementById('btnNovaConta').style.display = paginasComNovaConta.includes(el.dataset.page) ? 'flex' : 'none';
+        if(el.dataset.page==='contas'){ document.getElementById('btnGerarRec').style.display='flex'; }
+        if(el.dataset.page==='salario'){document.getElementById('btnNovoSalario').style.display='flex';document.getElementById('btnAtualizarTabelas').style.display='flex';}
+        if(el.dataset.page==='receitas')document.getElementById('btnNovaReceita').style.display='flex';
+        if(el.dataset.page==='contas')document.getElementById('btnCSVContas').style.display='flex';
+        document.getElementById('sidebar').classList.remove('open');
+        const ov=document.getElementById('sidebarOverlay');
         if(ov) {
           ov.classList.remove('visible');
           setTimeout(() => { ov.style.display = 'none'; }, 300);
         }
-
-        // ── Render da página ──
-        // No shell, ROUTER.navigate faz fetch da view e depois chama
-        // APP.renderPage(page) automaticamente. No legado, chamamos direto.
-        if(isShellMode){
-          ROUTER.navigate(page);
-        } else {
-          this.renderPage(page);
-        }
+        this.renderPage(el.dataset.page);
       });
     });
-
-    // Toggle do botão hamburguer (idêntico ao legado, com guard nulo defensivo).
-    const menuToggle = document.getElementById('menuToggle');
-    if(menuToggle) menuToggle.addEventListener('click',()=>{
+    document.getElementById('menuToggle').addEventListener('click',()=>{
       const sb      = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebarOverlay');
-      if(!sb) return;
       const isOpen  = sb.classList.toggle('open');
       if(overlay) {
         if(isOpen) {
@@ -646,50 +637,22 @@ const APP = {
   },
 
   modals(){
-    // Helper interno tolerante a null. Adiciona listener somente se o
-    // elemento existir, evitando "Cannot read properties of null".
-    // Vale para legado e para shell com modais injetados sob demanda.
-    const safeBind = (id, event, handler) => {
-      const el = document.getElementById(id);
-      if(el) el.addEventListener(event, handler);
-    };
-
     // M10: usa APP.closeModal para acionar animação de saída antes de remover .open
     document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>APP.closeModal(b.dataset.close)));
     document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)APP.closeModal(ov.id);}));
-
-    // Modal Conta
-    safeBind('btnLimparConta', 'click', ()=>this.clearConta());
-    safeBind('btnSalvarConta', 'click', ()=>this.saveConta());
-    safeBind('fVP',            'input', ()=>this.calcTotal());
-    safeBind('fQP',            'input', ()=>this.calcTotal());
-
-    // Modal Salário
-    safeBind('btnSalvarSal',   'click', ()=>this.saveSalario());
-    ['sSal','sBon','sDeps'].forEach(id => safeBind(id, 'input', ()=>this.calcSalario()));
-
-    // Modal Receita
-    safeBind('btnSalvarReceita', 'click', ()=>this.saveReceita());
-
-    // Modal Tabelas IR/INSS
-    safeBind('btnBuscarOnline',  'click', ()=>this.buscarTabelasOnline());
-    safeBind('btnEditarManual',  'click', ()=>{
-      const ed = document.getElementById('tabelasEditor');
-      const bs = document.getElementById('btnSalvarTabelas');
-      if(ed) ed.style.display='block';
-      if(bs) bs.style.display='flex';
-    });
-    safeBind('btnSalvarTabelas', 'click', ()=>this.salvarTabelas());
-
-    // Popular select de mês inicial do salário (idempotente: só popula se vazio).
-    const ms = document.getElementById('sMesInicio');
-    if(ms){
-      // Guard idempotência: evita duplicar opções em re-execuções (ex: hot reload).
-      if(ms.options.length === 0){
-        MESES_F.forEach((m,i) => ms.appendChild(new Option(m,i)));
-      }
-      ms.value = new Date().getMonth();
-    }
+    document.getElementById('btnLimparConta').addEventListener('click',()=>this.clearConta());
+    document.getElementById('btnSalvarConta').addEventListener('click',()=>this.saveConta());
+    document.getElementById('fVP').addEventListener('input',()=>this.calcTotal());
+    document.getElementById('fQP').addEventListener('input',()=>this.calcTotal());
+    document.getElementById('btnSalvarSal').addEventListener('click',()=>this.saveSalario());
+    ['sSal','sBon','sDeps'].forEach(id=>document.getElementById(id).addEventListener('input',()=>this.calcSalario()));
+    document.getElementById('btnSalvarReceita').addEventListener('click',()=>this.saveReceita());
+    document.getElementById('btnBuscarOnline').addEventListener('click',()=>this.buscarTabelasOnline());
+    document.getElementById('btnEditarManual').addEventListener('click',()=>{ document.getElementById('tabelasEditor').style.display='block'; document.getElementById('btnSalvarTabelas').style.display='flex'; });
+    document.getElementById('btnSalvarTabelas').addEventListener('click',()=>this.salvarTabelas());
+    const ms=document.getElementById('sMesInicio');
+    MESES_F.forEach((m,i)=>ms.appendChild(new Option(m,i)));
+    ms.value=new Date().getMonth();
   },
 
   selects(){
@@ -3920,355 +3883,3 @@ Object.assign(APP, {
     if(wrap) wrap.style.display = chk?.checked ? 'block' : 'none';
   },
 });
-
-
-
-// =============================================================================
-// === MÓDULO NOTAS E AÇÕES (Duetto Financeiro) ===
-// =============================================================================
-
-const NT_MESES_F = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho',
-                    'Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-
-const NT_LIST_COLUMNS = [
-  {key:'titulo',      label:'Título',          type:'string', sortable:true,  defaultVisible:true,  width:'26%'},
-  {key:'status',      label:'Status',          type:'status', sortable:true,  defaultVisible:true,  width:'10%'},
-  {key:'tipo',        label:'Tipo',            type:'string', sortable:true,  defaultVisible:true,  width:'9%'},
-  {key:'autor',       label:'Autor',           type:'string', sortable:true,  defaultVisible:true,  width:'9%'},
-  {key:'responsavel', label:'Responsável',     type:'string', sortable:true,  defaultVisible:true,  width:'12%'},
-  {key:'prazo',       label:'Prazo',           type:'date',   sortable:true,  defaultVisible:true,  width:'10%'},
-  {key:'itens',       label:'Itens',           type:'number', sortable:true,  defaultVisible:true,  width:'7%'},
-  {key:'vPrevisto',   label:'Vlr Previsto',    type:'number', sortable:true,  defaultVisible:true,  width:'9%'},
-  {key:'vRealizado',  label:'Vlr Realizado',   type:'number', sortable:true,  defaultVisible:true,  width:'9%'}
-];
-
-const NOTES_ADMINS = ['Leo']; // Email ou Nome de Admin
-
-const NOTES_STATE = {
-  currentUser: 'Leo', // Será ajustado no switch ou pego do login real
-  notes: [],
-  trash: [],
-  activityLog: [],
-  editingId: null,
-  draftItems: [],
-  editingItemIdx: null,
-  filters: { autor: '', tipo: '', status: '' },
-  periodo: null,
-  searchQuery: '',
-  viewMode: 'grade',
-  analyticsOpen: false,
-  listSort: { column: null, dir: 'asc' },
-  columnsConfig: []
-};
-
-// --- Helpers de Formatação ---
-function ntUid(){ return 'n_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,7); }
-function ntToday(){ return new Date().toISOString().slice(0,10); }
-function ntNow(){ return new Date().toISOString(); }
-function ntFmt(cents){
-  if(cents == null || isNaN(cents)) return 'R$ 0,00';
-  const v = (cents / 100).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2});
-  return 'R$ ' + v;
-}
-function ntParseCents(str){
-  if(str == null) return 0;
-  let s = String(str).trim().replace(/[^\d,.-]/g, '');
-  if(!s) return 0;
-  if(s.indexOf(',') >= 0) s = s.replace(/\./g, '').replace(',', '.');
-  const f = parseFloat(s);
-  return isNaN(f) ? 0 : Math.round(f * 100);
-}
-function ntFmtDate(iso){
-  if(!iso) return '...';
-  const d = new Date(iso + 'T12:00');
-  return isNaN(d) ? '...' : d.toLocaleDateString('pt-BR');
-}
-function ntFmtDateTime(iso){
-  if(!iso) return '...';
-  const d = new Date(iso);
-  return isNaN(d) ? '...' : d.toLocaleString('pt-BR', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-}
-
-// --- Governança ---
-function ntCanEdit(note, user){
-  if(!note || !user) return false;
-  if(NOTES_ADMINS.includes(user)) return true;
-  if(note.autor === user) return true;
-  if(note.responsavel === 'Leo & Pri') return true;
-  return false;
-}
-function ntStatusEfetivo(note){
-  if(note.status === 'concluida') return 'concluida';
-  if(note.tipo === 'acao' && note.prazo && note.prazo < ntToday()) return 'atraso';
-  return 'ativa';
-}
-
-// --- Firebase Sync ---
-function ntInitFirebase(){
-  // Monitorar Notas Ativas
-  db.collection('notes').onSnapshot(snap => {
-    NOTES_STATE.notes = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-    ntRenderAll();
-  });
-  // Monitorar Lixeira
-  db.collection('trash_notes').onSnapshot(snap => {
-    NOTES_STATE.trash = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-    ntRenderTrashCount();
-  });
-  // Monitorar Log
-  db.collection('activity_log').limit(100).onSnapshot(snap => {
-    NOTES_STATE.activityLog = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
-  });
-}
-
-async function ntLogEvent(evento, noteId, detalhes){
-  await db.collection('activity_log').add({
-    evento, noteId, detalhes,
-    usuario: NOTES_STATE.currentUser,
-    timestamp: ntNow()
-  });
-}
-
-// --- CRUD ---
-async function ntSaveNote(){
-  const titulo = document.getElementById('ntF_titulo').value.trim();
-  const tipo = document.getElementById('ntF_tipo').value;
-  if(!titulo) { ntToast('Título obrigatório', 'error'); return; }
-
-  const payload = {
-    titulo,
-    descricao: document.getElementById('ntF_descricao').value.trim(),
-    tipo,
-    status: document.getElementById('ntF_status').value,
-    prazo: tipo === 'acao' ? document.getElementById('ntF_prazo').value : null,
-    responsavel: tipo === 'acao' ? document.getElementById('ntF_resp').value : null,
-    itens: NOTES_STATE.draftItems,
-    atualizadaEm: ntNow()
-  };
-
-  try {
-    if(NOTES_STATE.editingId){
-      await db.collection('notes').doc(NOTES_STATE.editingId).update(payload);
-      ntLogEvent('edicao', NOTES_STATE.editingId, 'Nota "' + titulo + '" editada');
-      ntToast('Nota salva', 'success');
-    } else {
-      payload.autor = NOTES_STATE.currentUser;
-      payload.criadaEm = ntNow();
-      const ref = await db.collection('notes').add(payload);
-      ntLogEvent('cadastro', ref.id, 'Nota "' + titulo + '" criada');
-      ntToast('Nota criada', 'success');
-    }
-    ntCloseOverlay('ntModalOverlay');
-  } catch(e) { ntToast('Erro ao salvar: ' + e.message, 'error'); }
-}
-
-async function ntDeleteCurrent(){
-  if(!NOTES_STATE.editingId) return;
-  const note = NOTES_STATE.notes.find(n => n.id === NOTES_STATE.editingId);
-  if(!note || !confirm(`Mover "${note.titulo}" para a lixeira?`)) return;
-  
-  try {
-    const trashPayload = {...note, excluidoPor: NOTES_STATE.currentUser, excluidoEm: ntNow()};
-    await db.collection('trash_notes').doc(note.id).set(trashPayload);
-    await db.collection('notes').doc(note.id).delete();
-    ntLogEvent('exclusao', note.id, 'Nota "' + note.titulo + '" removida');
-    ntToast('Nota na lixeira', 'success');
-    ntCloseOverlay('ntModalOverlay');
-  } catch(e) { ntToast('Erro ao excluir', 'error'); }
-}
-
-async function ntRestoreNote(id){
-  const note = NOTES_STATE.trash.find(n => n.id === id);
-  if(!note) return;
-  try {
-    const restored = {...note};
-    delete restored.excluidoPor; delete restored.excluidoEm; delete restored.id;
-    await db.collection('notes').doc(id).set(restored);
-    await db.collection('trash_notes').doc(id).delete();
-    ntLogEvent('restauracao', id, 'Nota restaurada');
-    ntToast('Nota restaurada', 'success');
-    ntRenderTrash();
-  } catch(e) { ntToast('Erro ao restaurar', 'error'); }
-}
-
-// --- Interface e Renders ---
-function ntToast(msg, type){
-  const t = document.getElementById('ntToast');
-  t.className = 'nt-toast show ' + (type || '');
-  t.textContent = msg;
-  setTimeout(() => t.classList.remove('show'), 2400);
-}
-
-function ntOpenOverlay(id){ document.getElementById(id).classList.add('open'); }
-function ntCloseOverlay(id){ document.getElementById(id).classList.remove('open'); }
-
-function ntRenderAll(){
-  ntRenderKpis();
-  ntRenderCards();
-  ntRenderFilterChrome();
-}
-
-function ntRenderKpis(){
-  const escopo = ntApplyFilters(NOTES_STATE.notes);
-  const total = escopo.length;
-  const ativas = escopo.filter(n => ntStatusEfetivo(n) === 'ativa').length;
-  const atraso = escopo.filter(n => ntStatusEfetivo(n) === 'atraso').length;
-  const concluidas = escopo.filter(n => ntStatusEfetivo(n) === 'concluida').length;
-
-  document.getElementById('ntKpis').innerHTML = `
-    <div class="nt-kpi palm"><div class="nt-kpi-label">Total</div><div class="nt-kpi-value">${total}</div></div>
-    <div class="nt-kpi blue"><div class="nt-kpi-label">Ativas</div><div class="nt-kpi-value">${ativas}</div></div>
-    <div class="nt-kpi red"><div class="nt-kpi-label">Atraso</div><div class="nt-kpi-value">${atraso}</div></div>
-    <div class="nt-kpi green"><div class="nt-kpi-label">Concluídas</div><div class="nt-kpi-value">${concluidas}</div></div>
-  `;
-}
-
-function ntApplyFilters(list){
-  const f = NOTES_STATE.filters;
-  const p = NOTES_STATE.periodo;
-  const q = (NOTES_STATE.searchQuery || '').toLowerCase();
-
-  return list.filter(n => {
-    if(f.autor && n.autor !== f.autor) return false;
-    if(f.tipo && n.tipo !== f.tipo) return false;
-    if(f.status && ntStatusEfetivo(n) !== f.status) return false;
-    if(p && n.tipo === 'acao'){
-      if(!n.prazo) return false;
-      const d = new Date(n.prazo + 'T12:00');
-      if(d.getFullYear() !== p.ano || d.getMonth() < p.mesIni || d.getMonth() > p.mesFim) return false;
-    }
-    if(q){
-      const match = (n.titulo + n.descricao).toLowerCase().includes(q);
-      if(!match) return false;
-    }
-    return true;
-  });
-}
-
-function ntRenderCards(){
-  const escopo = ntApplyFilters(NOTES_STATE.notes);
-  if(NOTES_STATE.viewMode === 'lista') { ntRenderList(escopo); return; }
-
-  const buckets = {ativa: [], concluida: [], atraso: []};
-  escopo.forEach(n => buckets[ntStatusEfetivo(n)].push(n));
-
-  ['ativa', 'atraso', 'concluida'].forEach(st => {
-    const gridId = 'ntGrid' + st.charAt(0).toUpperCase() + st.slice(1);
-    const countId = 'ntCount' + st.charAt(0).toUpperCase() + st.slice(1);
-    const grid = document.getElementById(gridId);
-    document.getElementById(countId).textContent = buckets[st].length;
-    grid.innerHTML = buckets[st].map(n => `
-      <div class="nt-card ${st}" onclick="ntOpenEditModal('${n.id}')">
-        <div class="nt-card-head">
-          <div class="nt-card-title">${n.titulo}</div>
-          <span class="nt-card-type ${n.tipo === 'acao'?'acao':''}">${n.tipo}</span>
-        </div>
-        <div class="nt-card-meta">
-          ${n.prazo?`<span>Prazo: ${ntFmtDate(n.prazo)}</span>`:''}
-          ${n.responsavel?`<span>Resp: ${n.responsavel}</span>`:''}
-        </div>
-        <div class="nt-card-foot"><span class="nt-author">${n.autor}</span></div>
-      </div>
-    `).join('') || '<div class="nt-empty">Vazio</div>';
-  });
-}
-
-function ntOpenEditModal(id){
-  const n = NOTES_STATE.notes.find(x => x.id === id);
-  if(!n) return;
-  NOTES_STATE.editingId = id;
-  NOTES_STATE.draftItems = [...(n.itens || [])];
-  document.getElementById('ntF_titulo').value = n.titulo;
-  document.getElementById('ntF_descricao').value = n.descricao;
-  document.getElementById('ntF_tipo').value = n.tipo;
-  document.getElementById('ntF_status').value = n.status;
-  document.getElementById('ntF_prazo').value = n.prazo || '';
-  document.getElementById('ntF_resp').value = n.responsavel || '';
-  document.getElementById('ntBtnDelete').style.display = ntCanEdit(n, NOTES_STATE.currentUser) ? 'inline-block' : 'none';
-  ntRenderItems();
-  ntOpenOverlay('ntModalOverlay');
-}
-
-function ntRenderItems(){
-  const body = document.getElementById('ntItemsBody');
-  const items = NOTES_STATE.draftItems;
-  if(!items.length) { 
-    document.getElementById('ntItemsWrap').classList.add('hidden');
-    document.getElementById('ntItemsEmpty').style.display = 'block';
-    return;
-  }
-  document.getElementById('ntItemsWrap').classList.remove('hidden');
-  document.getElementById('ntItemsEmpty').style.display = 'none';
-  body.innerHTML = items.map((it, i) => `
-    <tr>
-      <td>${it.descricao}</td><td>${ntFmtDate(it.data)}</td><td>${it.nota}</td>
-      <td class="nt-num">${ntFmt(it.vPrevistoCent)}</td><td class="nt-num">${ntFmt(it.vRealizadoCent)}</td>
-      <td><button class="nt-icon-btn" onclick="ntOpenItemModal(${i})">✏</button></td>
-    </tr>
-  `).join('');
-}
-
-// --- Bindings e Init ---
-function ntInit(){
-  ntInitFirebase();
-  document.getElementById('ntBtnNew').onclick = () => {
-    NOTES_STATE.editingId = null; NOTES_STATE.draftItems = [];
-    document.getElementById('ntModalTitle').textContent = 'Nova Nota';
-    document.querySelectorAll('#ntModalOverlay input, #ntModalOverlay textarea').forEach(i => i.value = '');
-    document.getElementById('ntBtnDelete').style.display = 'none';
-    ntRenderItems();
-    ntOpenOverlay('ntModalOverlay');
-  };
-  document.getElementById('ntBtnSave').onclick = ntSaveNote;
-  document.getElementById('ntBtnDelete').onclick = ntDeleteCurrent;
-  document.getElementById('ntBtnAddItem').onclick = () => ntOpenItemModal(null);
-  document.getElementById('ntBtnSaveItem').onclick = () => {
-    const it = {
-      descricao: document.getElementById('ntI_descricao').value,
-      data: document.getElementById('ntI_data').value,
-      vPrevistoCent: ntParseCents(document.getElementById('ntI_vPrevisto').value),
-      vRealizadoCent: ntParseCents(document.getElementById('ntI_vRealizado').value),
-      nota: document.getElementById('ntI_nota').value
-    };
-    if(NOTES_STATE.editingItemIdx !== null) NOTES_STATE.draftItems[NOTES_STATE.editingItemIdx] = it;
-    else NOTES_STATE.draftItems.push(it);
-    ntCloseOverlay('ntItemModalOverlay');
-    ntRenderItems();
-  };
-  
-  // User switch
-  document.querySelectorAll('.nt-userswitch button').forEach(b => {
-    b.onclick = () => {
-      document.querySelectorAll('.nt-userswitch button').forEach(x => x.classList.remove('active'));
-      b.classList.add('active');
-      NOTES_STATE.currentUser = b.dataset.user;
-      ntRenderAll();
-    };
-  });
-
-  // Analytics toggle
-  document.getElementById('ntBtnToggleAnalytics').onclick = () => {
-    NOTES_STATE.analyticsOpen = !NOTES_STATE.analyticsOpen;
-    document.getElementById('ntAnalyticsPanel').classList.toggle('open', NOTES_STATE.analyticsOpen);
-    document.getElementById('ntBtnToggleAnalytics').classList.toggle('open', NOTES_STATE.analyticsOpen);
-  };
-}
-
-function ntOpenItemModal(idx){
-  NOTES_STATE.editingItemIdx = idx;
-  if(idx !== null){
-    const it = NOTES_STATE.draftItems[idx];
-    document.getElementById('ntI_descricao').value = it.descricao;
-    document.getElementById('ntI_data').value = it.data;
-    document.getElementById('ntI_vPrevisto').value = ntFmtNumero(it.vPrevistoCent);
-    document.getElementById('ntI_vRealizado').value = ntFmtNumero(it.vRealizadoCent);
-    document.getElementById('ntI_nota').value = it.nota;
-  } else {
-    document.querySelectorAll('#ntItemModalOverlay input, #ntItemModalOverlay textarea').forEach(i => i.value = '');
-  }
-  ntOpenOverlay('ntItemModalOverlay');
-}
-function ntFmtNumero(c){ return (c/100).toLocaleString('pt-BR',{minimumFractionDigits:2}); }
-function ntRenderTrashCount(){ document.getElementById('ntTrashCount').textContent = NOTES_STATE.trash.length; }
-
-// Adicionar inicialização ao init global

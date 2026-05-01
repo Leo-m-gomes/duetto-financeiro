@@ -18,13 +18,6 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<!-- ── DUETTO FINANCEIRO, MÓDULOS DE CSS (Fase 1.2) ── -->
-<!-- Ordem importa: theme.css define tokens usados pelos demais -->
-<link rel="stylesheet" href="css/theme.css">
-<link rel="stylesheet" href="css/tables.css">
-
-<!-- style.css legado mantido temporariamente para preservar 100% do layout
-     atual durante a refatoração progressiva. Será reduzido na Fase 1.4. -->
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -1114,13 +1107,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
-<!-- ── DUETTO FINANCEIRO, MÓDULOS DE JS (Fase 1.2) ── -->
-<!-- Ordem CRÍTICA: firebase-config DEVE carregar antes do security -->
-<script src="js/firebase-config.js"></script>
-<script src="js/security.js"></script>
-
-<!-- app.js legado mantido temporariamente. Será reduzido na Fase 1.4
-     conforme funções migram para módulos especializados. -->
 <script src="app.js"></script>
 </body>
 </html>
