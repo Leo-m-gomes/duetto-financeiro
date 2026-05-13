@@ -1,0 +1,262 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, view config.html
+═══════════════════════════════════════════════════════════════════════════
+  Fragmento HTML carregado dinamicamente pelo router.js no container
+  #appMain. Sem <html>, <head>, <body>, <script>.
+
+  Conteúdo: extração LITERAL das linhas 461-685 do index.html legado.
+
+  Esta é a view mais densa (225 linhas, 71 divs). Contém múltiplos
+  módulos administrativos:
+    • Configuração de cartões e grupos
+    • Tabelas IR/INSS (com edição inline mantida)
+    • Gerenciamento de categorias e formas de pagamento
+    • Modelos de mapeamento de upload
+    • Recuperação de itens excluídos (lixeira)
+    • Log de atividades
+
+  ROTA RESTRITA: config é adminOnly:true em ROUTES (router.js).
+  Apenas Leo acessa.
+
+  IDs preservados (lista parcial, consultados por APP.renderConfig):
+    cfgTabsHeader, cfgTabCartoes, cfgTabTabelas, cfgTabGerenciar,
+    cfgTabModelos, cfgTabExcluidos, cfgTabLog, btnNovoGrupo, btnNovoCartao,
+    cfgListaGrupos, cfgListaCartoes, cfgEditorIR, cfgEditorINSS,
+    cfgListaCategorias, cfgListaFormas, cfgListaModelos, cfgListaExcluidos,
+    cfgListaLog, cfgFiltroLog.
+
+  EDIÇÃO INLINE: tabelas IR/INSS dentro desta view têm inputs editáveis.
+  Conforme decisão da Fase 1.1, mantida (não migrada para sub-modal nesta
+  versão). Regra do sub-modal vale apenas para módulos NOVOS (Notas).
+
+  Classes preservadas: page, page-inner, cfg-tabs, cfg-tab, cfg-content,
+  section-card, data-table, edit-table.
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+  <div class="page" id="page-config">
+    <div class="page-inner">
+
+      <!-- TABS DE NAVEGAÇÃO INTERNA -->
+      <div class="cfg-tabs" id="cfgTabs">
+        <button class="cfg-tab active" data-tab="usuarios"  onclick="APP.cfgTab('usuarios')">👥 Usuários</button>
+        <button class="cfg-tab"        data-tab="backup"    onclick="APP.cfgTab('backup')">🛡️ Backup</button>
+        <button class="cfg-tab"        data-tab="tabelas"   onclick="APP.cfgTab('tabelas')">📊 Tabelas Fiscais</button>
+        <button class="cfg-tab"        data-tab="lixeira"   onclick="APP.cfgTab('lixeira')">🗑️ Excluídos</button>
+        <button class="cfg-tab"        data-tab="log"       onclick="APP.cfgTab('log')">📋 Log de Atividades</button>
+        <button class="cfg-tab"        data-tab="prefs"     onclick="APP.cfgTab('prefs')">⚙️ Preferências</button>
+      </div>
+
+      <!-- TAB: USUÁRIOS -->
+      <div class="cfg-panel active" id="cfgPanel-usuarios">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>👥 Usuários Autorizados</h3>
+            <span class="badge badge-admin">Somente Admin</span>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ Usuários autorizados têm acesso completo ao sistema. O administrador (Leo) tem acesso à tela de Configurações. A Pri tem acesso a todas as demais telas.
+            </div>
+            <div id="cfgListaUsuarios" style="margin-bottom:16px"></div>
+            <div class="section-header" style="border:1px solid var(--border);border-radius:var(--r-sm);padding:14px;background:var(--bg);margin-top:4px">
+              <h3 style="font-size:13px">Adicionar novo usuário</h3>
+            </div>
+            <div style="padding:14px;border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r-sm) var(--r-sm);background:var(--bg);margin-bottom:4px">
+              <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+                <div class="fg" style="margin:0"><label>Nome</label><input type="text" id="cfgNovoNome" placeholder="Ex: João Silva"></div>
+                <div class="fg" style="margin:0"><label>E-mail Google *</label><input type="email" id="cfgNovoEmail" placeholder="usuario@gmail.com"></div>
+                <button class="btn btn-primary" onclick="APP.cfgAdicionarUsuario()">+ Adicionar</button>
+              </div>
+            </div>
+            <p style="font-size:11px;color:var(--t4);margin-top:8px">⚠️ Após adicionar, o novo usuário poderá acessar o sistema com a conta Google correspondente. Para revogar o acesso, remova o e-mail da lista.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: BACKUP -->
+      <div class="cfg-panel" id="cfgPanel-backup">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🛡️ Backup do Banco de Dados</h3>
+            <span class="badge badge-admin">Somente Admin</span>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ O backup exporta todas as coleções em tempo real. Recomendado fazer <strong>mensalmente</strong> ou antes de grandes importações.
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px">
+              <div class="up-stat"><label>Contas</label><div class="sv" id="cfgBkContas">—</div></div>
+              <div class="up-stat"><label>Salários</label><div class="sv" id="cfgBkSalarios">—</div></div>
+              <div class="up-stat"><label>Categorias</label><div class="sv" id="cfgBkCats">—</div></div>
+              <div class="up-stat"><label>Importações</label><div class="sv" id="cfgBkImps">—</div></div>
+            </div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:20px">
+              <button class="btn btn-primary" onclick="APP.cfgBackupJSON()" id="cfgBtnJSON" style="flex:1;justify-content:center;min-width:160px">⬇ Exportar JSON</button>
+              <button class="btn btn-secondary" onclick="APP.cfgBackupExcel()" id="cfgBtnExcel" style="flex:1;justify-content:center;min-width:160px">⬇ Exportar Excel</button>
+              <button class="btn btn-secondary" onclick="APP.cfgBackupAmbos()" style="flex:1;justify-content:center;min-width:160px">⬇ JSON + Excel</button>
+            </div>
+            <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Histórico desta sessão</div>
+            <div id="cfgBackupLog"><span style="color:var(--t4);font-size:12.5px">Nenhum backup realizado nesta sessão.</span></div>
+          </div>
+        </div>
+        <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:12px 16px;font-size:12.5px;color:#92400e;margin-top:12px">
+          ⚠️ <strong>Restauração:</strong> em caso de necessidade, entre em contato com o desenvolvedor. O arquivo JSON contém toda a estrutura para recuperação completa.
+        </div>
+      </div>
+
+      <!-- TAB: TABELAS FISCAIS -->
+      <div class="cfg-panel" id="cfgPanel-tabelas">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📊 Tabelas Fiscais IR / INSS</h3>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-secondary btn-sm" id="cfgBtnBuscarTabelas" onclick="APP.buscarTabelasOnline()">🌐 Buscar online</button>
+              <button class="btn btn-primary btn-sm" id="cfgBtnSalvarTabelas" style="display:none" onclick="APP.salvarTabelasConfig()">💾 Salvar</button>
+            </div>
+          </div>
+          <div style="padding:18px">
+            <div class="alert alert-info show" style="margin-bottom:16px;font-size:12.5px">
+              ℹ️ As tabelas abaixo são usadas para calcular INSS e IR de Leo e Pri na tela de Salários. Atualize sempre que houver reajuste pelo governo federal.
+            </div>
+            <div id="cfgTabelasContent">
+              <p style="color:var(--t4);font-size:12.5px">Carregando tabelas...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: EXCLUÍDOS (LIXEIRA) -->
+      <div class="cfg-panel" id="cfgPanel-lixeira">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🗑️ Itens Excluídos</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <button class="btn btn-ghost btn-sm" onclick="APP.lixeiraCarregar()">🔄 Atualizar</button>
+              <button class="btn btn-danger btn-sm" onclick="APP.lixeiraEsvaziar()">⚠️ Esvaziar lixeira</button>
+            </div>
+          </div>
+          <div style="padding:14px">
+            <div class="alert alert-warning show" style="margin-bottom:14px;font-size:12.5px">
+              ⚠️ Itens aqui podem ser <strong>restaurados</strong> para o banco principal ou <strong>excluídos permanentemente</strong>. A exclusão permanente não tem recuperação.
+            </div>
+            <div id="lixeiraStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+          </div>
+          <div style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Descrição</th><th>Responsável</th><th>Categoria</th>
+                  <th>Valor</th><th>Excluído por</th><th>Excluído em</th><th>Ações</th>
+                </tr></thead>
+                <tbody id="lixeiraBody">
+                  <tr><td colspan="7" style="text-align:center;padding:24px;color:var(--t4)">Clique em Atualizar para carregar</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: LOG DE ATIVIDADES -->
+      <div class="cfg-panel" id="cfgPanel-log">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📋 Log de Atividades</h3>
+            <button class="btn btn-ghost btn-sm" onclick="APP.cfgCarregarLog()">🔄 Atualizar</button>
+          </div>
+          <div style="padding:12px 16px;border-bottom:1px solid var(--border);display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end">
+            <div class="fg" style="margin:0;min-width:130px">
+              <label>Data início</label>
+              <input type="date" id="logDataIni" style="padding:7px 10px">
+            </div>
+            <div class="fg" style="margin:0;min-width:130px">
+              <label>Data fim</label>
+              <input type="date" id="logDataFim" style="padding:7px 10px">
+            </div>
+            <div class="fg" style="margin:0;min-width:120px">
+              <label>Responsável</label>
+              <select id="logResp" style="padding:7px 10px">
+                <option value="">Todos</option>
+                <option>Leo</option>
+                <option>Pri</option>
+              </select>
+            </div>
+            <div class="fg" style="margin:0;min-width:140px">
+              <label>Tipo de evento</label>
+              <select id="logEvento" style="padding:7px 10px">
+                <option value="">Todos</option>
+                <option value="cadastro">➕ Cadastro</option>
+                <option value="edicao">✏️ Edição</option>
+                <option value="pagamento">✅ Pagamento</option>
+                <option value="desfazer_pagamento">↩ Desfazer pagamento</option>
+                <option value="exclusao">🗑 Exclusão</option>
+                <option value="restauracao">↺ Restauração</option>
+              </select>
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="APP.cfgCarregarLog()">🔍 Filtrar</button>
+            <button class="btn btn-ghost btn-sm" onclick="APP.cfgLimparFiltrosLog()">✕ Limpar</button>
+            <span style="font-size:11px;color:var(--t4);margin-left:auto;align-self:center" id="logContador"></span>
+          </div>
+          <div style="padding:0">
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr>
+                  <th>Data/Hora</th><th>Evento</th><th>Descrição</th>
+                  <th>Detalhes</th><th>Usuário</th><th>Valor</th>
+                </tr></thead>
+                <tbody id="cfgLogBody">
+                  <tr><td colspan="6" style="text-align:center;padding:24px;color:var(--t4)">Clique em Filtrar ou Atualizar para carregar</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TAB: PREFERÊNCIAS -->
+      <div class="cfg-panel" id="cfgPanel-prefs">
+        <div class="section-card">
+          <div class="section-header"><h3>⚙️ Preferências do Sistema</h3></div>
+          <div style="padding:18px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+              <div>
+                <div class="fg"><label>Itens por página (tela Contas)</label>
+                  <select id="cfgPgSz" onchange="APP.cfgSalvarPrefs()">
+                    <option value="10">10 itens</option>
+                    <option value="20" selected>20 itens (padrão)</option>
+                    <option value="50">50 itens</option>
+                    <option value="100">100 itens</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Parcelas padrão ao cadastrar nova conta</label>
+                  <input type="number" id="cfgParcelaPadrao" min="1" max="120" value="1" onchange="APP.cfgSalvarPrefs()">
+                </div>
+              </div>
+              <div>
+                <div class="fg"><label>Alertas de vencimento próximo</label>
+                  <select id="cfgAlertaDias" onchange="APP.cfgSalvarPrefs()">
+                    <option value="0">Desativado</option>
+                    <option value="3">3 dias antes</option>
+                    <option value="5" selected>5 dias antes</option>
+                    <option value="7">7 dias antes</option>
+                  </select>
+                </div>
+                <div class="fg"><label>Tema visual</label>
+                  <select id="cfgTema" onchange="APP.cfgAplicarTema(this.value)">
+                    <option value="light">Claro</option>
+                    <option value="dark">Escuro</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border)">
+              <div style="font-size:11px;color:var(--t4)">Preferências salvas automaticamente no seu navegador.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>

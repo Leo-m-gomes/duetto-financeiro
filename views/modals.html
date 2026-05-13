@@ -1,0 +1,466 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, fragmento _modals.html
+═══════════════════════════════════════════════════════════════════════════
+  13 modais globais (overlay) injetados uma única vez no boot pelo
+  ROUTER.injectModals(). NÃO são views navegáveis: são dialogs sobrepostos
+  ao conteúdo, usados de qualquer página.
+
+  Conteúdo: extração das linhas 689-1111 do index.html legado, EXCLUINDO
+  a linha 835 (`</div><!-- /screenApp `) que pertence ao fechamento do
+  container <div id="screenApp">, não aos modais.
+
+  ⚠ AUDITORIA DETECTOU: a extração ingênua das linhas 689-1111 traria 1
+  </div> extra (do screenApp). Isto NÃO é defeito do legado: lá o close
+  de screenApp está corretamente balanceado contra o open na linha 77.
+  Apenas a fronteira do nosso fragmento precisa pular essa linha.
+
+  IDs dos 13 modais (em ordem de aparição):
+    ovConta        Cadastro/edição de conta
+    ovParcelas     Edição manual de parcelas
+    ovSalario      Cadastro/edição de salário
+    ovReceita      Cadastro/edição de receita
+    ovTabelas      Edição das tabelas IR/INSS
+    ovGerenciar    Gerenciar categorias e formas de pagamento
+    ovPagamento    Pagamento de uma conta
+    ovCartoes      Configuração de cartões/grupos
+    ovModelo       Mapeamento de colunas no upload
+    ovParcelasUp   Conferência de parcelas no upload
+    ovPeriodo      Filtro por período (Ano + Mês Início + Mês Fim)
+    ovRecorrentes  Geração de contas recorrentes
+    ovPagMassa     Pagamento em massa de múltiplas contas
+
+  ATENÇÃO PARA INTEGRAÇÃO:
+   • Quando este fragmento é injetado em <div id="appModals"></div>, o
+     APP.modals() (que adiciona listeners aos data-close) deve rodar APÓS
+     a injeção. Garantir essa ordem é responsabilidade do orquestrador
+     (app.js boot na Fase 1.4-B).
+   • Nenhum <script> ou onload= existe nos modais. Toda interação ocorre
+     via onclick="APP.X()" (atributos), que funcionam imediatamente após
+     injeção via innerHTML.
+   • Balanceamento validado: 175 <div> open / 175 </div> close.
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+<div class="modal-overlay" id="ovConta">
+  <div class="modal">
+    <div class="modal-header"><h2 id="titleConta">Nova Conta</h2><button class="modal-close" data-close="ovConta">&times;</button></div>
+    <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8fbf9;border-bottom:1px solid var(--border);flex-wrap:wrap">
+      <span style="font-size:10.5px;font-weight:600;color:var(--t4);letter-spacing:.5px;text-transform:uppercase">Gerenciar:</span>
+      <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('cat')" style="font-size:11.5px">+ Categorias</button>
+      <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('forma')" style="font-size:11.5px">+ Formas de Pagamento</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Descrição *</label><textarea id="fDesc" rows="2" placeholder="Ex: Financiamento Honda Fit..."></textarea></div>
+        <div class="fg"><label>Responsável *</label><select id="fResp"><option value="">Selecione...</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select></div>
+        <div class="fg"><label>Forma de Pagamento *</label><select id="fForma"><option value="">Selecione...</option></select></div>
+        <div class="fg"><label>Categoria *</label><select id="fCat"><option value="">Selecione...</option></select></div>
+        <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
+        <div class="fg"><label>Valor da Parcela (R$) *</label><input type="number" id="fVP" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" min="1" value="1"></div>
+        <div class="fg"><label>Valor Total (auto)</label><input type="number" id="fVT" readonly placeholder="—"></div>
+        <div class="fg"><label>Parcela Atual</label><input type="text" id="fParc" placeholder="Ex: 3 de 12"></div>
+        <div class="fg full" style="display:flex;align-items:center;gap:10px;padding:10px 0">
+          <input type="checkbox" id="fRecorrente" style="width:16px;height:16px;accent-color:var(--palm);cursor:pointer;flex-shrink:0">
+          <label for="fRecorrente" style="cursor:pointer;font-size:12.5px;color:var(--t2);margin:0">
+            <strong style="color:var(--palm)">🔁 Conta recorrente</strong> — gera nova entrada todo ano (água, energia, escola, streaming…)
+          </label>
+        </div>
+        <div class="fg full"><label>Nota</label><textarea id="fNota" rows="2" placeholder="Informações adicionais..."></textarea></div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovConta">Cancelar</button><button class="btn btn-ghost" id="btnLimparConta">Limpar</button><button class="btn btn-primary" id="btnSalvarConta">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovParcelas">
+  <div class="modal modal-xl">
+    <div class="modal-header"><h2 id="titleParcelas">Gerenciar Parcelamento</h2><button class="modal-close" data-close="ovParcelas">&times;</button></div>
+    <div class="modal-body">
+      <div class="parcs-actions-bar">
+        <button class="btn btn-primary btn-sm" onclick="APP.parcsPayAll()">✅ Baixar todas</button>
+        <button class="btn btn-warning btn-sm" onclick="APP.parcsPayEarly()">⚡ Antecipado</button>
+        <button class="btn btn-danger btn-sm" onclick="APP.parcsDeleteAll()">🗑 Excluir todas</button>
+        <span style="flex:1"></span>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsApplyDesc()">Aplicar descrição a todas</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsSaveAll()">💾 Salvar</button>
+      </div>
+      <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelas">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovSalario">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2 id="titleSal">Novo Salário</h2><button class="modal-close" data-close="ovSalario">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Nome Completo *</label><input type="text" id="sNome" placeholder="Ex: Leonardo Gomes"></div>
+        <div class="fg"><label>Pessoa *</label><select id="sPessoa"><option value="">Selecione...</option><option value="Leo">Leo</option><option value="Pri">Pri</option></select></div>
+        <div class="fg"><label>Válido a partir de</label><select id="sMesInicio"></select></div>
+        <div class="fg"><label>Salário Bruto (R$) *</label><input type="number" id="sSal" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Bonificação (R$)</label><input type="number" id="sBon" step="0.01" min="0" value="0"></div>
+        <div class="fg"><label>Nº de Dependentes</label><input type="number" id="sDeps" min="0" value="0"></div>
+        <div class="form-sep"></div>
+        <div class="fg"><label>INSS (calculado)</label><input type="number" id="sINSS" readonly></div>
+        <div class="fg"><label>IR (calculado)</label><input type="number" id="sIR" readonly></div>
+        <div class="fg full"><label>Salário Líquido</label><input type="number" id="sLiq" readonly class="highlight"></div>
+        <div class="form-note">⚠️ Alterações salariais aplicam-se apenas a partir do mês selecionado.</div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovSalario">Cancelar</button><button class="btn btn-primary" id="btnSalvarSal">Salvar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovReceita">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>Nova Receita</h2><button class="modal-close" data-close="ovReceita">&times;</button></div>
+    <div class="modal-body">
+      <div class="form-grid">
+        <div class="fg full"><label>Descrição *</label><input type="text" id="rDesc" placeholder="Ex: Freelance, Aluguel..."></div>
+        <div class="fg"><label>Responsável</label><select id="rResp"><option value="">Ambos</option><option>Leo</option><option>Pri</option></select></div>
+        <div class="fg"><label>Valor (R$)</label><input type="number" id="rValor" step="0.01" min="0" placeholder="0,00"></div>
+        <div class="fg"><label>Mês inicial</label>
+          <select id="rMesIni" onchange="APP.rAtualizarPeriodoInfo()">
+            <option value="-1">Todos os meses</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+        <div class="fg"><label>Mês final</label>
+          <select id="rMesFim" onchange="APP.rAtualizarPeriodoInfo()">
+            <option value="-1">Mesmo mês</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+      <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#92400e;margin-top:8px">
+        💡 <span id="rPeriodoInfo">O valor será aplicado em todos os meses.</span>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovReceita">Cancelar</button><button class="btn btn-primary" id="btnSalvarReceita">Criar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovTabelas">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>Atualizar Tabelas Fiscais</h2><button class="modal-close" data-close="ovTabelas">&times;</button></div>
+    <div class="modal-body">
+      <div id="atualizarStatus" style="margin-bottom:12px"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap">
+        <button class="btn btn-primary btn-sm" id="btnBuscarOnline">🌐 Buscar nos sites oficiais</button>
+        <button class="btn btn-secondary btn-sm" id="btnEditarManual">✏️ Editar manualmente</button>
+      </div>
+      <div id="tabelasEditor" style="display:none">
+        <div style="margin-bottom:12px"><label style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:5px">Vigência</label><input type="text" id="vigencia" placeholder="Ex: 2025" style="padding:7px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;width:180px;outline:none"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div><div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px">TABELA IR</div><textarea id="editorIR" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical"></textarea></div>
+          <div><div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px">TABELA INSS</div><textarea id="editorINSS" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical"></textarea></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+          <div class="fg"><label>Dedução por dependente (R$)</label><input type="number" id="edDedDep" step="0.01"></div>
+          <div class="fg"><label>Teto INSS (R$)</label><input type="number" id="edTetoINSS" step="0.01"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovTabelas">Cancelar</button><button class="btn btn-primary" id="btnSalvarTabelas" style="display:none">Salvar Tabelas</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovGerenciar">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h2 id="titleGerenciar">Gerenciar Categorias</h2><button class="modal-close" data-close="ovGerenciar">&times;</button></div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <input type="text" id="gNovoNome" placeholder="Nome do item..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font-b);font-size:13px;outline:none" onkeydown="if(event.key==='Enter')APP.gerenciarAdicionar()">
+        <button class="btn btn-primary btn-sm" onclick="APP.gerenciarAdicionar()">+ Adicionar</button>
+      </div>
+      <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)" id="gerenciarLista"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovGerenciar">Fechar</button></div>
+  </div>
+</div>
+
+
+<!-- MODAL: CONFIRMAR PAGAMENTO -->
+<div class="modal-overlay" id="ovPagamento">
+  <div class="modal modal-sm">
+    <div class="modal-header">
+      <h2>Confirmar Pagamento</h2>
+      <button class="modal-close" data-close="ovPagamento">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="pgContaId">
+      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:12px 16px;margin-bottom:18px">
+        <div style="font-weight:700;font-size:14px;color:var(--t1);margin-bottom:6px" id="pgContaNome"></div>
+        <div style="display:flex;gap:16px;font-size:12px;color:var(--t3)">
+          <span>📅 <span id="pgContaData"></span></span>
+          <span>📋 <span id="pgContaParc"></span></span>
+        </div>
+      </div>
+      <div class="form-grid">
+        <div class="fg full">
+          <label>Valor Previsto</label>
+          <div style="padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;color:var(--t3)" id="pgValorPrevisto"></div>
+        </div>
+        <div class="fg full">
+          <label>Valor Pago (R$) *</label>
+          <input type="number" id="pgValorPago" step="0.01" min="0.01" placeholder="0,00" oninput="APP.atualizarDiffPagamento()">
+          <div id="pgDiff" style="display:none;margin-top:5px"></div>
+        </div>
+        <div class="form-note" style="grid-column:1/-1">
+          💡 Se houve multa, desconto ou diferença, ajuste o valor acima. O valor pago substitui o valor previsto em todo o sistema.
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovPagamento">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.confirmarPagamento()">✅ Confirmar Pagamento</button>
+    </div>
+  </div>
+</div>
+
+  <!-- UPLOAD CARDS -->
+  <div class="page" id="page-upload">
+    <div class="page-inner">
+      <div id="upAlertErr" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b"></div>
+      <div id="upAlertOk"  class="overdue-alert" style="display:none;background:var(--green-lt);border-color:#bbf7d0;border-left-color:var(--green);color:#166534;cursor:default"></div>
+      <div id="upAlertAv"  class="overdue-alert" style="display:none;background:var(--yellow-lt);border-color:#fde68a;border-left-color:var(--yellow);color:#92400e;cursor:default"></div>
+
+      <div class="up-grid">
+        <!-- UPLOAD ZONE -->
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📤 Upload da Planilha</h3>
+            <div style="display:flex;gap:7px">
+              <button class="btn btn-secondary btn-sm" onclick="APP.openUpModal('ovCartoes')">🃏 Cartões</button>
+              <button class="btn btn-primary btn-sm" onclick="APP.openUpModal('ovModelo')">⬇ Baixar Modelo</button>
+            </div>
+          </div>
+          <div style="padding:16px">
+            <div class="up-zone" id="upZone" onclick="document.getElementById('upFileInput').click()" ondragover="APP.upDragOver(event)" ondragleave="APP.upDragLeave()" ondrop="APP.upDrop(event)">
+              <div style="font-size:36px;margin-bottom:10px">📊</div>
+              <p style="color:var(--t3);font-size:13px;margin-bottom:6px">Arraste a planilha aqui ou clique para selecionar</p>
+              <strong style="color:var(--palm);font-size:12.5px">Aceita: .xlsx gerado pelo sistema</strong>
+            </div>
+            <input type="file" id="upFileInput" accept=".xlsx,.xls" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="APP.upHandleFile(this.files[0])">
+            <div id="upFileInfo" style="display:none;margin-top:12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#166534">
+              <strong>📄 <span id="upFileName"></span></strong><br>
+              <span id="upFileDetail"></span><br>
+              <span style="font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--t4)" id="upFileId"></span>
+            </div>
+          </div>
+        </div>
+        <!-- HISTÓRICO -->
+        <div class="section-card">
+          <div class="section-header"><h3>📋 Importações Registradas</h3></div>
+          <div style="padding:16px">
+            <p style="font-size:12px;color:var(--t3);margin-bottom:10px">Histórico completo no banco. Bloqueio por ID exclusivo — renomear o arquivo não contorna a validação.</p>
+            <div id="upHistorico"></div>
+            <div style="display:flex;gap:8px;margin-top:10px">
+              <button class="btn btn-ghost btn-sm" onclick="APP.upToggleHist()">Ver todas</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PREVIEW -->
+      <div id="upSecaoPreview" style="display:none">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📋 Pré-visualização — Contas a Cadastrar</h3>
+            <span style="font-size:12px;color:var(--t4)" id="upResumoLinha"></span>
+          </div>
+          <div style="padding:16px">
+            <div id="upStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
+            <div id="upAlertVal" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b;cursor:default"></div>
+            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
+              <button class="btn btn-primary btn-sm" onclick="APP.upConfirmar()" id="upBtnConfirmar">✅ Confirmar Cadastro em Massa</button>
+              <button class="btn btn-danger btn-sm" onclick="APP.upCancelar()">✕ Cancelar</button>
+              <span style="flex:1"></span>
+              <span style="font-size:12px;color:var(--t4)">Edite ou exclua linhas antes de confirmar</span>
+            </div>
+            <div class="table-wrap">
+              <table class="data-table">
+                <thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>1ª Data Vcto</th><th>Valor R$</th><th>Parcelas</th><th>Nota</th><th>Ação</th></tr></thead>
+                <tbody id="upTbodyPreview"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- MODAL: CARTÕES -->
+<div class="modal-overlay" id="ovCartoes">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>🃏 Gerenciar Cartões</h2><button class="modal-close" data-close="ovCartoes">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="cEId">
+      <div class="form-grid">
+        <div class="fg full"><label>Nome do Cartão *</label><input type="text" id="cNome" placeholder="Ex: Itaú Black, Nubank Platinum..."></div>
+        <div class="fg full"><label>Bandeira</label>
+          <select id="cBand"><option value="">Selecione...</option><option>Visa</option><option>Mastercard</option><option>Elo</option><option>American Express</option><option>Hipercard</option></select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px">
+        <button class="btn btn-primary" onclick="APP.upSalvarCartao()" style="flex:1;justify-content:center" id="bSalvCartao">+ Adicionar Cartão</button>
+        <button class="btn btn-ghost btn-sm" id="bCancCartao" onclick="APP.upCancelarEditCartao()" style="display:none">Cancelar</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Cartões cadastrados</div>
+      <div id="upListaCartoes"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovCartoes">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: BAIXAR MODELO -->
+<div class="modal-overlay" id="ovModelo">
+  <div class="modal modal-md">
+    <div class="modal-header"><h2>⬇ Baixar Planilha Modelo</h2><button class="modal-close" data-close="ovModelo">&times;</button></div>
+    <div class="modal-body">
+      <div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#1e40af;margin-bottom:16px">
+        🔐 Cada planilha recebe um <strong>ID exclusivo</strong> em aba oculta. O sistema valida pelo ID — não pelo nome — bloqueando reimportação mesmo que o arquivo seja renomeado.
+      </div>
+      <div class="form-grid">
+        <div class="fg full"><label>Cartão *</label><select id="mCartao" onchange="APP.upAtualizarNome()"><option value="">Selecione o cartão...</option></select></div>
+        <div class="fg"><label>Ano *</label><select id="mAno" onchange="APP.upAtualizarNome()"></select></div>
+        <div class="fg"><label>Mês *</label>
+          <select id="mMes" onchange="APP.upAtualizarNome()">
+            <option value="">Selecione o mês...</option>
+            <option value="01">01 — Janeiro</option><option value="02">02 — Fevereiro</option><option value="03">03 — Março</option><option value="04">04 — Abril</option><option value="05">05 — Maio</option><option value="06">06 — Junho</option><option value="07">07 — Julho</option><option value="08">08 — Agosto</option><option value="09">09 — Setembro</option><option value="10">10 — Outubro</option><option value="11">11 — Novembro</option><option value="12">12 — Dezembro</option>
+          </select>
+        </div>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nome do arquivo</div>
+      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:10px 14px;font-family:monospace;font-size:13px;font-weight:700;color:var(--palm);text-align:center;word-break:break-all" id="upNomePreview">— preencha todos os campos —</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovModelo">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.upBaixarModelo()">⬇ Gerar e Baixar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PARCELAS PREVIEW -->
+<div class="modal-overlay" id="ovParcelasUp">
+  <div class="modal modal-xl">
+    <div class="modal-header"><h2 id="upTitParcelas">Parcelas</h2><button class="modal-close" data-close="ovParcelasUp">&times;</button></div>
+    <div class="modal-body" style="padding:0">
+      <div style="overflow-x:auto">
+        <table class="data-table">
+          <thead><tr><th>#</th><th>Parcela</th><th>Data Vencimento</th><th>Valor</th></tr></thead>
+          <tbody id="upTbodyParcelas"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelasUp">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: PERÍODO RELATÓRIO -->
+<div class="modal-overlay" id="ovPeriodo">
+  <div class="modal" style="width:420px">
+    <div class="modal-header"><h2>📅 Filtro por Período</h2><button class="modal-close" data-close="ovPeriodo">&times;</button></div>
+    <div class="modal-body">
+      <div class="alert alert-info show" style="font-size:12.5px;margin-bottom:16px;padding:10px 14px">
+        Define um intervalo de meses dentro de um único ano. Os filtros de Ano e Mês acima serão ignorados enquanto o período estiver ativo.
+      </div>
+      <div class="fg" style="margin-bottom:20px"><label>Ano *</label>
+        <input type="number" id="periodoAno" min="2019" max="2035" placeholder="Ex: 2026" style="width:100%">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="fg"><label>Mês inicial *</label>
+          <select id="periodoMesIni">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+        <div class="fg"><label>Mês final *</label>
+          <select id="periodoMesFim">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="APP.limparPeriodo(document.getElementById('ovPeriodo').dataset.tela)">Limpar filtro</button>
+      <button class="btn btn-ghost" data-close="ovPeriodo">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.aplicarPeriodo(document.getElementById('ovPeriodo').dataset.tela)">✅ Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GERAR CONTAS RECORRENTES -->
+<div class="modal-overlay" id="ovRecorrentes">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>🔁 Gerar Contas Recorrentes</h2>
+      <button class="modal-close" data-close="ovRecorrentes">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap">
+        <div class="fg" style="margin:0">
+          <label>Ano de origem</label>
+          <select id="recAnoOrigem" style="padding:8px 12px" onchange="APP.recCarregarLista()"></select>
+        </div>
+        <div class="fg" style="margin:0">
+          <label>Gerar para o ano</label>
+          <select id="recAnoDestino" style="padding:8px 12px"></select>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="APP.recSelecionarTodos()">Selecionar todas</button>
+        <button class="btn btn-ghost btn-sm" onclick="APP.recDeselecionarTodos()">Limpar seleção</button>
+      </div>
+      <div style="font-size:12px;color:var(--t4);margin-bottom:10px" id="recInfo">Selecione as contas e ajuste valores antes de gerar.</div>
+      <div id="recLista" style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm);padding:8px"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovRecorrentes">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.recGerarContas()">✅ Gerar contas selecionadas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAGAMENTO EM MASSA -->
+<div class="modal-overlay" id="ovPagMassa">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>✅ Confirmar Pagamentos</h2>
+      <button class="modal-close" data-close="ovPagMassa">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:0">
+      <div style="padding:14px 20px;background:var(--bg);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <span style="font-size:12.5px;color:var(--t3)">Ajuste os valores se necessário. O total atualiza automaticamente.</span>
+        <div style="font-size:14px;font-weight:700;color:var(--palm)">Total: <span id="pagMassaTotal">R$ 0,00</span></div>
+      </div>
+      <div style="overflow-y:auto;max-height:420px">
+        <table class="data-table" id="tblPagMassa">
+          <thead><tr>
+            <th>Descrição</th><th>Responsável</th><th>Categoria</th>
+            <th>Valor Original</th><th>Valor a Pagar (R$)</th>
+          </tr></thead>
+          <tbody id="tbodyPagMassa"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovPagMassa">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.confirmarPagamentoMassa()" id="btnConfirmarMassa">✅ Confirmar todos</button>
+    </div>
+  </div>
+</div>
