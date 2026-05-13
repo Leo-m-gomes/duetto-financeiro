@@ -1,0 +1,1504 @@
+:root {
+  --palm:    #006437;
+  --palm-dk: #004d2a;
+  --palm-lt: #e8f5ee;
+  --palm-md: #00a85a;
+  --bg:      #f0f2f5;
+  --surface: #ffffff;
+  --border:  #e8edf2;
+  --border2: #d1d9e0;
+  --hover:   #f0faf4;
+  --red:     #dc2626; --red-lt:    #fef2f2;
+  --orange:  #ea580c; --orange-lt: #fff7ed;
+  --blue:    #2563eb; --blue-lt:   #eff4ff;
+  --green:   #16a34a; --green-lt:  #f0fdf4;
+  --yellow:  #d97706; --yellow-lt: #fffbeb;
+  --t1:#0f1f14; --t2:#374151; --t3:#6b7280; --t4:#9ca3af;
+  --r:16px; --r-sm:10px;
+  --sw:230px; --sh:60px;
+  /* ── DESIGN TOKENS DE ESPAÇAMENTO (v1.1) ──
+     Tokens unificados aplicados como referência global. Os tokens em si são
+     constantes (não dimensões aplicadas), portanto válidos em :root conforme R2/R3.
+     A APLICAÇÃO dos tokens em padding/margin/gap segue as regras de @media. */
+  --sp-1: 6px;   /* extra-pequeno: gap interno de chips, badges */
+  --sp-2: 10px;  /* pequeno: entre rótulo e valor, dentro de cards */
+  --sp-3: 14px;  /* médio: entre cards de uma mesma linha (KPIs) */
+  --sp-4: 22px;  /* padrão: entre seções principais do dashboard */
+  --sp-5: 32px;  /* grande: respiração ampla entre blocos lógicos distintos */
+  --shadow-sm: 0 1px 4px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.03);
+  --shadow:    0 4px 20px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --font-d:'Playfair Display',Georgia,serif;
+  --font-b:'DM Sans',system-ui,sans-serif;
+  --transition: .2s cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html{font-size:14px}
+body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+
+/* ── SIDEBAR ── */
+.sidebar{position:fixed;left:0;top:0;width:var(--sw);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:200;box-shadow:var(--shadow-sm);transition:width var(--transition),transform var(--transition)}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:22px 20px 18px;border-bottom:1px solid var(--border)}
+.sb-logo-text .name{font-family:var(--font-d);font-size:18px;font-weight:700;color:var(--palm);letter-spacing:-.3px}
+.sb-logo-text .tag{font-size:9px;font-weight:600;color:var(--t4);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
+.sb-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 12px;
+  border-radius:var(--r-sm);color:var(--t3);text-decoration:none;
+  font-size:13px;font-weight:500;cursor:pointer;
+  transition:background var(--transition),color var(--transition),box-shadow var(--transition),transform .1s;
+  border:1px solid transparent;position:relative
+}
+.nav-item svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0;transition:transform .2s}
+.nav-item:hover{background:var(--hover);color:var(--palm);transform:translateX(2px)}
+.nav-item:hover svg{transform:scale(1.1)}
+.nav-item.active{
+  background:linear-gradient(135deg,var(--palm-lt) 0%,#d4efdf 100%);
+  color:var(--palm);border-color:#c6e8d4;font-weight:600;
+  box-shadow:0 1px 4px rgba(0,100,55,.12)
+}
+.nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;background:var(--palm);border-radius:0 3px 3px 0}
+.sb-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px}
+.sb-badge{font-size:10px;font-weight:700;color:var(--t4);letter-spacing:1px;background:var(--bg);border:1px solid var(--border);border-radius:99px;padding:3px 10px}
+.sb-user{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--palm);cursor:pointer;padding:5px 8px;border-radius:var(--r-sm);background:var(--palm-lt);border:1px solid #c6e8d4}
+
+/* ── TOPBAR ── */
+.main{margin-left:var(--sw);flex:1;min-height:100vh;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;height:var(--sh);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 22px;z-index:100;box-shadow:var(--shadow-sm)}
+.topbar-title{font-family:var(--font-d);font-weight:700;font-size:17px;flex:1;color:var(--t1)}
+.menu-toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
+.menu-toggle span{display:block;width:18px;height:2px;background:var(--t3);border-radius:2px}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-b);font-size:12.5px;font-weight:500;cursor:pointer;transition:.15s;border:none;white-space:nowrap}
+.btn svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round}
+.btn-primary{background:var(--palm);color:#fff}.btn-primary:hover{background:var(--palm-dk)}
+.btn-secondary{background:var(--surface);color:var(--t2);border:1px solid var(--border2)}.btn-secondary:hover{border-color:var(--palm);color:var(--palm);background:var(--palm-lt)}
+.btn-ghost{background:transparent;color:var(--t3);border:1px solid var(--border)}.btn-ghost:hover{background:var(--bg);color:var(--t2)}
+.btn-warning{background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa}.btn-warning:hover{background:#ffedd5}
+.btn-sm{padding:5px 11px;font-size:11.5px}
+.btn-danger{background:var(--red-lt);color:var(--red);border:1px solid #fecaca}
+
+/* ── PAGES ── */
+.page{display:none;width:100%}.page.active{display:block;width:100%}
+.page-inner{padding:20px 24px}
+
+/* ── ALERT OVERDUE ── */
+.overdue-alert{display:none;background:#fff7ed;border:1px solid #fed7aa;border-left:4px solid var(--orange);border-radius:var(--r-sm);padding:11px 16px;margin-bottom:16px;font-size:12.5px;color:#92400e;cursor:pointer;transition:.15s}
+.overdue-alert:hover{background:#ffedd5}
+.overdue-alert strong{font-weight:700}
+
+/* ── FILTERS ── */
+.filters-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;flex-wrap:wrap}
+.filter-group{display:flex;gap:7px;flex-wrap:wrap;flex:1;align-items:center}
+.filter-input,.filter-select,.select-sm{padding:7px 12px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--t1);font-family:var(--font-b);font-size:12.5px;outline:none;transition:.15s}
+.filter-input{min-width:160px}.filter-select{min-width:120px}
+.filter-input:focus,.filter-select:focus{border-color:var(--palm);box-shadow:0 0 0 2px var(--palm-lt)}
+
+/* ── TOTALS BAR ── */
+.totals-bar{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:14px}
+.total-pill{padding:10px 16px;border-radius:var(--r-sm);display:flex;justify-content:space-between;align-items:center}
+.total-pill.blue{background:var(--blue-lt);border:1px solid #bfdbfe}
+.total-pill.orange{background:var(--orange-lt);border:1px solid #fed7aa}
+.total-pill.green{background:var(--green-lt);border:1px solid #bbf7d0}
+.total-pill label{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase}
+.total-pill.blue label{color:#1d4ed8}.total-pill.orange label{color:var(--orange)}.total-pill.green label{color:var(--green)}
+.total-pill .val{font-family:var(--font-d);font-size:15px;font-weight:700}
+.total-pill.blue .val{color:var(--blue)}.total-pill.orange .val{color:var(--orange)}.total-pill.green .val{color:var(--green)}
+
+/* ── SECTION CARD ── */
+.section-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;box-shadow:var(--shadow-sm);transition:box-shadow var(--transition)}
+.section-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.section-header h3{font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--t1)}
+.badge-n{background:var(--palm);color:#fff;padding:2px 9px;border-radius:99px;font-size:11px;font-weight:600}
+
+/* ── KPI GRID ── */
+.kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:22px 24px;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-sm);transition:box-shadow var(--transition),transform var(--transition)
+}
+.kpi-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+.kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:var(--kc,var(--palm));border-radius:var(--r) var(--r) 0 0}
+/* Saldo como card hero — destaque sutil */
+.kpi-card.kpi-hero{
+  background:linear-gradient(135deg,var(--palm-lt) 0%,#d4efdf 100%);
+  border-color:#c6e8d4;
+  box-shadow:0 2px 8px rgba(0,100,55,.1),0 0 0 1px rgba(0,100,55,.08)
+}
+.kpi-card.kpi-hero:hover{box-shadow:0 6px 20px rgba(0,100,55,.15),0 0 0 1px rgba(0,100,55,.1)}
+.kpi-card.kpi-hero .kpi-value{font-size:24px}
+.kpi-label{font-size:10px;font-weight:700;letter-spacing:.8px;text-transform:uppercase;color:var(--t4);margin-bottom:10px}
+.kpi-value{font-family:var(--font-d);font-size:21px;font-weight:700;color:var(--t1);line-height:1.1;margin-bottom:5px}
+.kpi-sub{font-size:11px;color:var(--t4);line-height:1.4}
+.kpi-icon{position:absolute;top:18px;right:18px;font-size:22px;opacity:.7}
+
+/* ── CHARTS ── */
+.charts-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:20px}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:22px 24px;box-shadow:var(--shadow-sm);transition:box-shadow var(--transition)}
+.chart-card:hover{box-shadow:var(--shadow)}
+.chart-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px}
+.chart-header h3{font-family:var(--font-d);font-size:13.5px;font-weight:700;color:var(--t1)}
+.chart-container{position:relative;height:220px;width:100%}
+.chart-container canvas{position:absolute;top:0;left:0}
+
+/* ── TABLE ── */
+.table-wrap{overflow-x:auto;max-height:480px;overflow-y:auto}
+
+/* ── Contas: tabela ocupa altura disponível no desktop ── */
+#page-contas .contas-card{display:flex;flex-direction:column}
+.contas-table-wrap{
+  overflow-x:auto;
+  overflow-y:auto;
+  /* Altura dinâmica: viewport - topbar - filtros - totals - info - pagination */
+  max-height:calc(100vh - var(--sh) - 280px);
+  min-height:300px;
+  flex:1;
+}
+
+/* ── Checkbox de seleção ── */
+.th-chk{width:36px;text-align:center;padding:0 4px 0 12px}
+.td-chk{width:36px;text-align:center;padding:0 4px 0 12px}
+.desk-only{display:table-cell}
+
+/* ── Barra de pagamento em massa ── */
+.barra-pagamento{
+  position:sticky;bottom:0;
+  background:var(--palm);
+  color:#fff;
+  border-radius:0 0 var(--r) var(--r);
+  padding:12px 20px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  box-shadow:0 -4px 20px rgba(0,100,55,.25);
+  animation:slideUpBar .2s ease;
+  z-index:10;
+}
+@keyframes slideUpBar{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.barra-pag-info{display:flex;flex-direction:column;gap:2px}
+.barra-pag-count{font-size:13px;font-weight:600;color:rgba(255,255,255,.9)}
+.barra-pag-total{font-size:16px;font-weight:700;color:#fff}
+.barra-pagamento .btn-ghost{background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)}
+.barra-pagamento .btn-ghost:hover{background:rgba(255,255,255,.25)}
+.barra-pagamento .btn-primary{background:#fff;color:var(--palm);border:none;font-weight:700}
+.barra-pagamento .btn-primary:hover{background:rgba(255,255,255,.9)}
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table thead{position:sticky;top:0;z-index:10}
+.data-table th{background:#f8fbf9;color:var(--t4);font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--t2)}
+.data-table tbody tr:last-child td{border-bottom:none}
+.data-table tbody tr:hover td{background:var(--hover)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:600}
+.bg-pago{background:var(--green-lt);color:var(--green)}
+.bg-pend{background:var(--red-lt);color:var(--red)}
+.bg-atr{background:var(--orange-lt);color:var(--orange)}
+.bg-cat{background:var(--palm-lt);color:var(--palm)}
+
+/* ── ACTION BUTTONS ── */
+.action-btn{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer;color:var(--t4);font-size:11px;transition:.15s;margin:0 1px}
+.action-btn:hover{background:var(--bg);border-color:var(--border2)}
+.action-btn.edit:hover{color:var(--blue);border-color:var(--blue);background:var(--blue-lt)}
+.action-btn.pay:hover{color:var(--green);border-color:var(--green);background:var(--green-lt)}
+.action-btn.del:hover{color:var(--red);border-color:var(--red);background:var(--red-lt)}
+.action-btn.parcs:hover{color:var(--orange);border-color:var(--orange);background:var(--orange-lt)}
+
+/* ── PAGINATION ── */
+.table-pagination{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px;border-top:1px solid var(--border)}
+.pg-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--t3);font-size:11px;cursor:pointer;transition:.15s}
+.pg-btn:hover,.pg-btn.active{background:var(--palm);border-color:var(--palm);color:#fff}
+
+/* ── RECEITAS ── */
+.rec-section{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm);margin-bottom:16px;overflow:hidden}
+.rec-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:8px}
+.rec-header h3{font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--t1)}
+.rec-table{width:100%;border-collapse:collapse;font-size:11.5px}
+.rec-table th{background:#f8fbf9;color:var(--t4);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;padding:9px 10px;border-bottom:1px solid var(--border);text-align:center;white-space:nowrap}
+.rec-table th:first-child{text-align:left;min-width:140px}
+.rec-table td{padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;color:var(--t2)}
+.rec-table td:first-child{text-align:left;font-weight:500;color:var(--t1)}
+.rec-table tbody tr:hover td{background:var(--hover)}
+.rec-table tfoot td{background:#f8fbf9;font-weight:700;color:var(--palm);font-family:var(--font-d);padding:9px 10px;border-top:2px solid var(--palm-lt)}
+.rec-table tfoot td:first-child{color:var(--t1)}
+.cell-input{width:100%;min-width:72px;padding:3px 6px;border:1px solid transparent;border-radius:4px;background:transparent;font-family:var(--font-b);font-size:11.5px;color:var(--t2);text-align:right;transition:.15s}
+.cell-input:focus{border-color:var(--palm);background:#fff;outline:none;box-shadow:0 0 0 2px var(--palm-lt)}
+.rec-table.read-only .cell-input{pointer-events:none;color:var(--t2)}
+
+/* ── SALÁRIO ── */
+.sal-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px;margin-bottom:16px}
+.sal-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-sm);overflow:hidden}
+.sal-card-head{background:var(--palm);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:center}
+.sal-card-head h4{font-family:var(--font-d);font-size:14px;font-weight:700}
+.sal-card-body{padding:14px 18px}
+.sal-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.sal-row:last-child{border-bottom:none;font-weight:700}
+.sal-row span:first-child{color:var(--t3)}
+.sal-row.total span:last-child{color:var(--palm);font-family:var(--font-d);font-size:14px}
+.sal-row.ded span:last-child{color:var(--red)}
+.sal-hist{border-top:1px solid var(--border)}
+.sal-hist-toggle{display:flex;align-items:center;justify-content:space-between;padding:9px 18px;cursor:pointer;font-size:11.5px;color:var(--t3);background:var(--bg)}
+.sal-hist-body{padding:0 18px 10px;display:none}
+.sal-hist-body.open{display:block}
+.hist-item{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--border);font-size:11px;gap:8px}
+.hist-item:last-child{border-bottom:none}
+.hist-item .mes{color:var(--palm);font-weight:600}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);backdrop-filter:blur(3px);z-index:1000;display:none;align-items:center;justify-content:center;padding:16px}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);width:700px;max-width:100%;max-height:92vh;display:flex;flex-direction:column;box-shadow:var(--shadow-lg);animation:slideUp .2s ease}
+.modal-sm{width:480px}.modal-md{width:560px}.modal-xl{width:860px}
+@keyframes slideUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border)}
+.modal-header h2{font-family:var(--font-d);font-size:16px;font-weight:700;color:var(--t1)}
+.modal-close{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:7px;color:var(--t3);font-size:16px;cursor:pointer;transition:.15s}
+.modal-close:hover{color:var(--red);border-color:var(--red)}
+.modal-body{padding:20px;overflow-y:auto;flex:1}
+.modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--border)}
+
+/* ── FORM ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.fg{display:flex;flex-direction:column;gap:4px}
+.fg.full{grid-column:1/-1}
+.fg label{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--t4)}
+.fg input,.fg select,.fg textarea{padding:9px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--t1);font-family:var(--font-b);font-size:13px;outline:none;transition:.15s;resize:vertical}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--palm);background:#fff;box-shadow:0 0 0 2px var(--palm-lt)}
+.fg input[readonly]{color:var(--t3);cursor:not-allowed}
+.fg input.highlight{font-weight:700;color:var(--palm)}
+.form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:2px 0}
+.form-note{grid-column:1/-1;font-size:11.5px;color:#92400e;background:var(--yellow-lt);border:1px solid #fde68a;padding:8px 12px;border-radius:6px;line-height:1.5}
+
+/* ── PARCELAS POPUP TABLE ── */
+.parcs-table{width:100%;border-collapse:collapse;font-size:12px}
+.parcs-table th{background:#f8fbf9;color:var(--t4);font-weight:700;font-size:10px;text-transform:uppercase;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left}
+.parcs-table td{padding:8px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.parcs-table tbody tr:hover td{background:var(--hover)}
+.parcs-table input[type="text"],.parcs-table input[type="date"],.parcs-table input[type="number"]{padding:4px 7px;border:1px solid var(--border);border-radius:5px;font-size:11.5px;width:100%;background:#fff;font-family:var(--font-b);outline:none}
+.parcs-table input:focus{border-color:var(--palm)}
+.parcs-actions-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
+
+/* ── AUDIT CHIP ── */
+.audit-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:99px;font-size:10px;font-weight:600;background:var(--bg);border:1px solid var(--border);color:var(--t3)}
+
+/* ── RELATORIO ── */
+.rel-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.rel-kpi{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:13px 16px;box-shadow:var(--shadow-sm)}
+.rel-kpi label{display:block;font-size:9.5px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--t4);margin-bottom:5px}
+.rel-kpi .val{font-family:var(--font-d);font-size:16px;font-weight:700}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;right:20px;padding:11px 18px;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r-sm);font-size:12.5px;color:var(--t1);box-shadow:var(--shadow-lg);z-index:9999;transform:translateY(14px);opacity:0;transition:.25s;pointer-events:none;max-width:300px}
+.toast.show{transform:translateY(0);opacity:1}
+.toast.success{border-left:3px solid var(--green)}
+.toast.error{border-left:3px solid var(--red)}
+
+/* ── MONEY ── */
+.pos{color:var(--green);font-weight:600}
+.neg{color:var(--red);font-weight:600}
+.atr{color:var(--orange);font-weight:600}
+.dim{color:var(--t4)}
+
+/* ── SIDEBAR COLLAPSED (desktop) ── */
+:root { --sw-collapsed: 62px; }
+.sidebar.collapsed { width: var(--sw-collapsed); }
+.sidebar.collapsed .sb-logo-text,
+.sidebar.collapsed .nav-item span,
+.sidebar.collapsed .sb-badge,
+.sidebar.collapsed #sbUserChip { display: none; }
+.sidebar.collapsed .sb-logo { justify-content: center; padding: 18px 0; }
+.sidebar.collapsed .sb-nav { padding: 14px 8px; }
+.sidebar.collapsed .nav-item { justify-content: center; padding: 10px; gap: 0; }
+.sidebar.collapsed .nav-item svg { width: 18px; height: 18px; }
+.sidebar.collapsed .sb-footer { justify-content: center; padding: 12px 0; }
+.sidebar.collapsed + .main { margin-left: var(--sw-collapsed); }
+.sidebar { transition: width .25s cubic-bezier(.4,0,.2,1), transform .3s cubic-bezier(.4,0,.2,1); overflow: hidden; }
+.nav-item span { transition: opacity .2s; }
+.sidebar.collapsed .nav-item:hover::after {
+  content: attr(data-tooltip);
+  position: fixed;
+  left: calc(var(--sw-collapsed) + 8px);
+  background: var(--t1);
+  color: #fff;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 999;
+  pointer-events: none;
+}
+
+/* ── RESPONSIVE ── */
+@media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
+  /* No mobile: main sempre ocupa tela toda — sem margem da sidebar */
+  .main{margin-left:0 !important}
+  .menu-toggle{display:flex}
+  /* Esconde botão de recolher/expandir — só faz sentido no desktop */
+  #sbCollapseBtn{display:none !important}
+  /* Overlay escuro atrás da sidebar quando aberta no mobile */
+  .sidebar-overlay{display:block}
+  .kpi-grid{grid-template-columns:1fr}
+  .form-grid{grid-template-columns:1fr}
+  .totals-bar{grid-template-columns:1fr}
+  .page-inner{padding:12px 14px}
+  .topbar{padding:0 14px}
+  .rel-kpis{grid-template-columns:repeat(2,1fr)}
+  .charts-row{grid-template-columns:1fr}
+  .modal-xl{width:100%}
+  .up-grid{grid-template-columns:1fr}
+}
+@media(max-width:480px){
+  .kpi-grid{grid-template-columns:1fr}
+  .filter-group{flex-direction:column;align-items:stretch}
+  .filter-select,.filter-input{min-width:unset;width:100%}
+}
+/* ── SCREENS ── */
+.screen-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:var(--bg);z-index:9000;padding:20px}
+#screenApp{display:flex;width:100%;min-height:100vh}
+
+/* ── LOADING ── */
+.spinner-ring{width:40px;height:40px;border:3px solid var(--palm-lt);border-top-color:var(--palm);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── LOGIN CARD ── */
+.login-card{background:var(--surface);border:0.5px solid var(--border2);border-radius:20px;padding:44px 40px 36px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,100,55,.12);text-align:center}
+.login-logo{margin-bottom:16px;display:flex;justify-content:center}
+.login-title{font-family:var(--font-d);font-size:32px;font-weight:700;color:var(--palm);letter-spacing:-.5px;margin-bottom:2px}
+.login-tag{font-size:10px;font-weight:600;color:var(--t4);letter-spacing:2px;text-transform:uppercase;margin-bottom:20px}
+.login-sub{font-size:13px;color:var(--t4);margin-bottom:20px}
+.login-divider{width:36px;height:2px;background:var(--palm);border-radius:2px;margin:0 auto 20px}
+.login-desc{font-size:13px;color:var(--t3);margin-bottom:28px;line-height:1.5}
+.btn-google{display:flex;align-items:center;justify-content:center;gap:12px;width:100%;padding:14px 20px;background:#fff;border:1.5px solid var(--border2);border-radius:12px;cursor:pointer;font-family:var(--font-b);font-size:14px;font-weight:600;color:var(--t2);transition:.15s;box-shadow:0 1px 4px rgba(0,0,0,.06)}
+.btn-google:hover{border-color:var(--palm);background:var(--palm-lt);color:var(--palm)}
+.login-note{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;font-size:11.5px;color:var(--t4);line-height:1.4}
+
+/* ── SIDEBAR USER CHIP / COLLAPSE ── */
+.sb-user-chip{font-size:11px;font-weight:600;color:var(--palm);padding:3px 8px;background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:99px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-collapse-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t3);flex-shrink:0;transition:.15s}
+.sb-collapse-btn:hover{border-color:var(--palm);color:var(--palm)}
+
+/* ── SIDEBAR COLLAPSED ── */
+:root{--sw-collapsed:62px}
+.sidebar.collapsed{width:var(--sw-collapsed)}
+.sidebar.collapsed .sb-logo-text,.sidebar.collapsed .nav-item span,.sidebar.collapsed .sb-badge,.sidebar.collapsed .sb-user-chip{display:none}
+.sidebar.collapsed .sb-logo{justify-content:center;padding:18px 0}
+.sidebar.collapsed .sb-nav{padding:14px 8px}
+.sidebar.collapsed .nav-item{justify-content:center;padding:10px;gap:0}
+.sidebar.collapsed .nav-item svg{width:18px;height:18px}
+.sidebar.collapsed .sb-footer{justify-content:center;padding:12px 0}
+.sidebar.collapsed+.main{margin-left:var(--sw-collapsed)}
+.sidebar{transition:width .25s cubic-bezier(.4,0,.2,1),transform .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
+
+/* ── RESP CHIPS ── */
+.resp-chip{padding:5px 13px;border-radius:99px;border:1.5px solid var(--border2);background:#fff;color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
+.resp-chip:hover{border-color:var(--palm);color:var(--palm)}
+.resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
+
+/* ── DASHBOARD FILTERS (desktop) ── */
+.dash-filters{margin-bottom:16px}
+.dash-filters-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+.dash-filters-resp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+/* Toggle button: hidden on desktop, shown on mobile via media query */
+.dash-filter-toggle{display:none}
+/* Body: always visible on desktop */
+.dash-filters-body{display:flex;flex-direction:column;gap:8px}
+
+/* ── UPLOAD CARDS PAGE ── */
+#page-upload{width:100%;display:none}
+#page-upload.active{display:block}
+#page-upload .page-inner{width:100%;box-sizing:border-box}
+.up-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;width:100%;box-sizing:border-box}
+.up-zone{border:2px dashed var(--border2);border-radius:var(--r);padding:28px;text-align:center;cursor:pointer;transition:.2s;background:var(--bg)}
+.up-zone:hover,.up-zone.drag{border-color:var(--palm);background:var(--palm-lt)}
+.up-stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);padding:10px 16px;min-width:110px}
+.up-stat label{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t4);display:block;margin-bottom:4px}
+.up-stat .sv{font-family:var(--font-d);font-size:17px;font-weight:700}
+.up-imp{padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:6px}
+.up-imp .in{font-weight:600;color:var(--palm);font-size:12.5px}
+.up-imp .im{font-size:11px;color:var(--t4)}
+.up-idchip{font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--t4);display:inline-block;margin-top:3px}
+.up-citem{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:6px}
+.up-citem .cn{font-weight:600;font-size:12.5px}.up-citem .cs{font-size:11px;color:var(--t4);margin-top:2px}
+
+/* ── DARK MODE ── */
+.dark{
+  /* Apple-style: cinza escuro estratificado, não preto puro */
+  --bg:      #1c1c1e;   /* fundo geral — cinza carvão Apple */
+  --surface: #2c2c2e;   /* cards, modais, sidebar */
+  --surface2:#3a3a3c;   /* inputs, hover, elementos secundários */
+  --border:  #3a3a3c;   /* bordas suaves */
+  --border2: #48484a;   /* bordas com mais contraste */
+  --hover:   #3a3a3c;
+
+  /* Texto — hierarquia clara em branco/cinza */
+  --t1: #f2f2f7;        /* primário — quase branco Apple */
+  --t2: #ebebf5cc;      /* secundário */
+  --t3: #ebebf566;      /* terciário — cinza médio */
+  --t4: #ebebf53d;      /* placeholder / labels */
+
+  /* Sombras mais profundas */
+  --shadow-sm:0 1px 4px rgba(0,0,0,.5);
+  --shadow-lg:0 8px 32px rgba(0,0,0,.6);
+
+  /* Manter cores funcionais vibrantes mas ligeiramente dessaturadas */
+  --palm:    #32d74b;   /* verde Apple */
+  --palm-lt: rgba(50,215,75,.12);
+  --red:     #ff453a;
+  --red-lt:  rgba(255,69,58,.12);
+  --yellow:  #ffd60a;
+  --yellow-lt:rgba(255,214,10,.1);
+  --blue:    #0a84ff;
+  --blue-lt: rgba(10,132,255,.12);
+  --orange:  #ff9f0a;
+  --orange-lt:rgba(255,159,10,.12);
+  --green:   #32d74b;
+  --green-lt:rgba(50,215,75,.12);
+}
+
+/* ── Elementos específicos do dark mode ── */
+.dark body                 { color:var(--t1); }
+.dark .main                { background:var(--bg); }
+.dark .sidebar             { background:#1c1c1e; border-color:var(--border); }
+.dark .sb-nav .nav-item    { color:var(--t3); }
+.dark .sb-nav .nav-item:hover{ background:rgba(255,255,255,.06); color:var(--t1); }
+.dark .sb-nav .nav-item.active{ background:rgba(50,215,75,.18); color:var(--palm); }
+.dark .topbar              { background:rgba(28,28,30,.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-color:var(--border); }
+.dark .kpi-card            { background:var(--surface); border-color:var(--border); }
+.dark .kpi-label           { color:var(--t3); }
+.dark .kpi-value           { color:var(--t1); }
+.dark .section-card        { background:var(--surface); border-color:var(--border); }
+.dark .section-header      { border-color:var(--border); }
+.dark .data-table th       { background:var(--surface2); color:var(--t3); border-color:var(--border); }
+.dark .data-table td       { border-color:var(--border); color:var(--t1); }
+.dark .data-table tbody tr:hover td { background:rgba(255,255,255,.04); }
+.dark .filter-select,
+.dark .filter-input        { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
+.dark .modal               { background:var(--surface); border-color:var(--border2); }
+.dark .modal-header,
+.dark .modal-footer        { border-color:var(--border); background:var(--surface); }
+.dark .modal-body          { background:var(--surface); }
+.dark .fg input,
+.dark .fg select,
+.dark .fg textarea         { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
+.dark .fg label            { color:var(--t3); }
+.dark .btn-secondary       { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
+.dark .btn-ghost           { color:var(--t3); border-color:var(--border); }
+.dark .btn-ghost:hover     { background:rgba(255,255,255,.06); color:var(--t1); }
+.dark .total-pill          { background:var(--surface); border-color:var(--border); }
+.dark .pg-btn              { background:var(--surface); border-color:var(--border); color:var(--t2); }
+.dark .pg-btn.active       { background:var(--palm); color:#000; }
+.dark .pg-btn:hover:not(.active){ background:var(--surface2); }
+.dark .up-zone             { background:var(--surface2); border-color:var(--border2); }
+.dark .parcs-table th      { background:var(--surface2); color:var(--t3); }
+.dark .parcs-table td      { border-color:var(--border); }
+.dark .rel-kpi             { background:var(--surface); border-color:var(--border); }
+.dark .overdue-alert       { background:rgba(255,159,10,.1); border-color:rgba(255,159,10,.3); }
+.dark .badge.bg-cat        { background:rgba(255,255,255,.08); color:var(--t2); }
+.dark .audit-chip          { background:var(--surface2); color:var(--t3); border-color:var(--border); }
+.dark .cfg-tabs            { background:var(--surface); border-color:var(--border); }
+.dark .cfg-tab             { color:var(--t3); }
+.dark .cfg-tab:hover       { background:rgba(255,255,255,.06); color:var(--t1); }
+.dark .cfg-tab.active      { background:var(--palm); color:#000; }
+.dark .cfg-user-item       { background:var(--surface2); border-color:var(--border); }
+.dark .up-stat             { background:var(--surface2); border-color:var(--border); }
+.dark input[type=text],
+.dark input[type=number],
+.dark input[type=date],
+.dark select               { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
+.dark ::placeholder        { color:var(--t4); }
+/* Card de conta no mobile */
+.dark .data-table tr.mob-card               { background:var(--surface); border-color:var(--border); }
+.dark .data-table tr.mob-card td[data-label="Descrição"]{ background:rgba(50,215,75,.1); }
+.dark .data-table tr.mob-card td[data-label="Ações"]    { background:var(--bg); }
+
+/* ── SORTABLE HEADERS ── */
+.th-sort{cursor:pointer;user-select:none;white-space:nowrap}
+.th-sort:hover{background:rgba(0,100,55,.08)}
+.sort-icon::after{content:' ⇅';opacity:.35;font-size:10px}
+.sort-icon.asc::after{content:' ▲';opacity:1;color:var(--palm)}
+.sort-icon.desc::after{content:' ▼';opacity:1;color:var(--palm)}
+
+/* ── CONFIGURAÇÕES ── */
+.cfg-tabs{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:6px}
+.cfg-tab{padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-b);font-size:12.5px;font-weight:500;cursor:pointer;border:none;background:transparent;color:var(--t3);transition:.15s}
+.cfg-tab:hover{background:var(--palm-lt);color:var(--palm)}
+.cfg-tab.active{background:var(--palm);color:#fff}
+.cfg-panel{display:none}.cfg-panel.active{display:block}
+.badge-admin{background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa;border-radius:99px;padding:2px 10px;font-size:11px;font-weight:600}
+.cfg-user-item{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:8px}
+.cfg-user-item .info .nome{font-weight:600;font-size:13px;color:var(--t1)}
+.cfg-user-item .info .email{font-size:11.5px;color:var(--t4)}
+.cfg-user-item .role{font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600}
+.role-admin{background:var(--palm-lt);color:var(--palm);border:1px solid #c6e8d4}
+.role-user{background:var(--blue-lt);color:var(--blue);border:1px solid #bfdbfe}
+.log-item-pago td{color:var(--green)!important}
+.log-item-atr td{color:var(--orange)!important}
+.dark .cfg-tabs{background:var(--surface);border-color:var(--border)}
+.dark .cfg-tab.active{background:var(--palm)}
+.dark .cfg-user-item{background:var(--bg);border-color:var(--border)}
+
+
+/* ═══════════════════════════════════════════════════════
+   MOBILE-ONLY — telas ≤ 640px
+   Sem impacto no desktop
+   ═══════════════════════════════════════════════════════ */
+
+/* ── Toggle de filtros (só aparece no mobile) ── */
+.mob-filter-toggle{
+  display:none; /* desktop: oculto */
+}
+
+/* ── Filtros: visíveis por padrão no desktop ── */
+.filter-group{ display:flex; }
+@media(max-width:640px){
+
+  /* ════ TOPBAR ════ */
+  .topbar{padding:0 10px;gap:6px;flex-wrap:nowrap;height:auto;min-height:var(--sh)}
+  /* Esconde elementos desktop-only no mobile */
+  .desk-only{display:none!important}
+  .topbar-title{font-size:14px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #topbarBtns{display:flex;gap:4px;flex-wrap:nowrap;align-items:center;flex-shrink:0}
+  #topbarBtns .btn span{display:none}
+  #topbarBtns .btn svg{display:block}
+  #topbarBtns .btn{padding:7px 9px;min-width:unset}
+  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita,#btnGerarRec{display:none!important}
+
+  /* ════ FILTROS recolhíveis ════ */
+  .mob-filter-toggle{
+    display:flex;align-items:center;gap:7px;width:100%;
+    padding:11px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);
+    font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--t2);
+    cursor:pointer;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)
+  }
+  .mob-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
+  .filter-group{
+    display:none;flex-direction:column;gap:8px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:12px;margin-bottom:10px;
+    animation:fadeIn .15s ease
+  }
+  .filter-group.mob-filters-open{display:flex}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-6px)}to{opacity:1;transform:translateY(0)}}
+  .filter-select,.filter-input{width:100%;font-size:14px;padding:11px 14px}
+  .filters-bar .btn-secondary,.filters-bar .btn-sm{width:100%;justify-content:center;padding:10px 14px;font-size:13.5px}
+
+  /* ════ CARDS TOTAL/PENDENTE/PAGO ════ */
+  .totals-bar{
+    display:grid;grid-template-columns:repeat(3,1fr);
+    gap:8px;margin-bottom:12px
+  }
+  .total-pill{
+    display:flex;flex-direction:column;align-items:center;
+    justify-content:center;padding:10px 8px;min-height:64px;
+    border-radius:var(--r-sm)
+  }
+  .total-pill label{
+    font-size:8px;font-weight:700;letter-spacing:.6px;
+    text-align:center;margin-bottom:4px;white-space:nowrap
+  }
+  .total-pill .val{
+    font-size:12.5px;font-weight:700;text-align:center;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    width:100%;line-height:1.2
+  }
+
+  /* ════ TABELA → CARDS ════
+     tr.mob-card = CSS grid 2 colunas
+     - Descrição e Ações: grid-column 1/-1 (full width)
+     - # e Por: ocultos
+     - Demais: 1 coluna cada, caem naturalmente em par
+  ════════════════════════════════════════ */
+  .data-table thead{display:none}
+  .data-table{border:none;background:transparent}
+  .table-wrap{overflow-x:unset;max-height:unset;border:none;background:transparent;box-shadow:none}
+  .contas-table-wrap{max-height:unset;min-height:unset;overflow-x:unset;overflow-y:unset}
+  .data-table tbody{display:flex;flex-direction:column;gap:10px;padding:0}
+
+  /* Card: grid 2 colunas */
+  .data-table tr.mob-card{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:10px;
+    overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.07)
+  }
+
+  /* Todas as células: flex coluna */
+  .data-table tr.mob-card td{
+    display:flex;
+    flex-direction:column;
+    padding:8px 12px;
+    font-size:13px;
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border);
+    min-width:0
+  }
+
+  /* Label acima do valor */
+  .data-table tr.mob-card td[data-label]::before{
+    content:attr(data-label);
+    font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--t4);margin-bottom:3px
+  }
+
+  /* ── DESCRIÇÃO: linha inteira, header do card ── */
+  .data-table tr.mob-card td[data-label="Descrição"]{
+    grid-column:1/-1;
+    border-right:none;
+    background:var(--palm-lt);
+    padding:10px 14px 8px
+  }
+  .data-table tr.mob-card td[data-label="Descrição"]::before{display:none}
+  /* Limitar 2 linhas com ellipsis */
+  .data-table tr.mob-card td[data-label="Descrição"] div:first-child{
+    font-size:13.5px;font-weight:600;color:var(--t1);line-height:1.35;
+    display:-webkit-box;-webkit-line-clamp:2;
+    -webkit-box-orient:vertical;overflow:hidden
+  }
+  .data-table tr.mob-card td[data-label="Descrição"] div:last-child:not(:first-child){
+    font-size:10px;color:var(--t4);margin-top:2px;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis
+  }
+
+  /* ── Colunas da direita: sem borda direita ── */
+  .data-table tr.mob-card td[data-label="Forma"],
+  .data-table tr.mob-card td[data-label="A Pagar"],
+  .data-table tr.mob-card td[data-label="Pendente"],
+  .data-table tr.mob-card td[data-label="Parcela"]{
+    border-right:none
+  }
+
+  /* ── Última linha antes das ações: sem borda inferior ── */
+  .data-table tr.mob-card td[data-label="Vencimento"],
+  .data-table tr.mob-card td[data-label="Parcela"]{
+    border-bottom:none
+  }
+
+  /* ── Hierarquia visual: valores críticos com destaque ── */
+  .data-table tr.mob-card td[data-label="A Pagar"]{
+    font-size:15px;font-weight:700
+  }
+  .data-table tr.mob-card td[data-label="Vencimento"]{
+    font-size:13px;font-weight:600
+  }
+  .data-table tr.mob-card td[data-label="Pendente"]{
+    font-size:13.5px;font-weight:600
+  }
+
+  /* ── # e Por: ocultos no mobile ── */
+  .data-table tr.mob-card td[data-label="#"],
+  .data-table tr.mob-card td[data-label="Por"]{
+    display:none
+  }
+
+  /* ── AÇÕES: rodapé full-width ── */
+  .data-table tr.mob-card td[data-label="Ações"]{
+    grid-column:1/-1;
+    flex-direction:row;
+    align-items:center;
+    gap:8px;
+    flex-wrap:wrap;
+    background:var(--bg);
+    border-right:none;
+    border-bottom:none;
+    border-top:1px solid var(--border);
+    padding:10px 14px
+  }
+  .data-table tr.mob-card td[data-label="Ações"]::before{display:none}
+  .data-table tr.mob-card td[data-label="Ações"] .action-btn{
+    padding:8px 14px;font-size:14px;border-radius:8px;flex:1;
+    justify-content:center;text-align:center
+  }
+
+  /* ════ OUTROS ════ */
+  .page-inner{padding:10px}
+  .section-card{border-radius:var(--r-sm)}
+  .charts-row{grid-template-columns:1fr;gap:12px}
+  .chart-card{min-height:220px}
+
+  /* KPIs: 1 coluna em tablets médios */
+  .kpi-grid{grid-template-columns:1fr;gap:10px}
+  .kpi-card,.kpi-card.kpi-hero{padding:14px 16px}
+  .kpi-value,.kpi-card.kpi-hero .kpi-value{font-size:20px}
+  .kpi-icon{top:14px;right:14px;font-size:18px}
+
+  /* Dashboard filters: empilhados, 100% largura */
+  /* ════ DASHBOARD MOBILE — 4 itens ════ */
+
+  /* Item 3: Filtros colapsáveis no mobile */
+  .dash-filter-toggle{
+    display:flex;align-items:center;gap:7px;width:100%;
+    padding:11px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);
+    font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--t2);
+    cursor:pointer;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)
+  }
+  .dash-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
+  .dash-filters-body{
+    display:none;flex-direction:column;gap:8px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:12px;margin-bottom:10px;
+    animation:fadeIn .15s ease
+  }
+  .dash-filters-body.dash-filters-open{display:flex}
+  .dash-filters{margin-bottom:0}
+  .dash-filters-top{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:8px}
+  .dash-filters-top .filter-select{width:100%;font-size:14px;padding:11px 14px}
+  .dash-filters-top .btn-sm{width:100%;justify-content:center;padding:10px 14px}
+  .dash-filters-resp{gap:8px;flex-wrap:wrap}
+  .resp-chip{padding:7px 16px;font-size:13px}
+
+  /* Item 1: KPIs em grade 2x2 — altura uniforme entre todos os cards */
+  .kpi-grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    grid-auto-rows:1fr;
+    gap:8px;
+    margin-bottom:12px;
+    align-items:stretch;
+  }
+  /* !important necessário para sobrescrever regras globais de .kpi-hero */
+  .kpi-card,
+  .kpi-card.kpi-hero{
+    padding:11px 12px !important;
+    min-height:70px;
+  }
+  .kpi-value,
+  .kpi-card.kpi-hero .kpi-value{
+    font-size:16px !important;
+    margin-bottom:3px;
+  }
+  .kpi-label{margin-bottom:3px;font-size:9px;letter-spacing:.5px}
+  .kpi-sub{font-size:9.5px;line-height:1.3}
+  .kpi-icon{top:8px;right:10px;font-size:14px;opacity:.6}
+
+  /* Item 2: Reordenar seções via flexbox order */
+  .dash-page-inner{
+    display:flex;
+    flex-direction:column
+  }
+  .dash-order-alert   {order:1}
+  .dash-order-kpi     {order:2}
+  .dash-order-insights{order:3}
+  .dash-order-pendentes{order:5}  /* Pendentes por último */
+  .dash-order-charts  {order:4}   /* Gráficos antes dos pendentes */
+  /* Filtros e outros elementos ficam na ordem natural (order:0 padrão) */
+
+  /* Item 4: Célula de status largura total no mobile (como rodapé do card) */
+  #tblPendentes thead{display:none}
+  #tblPendentes tbody{display:flex;flex-direction:column;gap:8px;padding:8px}
+  #tblPendentes tr.pend-mob-row{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--r-sm);
+    overflow:hidden;
+    box-shadow:0 1px 4px rgba(0,0,0,.07)
+  }
+  #tblPendentes tr.pend-mob-row td{
+    display:flex;flex-direction:column;
+    padding:8px 12px;font-size:13px;
+    border-bottom:1px solid var(--border);
+    border-right:1px solid var(--border)
+  }
+  #tblPendentes tr.pend-mob-row td[data-label]::before{
+    content:attr(data-label);
+    font-size:9px;font-weight:700;text-transform:uppercase;
+    letter-spacing:.6px;color:var(--t4);margin-bottom:3px
+  }
+  #tblPendentes tr.pend-mob-row td[data-label="Descrição"]{
+    grid-column:1/-1;border-right:none;
+    background:var(--palm-lt);padding:10px 14px;
+    font-size:13.5px;font-weight:600
+  }
+  #tblPendentes tr.pend-mob-row td[data-label="Descrição"]::before{display:none}
+  #tblPendentes tr.pend-mob-row td[data-label="Valor"],
+  #tblPendentes tr.pend-mob-row td[data-label="Responsável"]{border-right:none}
+  #tblPendentes tr.pend-mob-row td[data-label="Vencimento"],
+  #tblPendentes tr.pend-mob-row td[data-label="Valor"]{border-bottom:none}
+  /* Item 4: Status = rodapé full-width colorido */
+  #tblPendentes tr.pend-mob-row td.pend-status-cell{
+    grid-column:1/-1;
+    border-right:none;border-bottom:none;
+    flex-direction:row;align-items:center;justify-content:center;
+    gap:8px;padding:10px 14px;font-size:13.5px;font-weight:700
+  }
+  #tblPendentes tr.pend-mob-row td.pend-status-cell::before{display:none}
+  #tblPendentes tr.pend-mob-row td.pend-atr{
+    background:var(--orange-lt);color:var(--orange)
+  }
+  #tblPendentes tr.pend-mob-row td.pend-ok{
+    background:var(--red-lt);color:var(--red)
+  }
+
+  /* Insights: chips em coluna no mobile */
+  .insight-bar{flex-direction:column;gap:8px}
+  .insight-chip{border-radius:var(--r-sm);padding:10px 14px;font-size:13px}
+
+  .pg-btn{padding:7px 11px;font-size:12px}
+  .modal-overlay{padding:0;align-items:flex-end}
+  .modal,.modal-md,.modal-lg,.modal-xl{
+    width:100%!important;max-width:100%!important;
+    border-radius:var(--r) var(--r) 0 0;max-height:90vh!important
+  }
+  .cfg-tabs{gap:3px}
+  .cfg-tab{padding:7px 9px;font-size:11px}
+  .up-grid{grid-template-columns:1fr}
+  .rel-kpis{grid-template-columns:1fr 1fr}
+}
+
+/* ── INSIGHT BLOCK (Dashboard) ── */
+.insight-bar{
+  display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;
+}
+.insight-chip{
+  display:inline-flex;align-items:center;gap:7px;
+  padding:8px 14px;border-radius:99px;
+  font-size:12px;font-weight:500;
+  border:1px solid transparent;
+  animation:fadeIn .3s ease;
+}
+.insight-up  {background:#fef2f2;color:var(--red);border-color:#fecaca}
+.insight-down{background:#f0fdf4;color:var(--green);border-color:#bbf7d0}
+.insight-neu {background:var(--blue-lt);color:var(--blue);border-color:#bfdbfe}
+.insight-warn{background:var(--orange-lt);color:var(--orange);border-color:#fed7aa}
+
+/* ── RECORRENTE ── */
+.badge-rec{background:#ede9fe;color:#7c3aed;border:1px solid #ddd6fe;border-radius:99px;padding:1px 7px;font-size:9.5px;font-weight:700;letter-spacing:.3px}
+.kpi-card.kpi-hero .kpi-sub{font-size:12px;font-weight:500}
+
+/* ── PAGE INNER melhor respiro ── */
+.page-inner{padding:22px 24px;flex:1}
+
+/* ── MODAL de geração de recorrentes ── */
+.rec-sel-item{
+  display:flex;align-items:flex-start;gap:10px;
+  padding:10px 12px;border:1px solid var(--border);border-radius:var(--r-sm);
+  background:var(--surface);cursor:pointer;transition:background var(--transition);
+  margin-bottom:6px;
+}
+.rec-sel-item:hover{background:var(--hover)}
+.rec-sel-item.selected{background:var(--palm-lt);border-color:#c6e8d4}
+.rec-sel-item input[type=checkbox]{margin-top:2px;accent-color:var(--palm);width:15px;height:15px;flex-shrink:0}
+
+/* ── PARETO CHART ── */
+.pareto-card{margin-bottom:14px}
+.pareto-layout{
+  display:grid;
+  grid-template-columns:1fr 280px;
+  gap:0;
+  padding:0;
+  min-height:300px;
+}
+.pareto-chart-area{
+  padding:16px 12px 16px 16px;
+  position:relative;
+  min-height:300px;
+}
+.pareto-chart-area canvas{width:100%!important}
+.pareto-table-area{
+  border-left:1px solid var(--border);
+  padding:0;
+  overflow-y:auto;
+  max-height:340px;
+}
+.pareto-table-area table{
+  width:100%;border-collapse:collapse;font-size:11.5px;
+}
+.pareto-table-area th{
+  background:var(--palm);color:#fff;
+  padding:8px 10px;text-align:left;
+  font-weight:700;font-size:10px;
+  text-transform:uppercase;letter-spacing:.4px;
+  position:sticky;top:0;
+}
+.pareto-table-area td{
+  padding:7px 10px;border-bottom:1px solid var(--border);
+  color:var(--t2);
+}
+.pareto-table-area tr:last-child td{border-bottom:none;font-weight:700;background:var(--palm-lt)}
+.pareto-table-area tr.pareto-80 td{background:rgba(0,100,55,.06)}
+.pareto-pct{text-align:right;font-weight:600;color:var(--palm)}
+.pareto-val{text-align:right}
+
+/* ── REL-FILTERS (Relatório) ── */
+.rel-filters-wrap{margin-bottom:14px}
+/* Desktop: toggle hidden, body always visible */
+.rel-filter-toggle{display:none}
+.rel-filters-body{display:block}
+
+/* ── RECEITAS MOBILE ── */
+@media(max-width:640px){
+  /* Rel filters collapsible */
+  .rel-filter-toggle{
+    display:flex;align-items:center;gap:7px;width:100%;
+    padding:11px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--r-sm);
+    font-family:var(--font-b);font-size:13.5px;font-weight:500;color:var(--t2);
+    cursor:pointer;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.05)
+  }
+  .rel-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
+  .rel-filters-body{
+    display:none;flex-direction:column;gap:8px;
+    background:var(--surface);border:1px solid var(--border);
+    border-radius:var(--r-sm);padding:12px;margin-bottom:10px;
+    animation:fadeIn .15s ease
+  }
+  .rel-filters-body.rel-filters-open{display:flex}
+  .rel-filters-body .filter-select{width:100%;font-size:14px;padding:11px 14px}
+  .rel-filters-body .btn-sm{width:100%;justify-content:center;padding:10px 14px;font-size:13.5px}
+
+  /* Pareto: coluna única */
+  .pareto-layout{grid-template-columns:1fr;min-height:auto}
+  .pareto-chart-area{min-height:240px;padding:12px}
+  .pareto-table-area{border-left:none;border-top:1px solid var(--border);max-height:200px}
+
+  /* Receitas: tabelas com scroll horizontal mínimo */
+  .rec-table{font-size:11px}
+  .rec-section{margin-bottom:12px}
+  .rec-header{padding:10px 12px;flex-wrap:wrap;gap:8px}
+}
+
+/* Dark mode pareto */
+.dark .pareto-table-area th{background:var(--palm)}
+.dark .pareto-table-area td{color:var(--t2);border-color:var(--border)}
+.dark .pareto-table-area tr:last-child td{background:rgba(50,215,75,.1)}
+
+/* ══════════════════════════════════════════════════════
+   MELHORIAS DE DESIGN — integradas ao sistema
+   ══════════════════════════════════════════════════════ */
+
+/* ── 2. KPI Hero — Saldo mais imponente ── */
+.kpi-card.kpi-hero{padding:24px 26px}
+.kpi-card.kpi-hero .kpi-value{font-size:26px}
+.kpi-card.kpi-hero .kpi-sub{font-size:12px;font-weight:500}
+
+/* ── 3. Colunas Parcela/Por — ocultar em telas médias ── */
+@media(max-width:1100px){
+  .col-hide{display:none!important}
+}
+
+/* ── 6. Empty states ── */
+.empty-state{
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;padding:44px 24px;gap:12px;text-align:center
+}
+.empty-icon{
+  width:68px;height:68px;background:var(--palm-lt);
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:30px;margin-bottom:4px
+}
+.empty-title{font-family:var(--font-d);font-size:16px;font-weight:700;color:var(--t2)}
+.empty-sub{font-size:12.5px;color:var(--t4);max-width:260px;line-height:1.6}
+
+/* ── 7. Transição suave de página ── */
+@keyframes duettoPageIn{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:none}
+}
+.page.active{animation:duettoPageIn .18s cubic-bezier(.4,0,.2,1) both}
+
+/* ── 10. Loading state nos botões ── */
+.btn.loading{pointer-events:none;opacity:.8;position:relative}
+.btn.loading>*{opacity:0}
+.btn.loading::after{
+  content:'';position:absolute;inset:0;margin:auto;
+  width:14px;height:14px;
+  border:2px solid rgba(255,255,255,.3);
+  border-top-color:#fff;border-radius:50%;
+  animation:duettoSpin .65s linear infinite
+}
+.btn-secondary.loading::after,.btn-ghost.loading::after{
+  border-color:rgba(0,100,55,.2);border-top-color:var(--palm)
+}
+@keyframes duettoSpin{to{transform:rotate(360deg)}}
+
+/* ── 11. Playfair nos valores financeiros das tabelas ── */
+td.money{
+  font-family:var(--font-d)!important;
+  font-size:13px!important;font-weight:700!important;letter-spacing:-.2px
+}
+td.money.neg{color:var(--red)!important}
+td.money.pos{color:var(--green)!important}
+td.money.atr{color:var(--orange)!important}
+td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var(--font-b)!important}
+
+/* Dark mode: ajustes complementares */
+.dark .chart-card{background:var(--surface)}
+.dark .btn-google{
+  background:var(--surface)!important;border-color:var(--border2)!important;
+  color:var(--t1)!important;box-shadow:var(--shadow-sm)
+}
+.dark .btn-google:hover{border-color:var(--palm)!important;background:rgba(50,215,75,.08)!important}
+
+/* ══════════════════════════════════════════════════════
+   TEMAS VISUAIS POR RESPONSÁVEL
+   Somente variáveis de cor — zero impacto em layout
+   ══════════════════════════════════════════════════════ */
+
+/* ── Tema Pri (rosa suave) ── */
+.theme-pri {
+  --palm:        #c026d3;      /* roxo-rosa vibrante para acentos */
+  --palm-dk:     #a21caf;
+  --palm-lt:     #fdf4ff;      /* fundo rosa ultra-suave */
+  --palm-md:     #d946ef;
+  --hover:       #fce7f3;
+  --border:      #f5d0fe;      /* bordas com toque rose */
+  --border2:     #e879f9;
+}
+
+/* Chips resp ativos com cor Pri */
+.theme-pri #rc-pri {
+  background: #c026d3;
+  border-color: #c026d3;
+}
+
+/* Barra de saldo / badge-n no tema Pri */
+.theme-pri .kpi-card.kpi-hero {
+  background: linear-gradient(135deg, #fdf4ff 0%, #fce7f3 100%);
+  border-color: #f5d0fe;
+  box-shadow: 0 2px 8px rgba(192,38,211,.1), 0 0 0 1px rgba(192,38,211,.08);
+}
+
+/* Nav item ativo */
+.theme-pri .nav-item.active {
+  background: linear-gradient(135deg, #fdf4ff 0%, #fce7f3 100%);
+  color: #c026d3;
+  border-color: #f5d0fe;
+  box-shadow: 0 1px 4px rgba(192,38,211,.12);
+}
+.theme-pri .nav-item.active::before { background: #c026d3; }
+.theme-pri .nav-item:hover { background: #fce7f3; color: #c026d3; }
+
+/* Indicador sutil nas barras de totais */
+.theme-pri .total-pill.pendente { border-color: rgba(192,38,211,.25); }
+
+/* Botão primário com cor Pri */
+.theme-pri .btn-primary {
+  background: linear-gradient(135deg, #c026d3, #a21caf);
+  border-color: #a21caf;
+}
+.theme-pri .btn-primary:hover {
+  background: linear-gradient(135deg, #a21caf, #86198f);
+}
+
+/* Chip ativo dos filtros */
+.theme-pri .resp-chip.active {
+  background: #c026d3;
+  border-color: #c026d3;
+}
+
+/* Badge-n (contador de pendentes) */
+.theme-pri .badge-n { background: #c026d3; }
+
+/* Overlay visual — marca d'água ultra-sutil no page-inner */
+.theme-pri .page-inner::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(236,72,153,.018);
+  z-index: 0;
+}
+.theme-pri .page-inner > * { position: relative; z-index: 1; }
+
+/* ── Tema Leo (verde — padrão, só reforça identidade) ── */
+.theme-leo {
+  /* Mantém o verde padrão — apenas reforça visualmente */
+  --palm: #006437;
+  --palm-lt: #e8f5ee;
+}
+.theme-leo .kpi-card.kpi-hero {
+  background: linear-gradient(135deg, #e8f5ee 0%, #d4efdf 100%);
+}
+
+/* ── Dark mode: ajustes do tema Pri ── */
+.dark.theme-pri {
+  --palm:    #e879f9;
+  --palm-dk: #c026d3;
+  --palm-lt: rgba(232,121,249,.1);
+  --border:  rgba(232,121,249,.2);
+  --hover:   rgba(232,121,249,.08);
+}
+.dark.theme-pri .nav-item.active {
+  background: rgba(232,121,249,.15);
+  color: #e879f9;
+  border-color: rgba(232,121,249,.3);
+}
+.dark.theme-pri .nav-item.active::before { background: #e879f9; }
+.dark.theme-pri .btn-primary { background: #c026d3; border-color: #a21caf; }
+.dark.theme-pri .kpi-card.kpi-hero {
+  background: rgba(232,121,249,.1);
+  border-color: rgba(232,121,249,.25);
+}
+.dark.theme-pri .page-inner::before {
+  background: rgba(236,72,153,.03);
+}
+
+/* ── Transição suave ao trocar tema ── */
+html { transition: --palm .25s ease; }
+
+/* ══════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, BLOCO DE MELHORIAS UI/UX v1.0
+   Auditoria de Design, Abril 2026
+   Aditivo ao final de style.css. Nenhuma regra existente alterada.
+   Conforme regras v1.0: R1, R2, R3, R5, R7, R8, R10
+   ══════════════════════════════════════════════════════ */
+
+/* ── 1. KPI HERO, hierarquia ampliada (M01) ── */
+/* Desktop (global, sobrescreve por especificidade igual e ordem na cascata) */
+.kpi-card.kpi-hero { padding: 28px 28px; }
+.kpi-card.kpi-hero .kpi-value { font-size: 28px; letter-spacing: -0.5px; }
+.kpi-card.kpi-hero .kpi-sub { font-size: 12px; font-weight: 500; opacity: 0.85; }
+
+/* ── 2. ESTADOS INTERATIVOS (M05) ── */
+/* Acessibilidade: foco por teclado e feedback de clique */
+.btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(0,100,55,0.20);
+}
+.btn-primary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(0,100,55,0.35);
+}
+.btn:active {
+  transform: scale(0.97);
+  transition-duration: 0.05s;
+}
+.nav-item:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--palm), 0 0 0 4px var(--palm-lt);
+}
+.action-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--palm);
+}
+.modal-close:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--red);
+  color: var(--red);
+}
+/* Dark mode: anel de foco adaptado para verde Apple */
+.dark .btn:focus-visible {
+  box-shadow: 0 0 0 3px rgba(50,215,75,0.30);
+}
+.dark .btn-primary:focus-visible {
+  box-shadow: 0 0 0 3px rgba(50,215,75,0.45);
+}
+
+/* ── 3. TOPBAR aprimorada (M06) ── */
+/* Translucidez suave + indicador de scroll (classe .scrolled aplicada via JS) */
+.topbar {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  background: rgba(255,255,255,0.92);
+  transition: box-shadow 0.2s ease, background 0.2s ease;
+}
+.topbar.scrolled {
+  box-shadow: 0 2px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06);
+}
+/* Dark mode: já existia background rgba(28,28,30,.92), sem conflito */
+
+/* ── 4. ANIMAÇÕES DE MODAL (M10) ── */
+/* Keyframes globais (cor/animação, não dimensão) */
+@keyframes duettoModalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes duettoModalOut {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(10px) scale(0.98); }
+}
+@keyframes duettoOverlayIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes duettoOverlayOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.modal-overlay.open {
+  animation: duettoOverlayIn 0.2s ease forwards;
+}
+.modal-overlay.closing {
+  animation: duettoOverlayOut 0.18s ease forwards;
+  pointer-events: none;
+}
+.modal-overlay.open .modal {
+  animation: duettoModalIn 0.25s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+.modal-overlay.closing .modal {
+  animation: duettoModalOut 0.18s ease forwards;
+}
+
+/* ── 5. LOADING SCREEN, fade de saída (M11) ── */
+#screenLoading {
+  transition: opacity 0.4s ease, transform 0.4s ease;
+}
+#screenLoading.fade-out {
+  opacity: 0;
+  transform: scale(1.02);
+  pointer-events: none;
+}
+
+/* ── 6. SIDEBAR OVERLAY, fade de entrada ── */
+.sidebar-overlay {
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.sidebar-overlay.visible {
+  opacity: 1;
+}
+
+/* ══════════════════════════════════════════════════════
+   BLOCO MOBILE, todas as regras de dimensionamento aqui
+   Conforme R1: dentro de @media(max-width:640px)
+   ══════════════════════════════════════════════════════ */
+@media (max-width: 640px) {
+
+  /* ── M01 KPI Hero, override mobile obrigatório (R1) ── */
+  .kpi-card.kpi-hero {
+    padding: 11px 12px !important;
+  }
+  .kpi-card.kpi-hero .kpi-value {
+    font-size: 16px !important;
+    letter-spacing: 0;
+  }
+  .kpi-card.kpi-hero .kpi-sub {
+    font-size: 9.5px;
+  }
+
+  /* ── M07 Mob-card, gradiente sutil no header e Playfair no valor ── */
+  .data-table tr.mob-card td[data-label="Descrição"] {
+    background: linear-gradient(135deg, var(--palm-lt) 0%, #d4efdf 100%);
+    border-bottom: 2px solid #c6e8d4;
+  }
+  .data-table tr.mob-card td[data-label="A Pagar"] {
+    font-family: var(--font-d);
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  /* ── M08 Filtros colapsáveis, animação suave de altura ── */
+  /* Substitui display:none/flex pela técnica max-height (mantém display:flex sempre) */
+  /* Safari iOS: valor 800px previne clipping em listas longas (M08 v1.1) */
+  .filter-group {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    flex-direction: column;
+    gap: 8px;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease,
+                padding 0.3s ease;
+    padding: 0 12px;
+    display: flex;
+  }
+  .filter-group.mob-filters-open {
+    max-height: 800px;
+    opacity: 1;
+    padding: 12px;
+  }
+  .dash-filters-body,
+  .rel-filters-body {
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    transition: max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+                opacity 0.2s ease;
+  }
+  .dash-filters-body.dash-filters-open,
+  .rel-filters-body.rel-filters-open {
+    max-height: 800px;
+    opacity: 1;
+  }
+
+  /* ── M09 Alvos de toque, mínimo 44px (R8) ── */
+  /* Botões na topbar mobile */
+  #topbarBtns .btn {
+    padding: 11px 10px;
+    min-height: 44px;
+  }
+  /* Action buttons (editar, pagar, excluir) no rodapé do mob-card */
+  .data-table tr.mob-card td[data-label="Ações"] .action-btn {
+    padding: 11px 14px;
+    min-height: 44px;
+    border-radius: 8px;
+  }
+  /* Resp chips no dashboard */
+  .resp-chip {
+    padding: 10px 18px;
+    min-height: 44px;
+  }
+  /* Nav items na sidebar mobile */
+  .nav-item {
+    padding: 12px 14px;
+    min-height: 44px;
+  }
+
+  /* ── M04 Toast posição centralizada no mobile ── */
+  /* Visual: melhor leitura em telas pequenas */
+  .toast {
+    left: 16px;
+    right: 16px;
+    max-width: unset;
+    text-align: center;
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   DARK MODE, ajustes complementares (R3: cores globais)
+   ══════════════════════════════════════════════════════ */
+.dark .topbar {
+  background: rgba(28,28,30,0.92);
+}
+/* BUGFIX dark mode: resp-chip estava com background:#fff fixo (linha 392),
+   ficando ilegível no tema escuro. Override aplica superfície escura e contraste correto. */
+.dark .resp-chip {
+  background: var(--surface);
+  color: var(--t3);
+  border-color: var(--border2);
+}
+.dark .resp-chip:hover {
+  border-color: var(--palm);
+  color: var(--palm);
+}
+.dark .resp-chip.active {
+  background: var(--palm);
+  color: #1c1c1e;
+  border-color: var(--palm);
+}
+@media (max-width: 640px) {
+  /* Dark: gradiente do header do mob-card adaptado */
+  .dark .data-table tr.mob-card td[data-label="Descrição"] {
+    background: linear-gradient(135deg, rgba(50,215,75,0.14) 0%, rgba(50,215,75,0.08) 100%);
+    border-bottom-color: rgba(50,215,75,0.25);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   FIM DO BLOCO DE MELHORIAS UI/UX v1.0
+   ══════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, BLOCO DE MELHORIAS v1.1
+   Bugfixes visuais e novas features (Abril 2026)
+   Aditivo. Conforme R1 a R12 + novas regras R13, R14, R15.
+   ══════════════════════════════════════════════════════ */
+
+/* ── R4 reforço: KPI grid com altura uniforme ──
+   Sem grid-auto-rows:1fr, o card .kpi-hero (com padding maior por M01)
+   ficava mais alto que os outros 3, quebrando alinhamento horizontal. */
+.kpi-grid {
+  grid-auto-rows: 1fr;
+  align-items: stretch;
+}
+
+/* ── R15: Ordem fixa do Dashboard em TODOS os breakpoints ──
+   As regras dash-order-* estavam apenas em @media(max-width:640px), portanto
+   no desktop "Pendentes do Mês" aparecia no meio da tela. Agora a ordem
+   lógica é uniforme: filtros → atraso → KPIs → insights → gráficos → pendentes. */
+.dash-page-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+.dash-order-alert     { order: 1; }
+.dash-order-kpi       { order: 2; }
+.dash-order-insights  { order: 3; }
+.dash-order-charts    { order: 4; }
+.dash-order-pendentes { order: 5; }
+/* O wrapper de filtros (sem classe dash-order-*) fica em order:0 (default), ou seja, primeiro */
+
+/* ── R13: Sistema de Espaçamento entre Seções ──
+   Como .dash-page-inner agora aplica gap, removemos margin-bottom redundantes
+   dos elementos filhos para evitar dupla aplicação de espaço. */
+.dash-page-inner > .kpi-grid,
+.dash-page-inner > .insight-bar,
+.dash-page-inner > .section-card,
+.dash-page-inner > .charts-row,
+.dash-page-inner > .pareto-card,
+.dash-page-inner > .dash-filters,
+.dash-page-inner > .overdue-alert {
+  margin-bottom: 0;
+}
+
+/* ── Outras páginas: aplicar mesmo padrão de espaçamento ──
+   Padroniza o rítmo vertical entre seções nas demais telas. */
+#page-contas .page-inner,
+#page-receitas .page-inner,
+#page-salarios .page-inner,
+#page-relatorio .page-inner,
+#page-upload .page-inner,
+#page-config .page-inner {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+/* Remove margin-bottom redundante dentro dessas páginas */
+#page-contas .page-inner > *,
+#page-receitas .page-inner > *,
+#page-salarios .page-inner > *,
+#page-relatorio .page-inner > *,
+#page-upload .page-inner > *,
+#page-config .page-inner > * {
+  margin-bottom: 0;
+}
+
+/* ── R14: MODO PRIVACIDADE ──
+   Aplica blur em valores monetários quando html.privacy-mode está ativo.
+   Inicia sempre desativado (sem persistência em localStorage por design),
+   garantindo que valores não fiquem escondidos sem o usuário saber. */
+.privacy-mode .kpi-value,
+.privacy-mode .kpi-sub,
+.privacy-mode .money,
+.privacy-mode .rel-kpi .val,
+.privacy-mode .total-pill .val,
+.privacy-mode .ai-totals strong,
+.privacy-mode .barra-pagamento-info strong {
+  filter: blur(7px);
+  user-select: none;
+  transition: filter 0.25s ease;
+}
+/* Saldo do dashboard (kpi-hero): blur ligeiramente maior para destaque */
+.privacy-mode .kpi-card.kpi-hero .kpi-value {
+  filter: blur(9px);
+}
+/* Botão de privacidade: indicação visual quando ativo */
+.privacy-mode #btnTogglePrivacy {
+  background: var(--palm-lt);
+  color: var(--palm);
+}
+.dark.privacy-mode #btnTogglePrivacy {
+  background: rgba(50,215,75,0.15);
+  color: var(--palm);
+}
+
+/* ── Mobile: gap menor para preservar densidade em telas pequenas ── */
+@media (max-width: 640px) {
+  .dash-page-inner,
+  #page-contas .page-inner,
+  #page-receitas .page-inner,
+  #page-salarios .page-inner,
+  #page-relatorio .page-inner,
+  #page-upload .page-inner,
+  #page-config .page-inner {
+    gap: var(--sp-3);
+  }
+}
+
+/* ══════════════════════════════════════════════════════
+   FIM DO BLOCO DE MELHORIAS v1.1
+   ══════════════════════════════════════════════════════ */

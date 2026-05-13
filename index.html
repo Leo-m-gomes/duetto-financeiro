@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, index.html, SHELL ATIVÁVEL (Fase 1.4-C)
+═══════════════════════════════════════════════════════════════════════════
+  Este é o shell ativável da Fase 1.4-C. Substitui o index.html legado.
+
+  COMO ATIVAR
+  ─────────────────────────────────────────────────────────────────────────
+  1. Faça backup do index.html legado: renomeie para index-legado.html
+  2. Renomeie este arquivo para index.html
+  3. Confirme presença dos 6 arquivos em views/:
+       dashboard.html, contas.html, receitas.html, salario.html,
+       relatorio.html, upload.html, backup.html, config.html
+  4. Confirme presença de views/_modals.html (Fase 1.4-A)
+  5. Commit: "Fase 1.4-C: shell ativado, views modulares em produção"
+  6. Ctrl+F5 no navegador
+
+  COMO ROLLBACK
+  ─────────────────────────────────────────────────────────────────────────
+  Reverter operação 2: renomear index.html → index-shell.html e
+  index-legado.html → index.html. Sistema volta ao estado pós-1.4-B.
+
+  PRÉ-REQUISITOS (já entregues nas fases anteriores)
+  ─────────────────────────────────────────────────────────────────────────
+  • js/firebase-config.js  (Fase 1.2)
+  • js/security.js         (Fase 1.2 + correção 1.3)
+  • js/router.js           (Fase 1.3 + injectModals em 1.4-A)
+  • app.js patched         (Fase 1.4-B: boot async, nav delega ROUTER, modals safeBind)
+  • css/theme.css          (Fase 1.2)
+  • css/tables.css         (Fase 1.2)
+  • style.css              (legado, mantido até Fase 1.4-D)
+  • views/_modals.html     (Fase 1.4-A)
+  • views/dashboard.html   (Fase 1.3)
+  • views/contas.html      (Fase 1.3)
+  • views/receitas.html    (Fase 1.4-C)
+  • views/salario.html     (Fase 1.4-C)
+  • views/relatorio.html   (Fase 1.4-C)
+  • views/upload.html      (Fase 1.4-C)
+  • views/backup.html      (Fase 1.4-C)
+  • views/config.html      (Fase 1.4-C)
+
+  ARQUITETURA NA FASE 1.4-C
+  ─────────────────────────────────────────────────────────────────────────
+  • Shell HTML: ~250 linhas (vs 1.127 do legado)
+  • Páginas embutidas: REMOVIDAS, agora em 8 arquivos views/X.html
+  • Modais embutidos: REMOVIDOS, agora em views/_modals.html (injetado via
+    ROUTER.injectModals no boot)
+  • app.js detecta o shell pela presença de #appMain e ativa modo router
+
+  PENDENTE PARA FASE 1.4-D
+  ─────────────────────────────────────────────────────────────────────────
+  • Extrair ui-utils.js, financeiro.js, validacoes.js do app.js
+  • Reduzir style.css migrando para components.css e layout.css
+  • Remover aliases de compatibilidade (window.AUTH, window.STATE)
+  • Limpar comentários "Fase 1.X" obsoletos
+═══════════════════════════════════════════════════════════════════════════
+-->
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Duetto Financeiro</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23006437'/%3E%3Ctext x='50%25' y='54%25' font-family='Georgia,serif' font-size='20' fill='white' text-anchor='middle' dominant-baseline='middle'%3ED%3C/text%3E%3C/svg%3E">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#006437">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Duetto">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+
+<!-- ── BIBLIOTECAS EXTERNAS ── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- ── DUETTO, MÓDULOS DE CSS ── -->
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/tables.css">
+<!-- style.css legado: reduzido nas Fases 1.4 conforme migração. -->
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ══ TELA DE LOADING ══ -->
+<div id="screenLoading" class="screen-overlay">
+  <div style="text-align:center">
+    <div style="font-family:'Playfair Display',serif;font-size:28px;font-weight:700;color:var(--palm);margin-bottom:8px">Duetto</div>
+    <div style="font-size:10px;font-weight:600;letter-spacing:2px;color:var(--t4);text-transform:uppercase;margin-bottom:32px">Financeiro</div>
+    <div class="spinner-ring"></div>
+    <div style="font-size:13px;color:var(--t4);margin-top:20px" id="loadingMsg">Conectando...</div>
+  </div>
+</div>
+
+<!-- ══ TELA DE LOGIN ══ -->
+<div id="screenLogin" class="screen-overlay" style="display:none;background:linear-gradient(145deg,#f0faf4 0%,#e8f5ee 60%,#f4f6f9 100%)">
+  <div class="login-card">
+    <h1 class="login-title">Duetto</h1>
+    <p class="login-tag">Financeiro</p>
+    <div class="login-divider"></div>
+    <p class="login-desc">Acesse com sua conta Google para entrar no sistema</p>
+    <button class="btn-google" id="btnGoogle" onclick="AUTH.signInGoogle()">
+      <svg width="20" height="20" viewBox="0 0 48 48">
+        <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/>
+        <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/>
+        <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>
+        <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.18 1.48-4.97 2.36-8.16 2.36-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>
+      </svg>
+      Entrar com Google
+    </button>
+    <div class="login-note">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+      Sistema privado, acesso restrito a Leo e Pri
+    </div>
+  </div>
+</div>
+
+<!-- ══ TELA ACESSO NEGADO ══ -->
+<div id="screenDenied" class="screen-overlay" style="display:none">
+  <div class="login-card" style="text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+    <h2 style="font-family:'Playfair Display',serif;font-size:22px;color:var(--t1);margin-bottom:8px">Acesso negado</h2>
+    <p style="font-size:13px;color:var(--t3);margin-bottom:8px">Esta conta Google não tem permissão para acessar o Duetto Financeiro.</p>
+    <p id="deniedEmail" style="font-size:12px;color:var(--t4);margin-bottom:24px"></p>
+    <button class="btn btn-secondary" onclick="AUTH.signOut()" style="margin:0 auto">Sair e tentar outra conta</button>
+  </div>
+</div>
+
+<!-- ══ APP PRINCIPAL ══ -->
+<div id="screenApp" style="display:none">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar-overlay" id="sidebarOverlay" onclick="APP.closeSidebarMobile()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-logo">
+      <div class="sb-logo-text">
+        <div class="name">Duetto</div>
+        <div class="tag">Financeiro</div>
+      </div>
+    </div>
+    <!--
+      ITENS DO MENU. Os data-page são lidos pelo router.js.
+      navUpload, navConfig (e futuros admin-only) iniciam display:none e
+      são exibidos por APP.boot() quando STATE.usuario === 'Leo'.
+    -->
+    <nav class="sb-nav">
+      <a class="nav-item active" data-page="dashboard" data-tooltip="Dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
+      <a class="nav-item" data-page="contas" data-tooltip="Contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
+      <a class="nav-item" data-page="receitas" data-tooltip="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
+      <a class="nav-item" data-page="salario" data-tooltip="Salários"><svg viewBox="0 0 24 24"><circle cx="9" cy="7" r="4"/><path d="M3 21v-2a4 4 0 014-4h4a4 4 0 014 4v2"/><path d="M16 3.13a4 4 0 010 7.75"/><path d="M21 21v-2a4 4 0 00-3-3.87"/></svg><span>Salários</span></a>
+      <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
+      <a class="nav-item" data-page="upload" id="navUpload" data-tooltip="Upload Cards" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
+      <a class="nav-item" data-page="config" data-tooltip="Configurações" id="navConfig" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Configurações</span></a>
+    </nav>
+    <div class="sb-footer">
+      <div class="sb-badge">2026</div>
+      <div id="sbUserChip" class="sb-user-chip"></div>
+      <button id="btnDarkMode" onclick="APP.toggleDark()" title="Modo escuro" class="sb-collapse-btn" style="margin-right:4px">
+        <svg id="iconDark" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+      </button>
+      <button id="sbCollapseBtn" onclick="APP.toggleSidebar()" title="Recolher menu" class="sb-collapse-btn">
+        <svg id="sbCollapseIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN: topbar fixa + container de views -->
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
+      <div class="topbar-title" id="pageTitle">Dashboard</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center" id="topbarBtns">
+        <button class="btn btn-secondary btn-sm" id="btnAtualizarTabelas" style="display:none">🔄 Tabelas IR/INSS</button>
+        <button class="btn btn-secondary btn-sm" id="btnNovoSalario" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Novo Salário</span></button>
+        <button class="btn btn-secondary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova Receita</span></button>
+        <button class="btn btn-secondary btn-sm" id="btnCSVContas" style="display:none">⬇ Exportar CSV</button>
+        <button class="btn btn-secondary btn-sm" id="btnGerarRec" style="display:none" onclick="APP.openRecorrentes()">🔁 Gerar Recorrentes</button>
+        <button class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Conta</button>
+        <button class="btn btn-ghost btn-sm" id="btnTogglePrivacy" onclick="APP.togglePrivacy()" title="Ocultar valores" style="padding:8px 10px">
+          <svg id="iconPrivacyOn" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="iconPrivacyOff" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="AUTH.signOut()" title="Sair" style="padding:8px 10px">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!--
+      CONTAINER DE VIEWS. O router.js injeta aqui o HTML de cada view
+      conforme o usuário navega. Inicia vazio; o boot do app chama
+      ROUTER.navigate('dashboard') após autenticação completa.
+    -->
+    <div id="appMain"></div>
+
+  </main>
+
+</div>
+
+<!--
+  ═════════════════════════════════════════════════════════════════════════
+  CONTAINER DE MODAIS GLOBAIS
+  ═════════════════════════════════════════════════════════════════════════
+  ROUTER.injectModals() carrega views/_modals.html aqui no boot, ANTES de
+  APP.modals() rodar. Os 13 modais ficam disponíveis para qualquer view.
+
+  ⚠ IMPORTANTE: este container DEVE existir antes de qualquer call a
+  ROUTER.injectModals. Ele é criado vazio aqui no shell. O fragmento HTML
+  com os 13 modais (ovConta, ovParcelas, ovSalario, etc.) é injetado no
+  boot via fetch.
+
+  Modais permanecem no DOM durante toda a sessão. Não são removidos ao
+  navegar entre páginas (modal-overlay é overlay global, não pertence a
+  nenhuma página específica).
+-->
+<div id="appModals"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!--
+  ═════════════════════════════════════════════════════════════════════════
+  SCRIPTS, ORDEM DE CARREGAMENTO É CRÍTICA
+  ═════════════════════════════════════════════════════════════════════════
+  1. Bibliotecas de exportação (XLSX, jsPDF) - opcional, só usado em algumas
+     funções de relatório. Podem migrar para lazy load na Fase 1.4.
+  2. firebase-config: inicializa fbAuth/fbDb antes de qualquer consumidor.
+  3. security: usa fbAuth para login/logout. Define SEC e AUTH.
+  4. router: usa SEC.isAdmin() para rotas restritas. Define ROUTER.
+  5. app.js: usa fbDb para CRUD, define APP, STATE, CACHE. Boot final.
+
+  Quando ui-utils.js, financeiro.js e validacoes.js entrarem (Fase 1.4),
+  serão inseridos entre security.js e app.js.
+-->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<!-- ── DUETTO FINANCEIRO, MÓDULOS JS ──
+     Ordem CRÍTICA de carregamento:
+     1. firebase-config: fbAuth/fbDb para todos os consumidores
+     2. fin-state: STATE, helpers (fmt, today, isOverdue...), constantes
+     3. fin-cache: CACHE (espelho Firestore, depende de fin-state)
+     4. security: SEC/AUTH, onAuthStateChanged (escreve STATE.usuario)
+     5. fin-db: FS, setupListeners, seedIfEmpty (depende de STATE + CACHE)
+     6. router: ROUTER.navigate, injectModals (depende de SEC.isAdmin)
+     7. app: APP, orquestrador final (depende de tudo acima)
+-->
+<script src="js/firebase-config.js"></script>
+<script src="js/fin-state.js"></script>
+<script src="js/fin-cache.js"></script>
+<script src="js/security.js"></script>
+<script src="js/fin-db.js"></script>
+<script src="js/router.js"></script>
+
+<script src="app.js"></script>
+</body>
+</html>
