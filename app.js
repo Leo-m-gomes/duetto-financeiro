@@ -8,14 +8,8 @@
 // para ver a linha exata do problema.
 
 // ── CORE: fin-state.js, fin-cache.js, fin-db.js ──
-// Helpers (fmt, fmtDate, today, isOverdue, vEfetivo, getChartColors, getChartDefaults),
-// constantes (MESES, MESES_F, COLORS), defaults (DEFAULT_TABELAS, SEED_CATS, SEED_FORMAS),
-// estado (STATE), cache (CACHE), operações Firestore (FS), listeners e seed foram extraídos
-// para módulos independentes carregados ANTES deste arquivo.
-// Ver: js/fin-state.js, js/fin-cache.js, js/fin-db.js
-
-
-
+// Helpers, constantes, STATE, CACHE, FS, setupListeners e seedIfEmpty
+// foram extraídos para módulos carregados ANTES deste arquivo.
 
 /**
  * Alterna a visibilidade entre as telas principais.
@@ -56,52 +50,29 @@ const APP = {
     this._ready=true;
     CACHE._ready.add('_appShown');
     show('screenApp');
-    // boot() é async desde Fase 1.4-B (pode aguardar ROUTER.injectModals).
-    // Não usamos await aqui porque onCacheReady é chamado a partir de listeners
-    // do Firestore que não são async. O .catch garante visibilidade de erros
-    // de boot que de outra forma virariam unhandled promise rejection.
     this.boot().catch(err => {
       console.error('[APP.boot] Falha no boot:', err);
-      if(this.toast) this.toast('Erro ao iniciar o sistema: ' + err.message, 'error');
+      if(this.toast) this.toast('Erro ao iniciar: ' + err.message, 'error');
     });
   },
 
-  // Async desde Fase 1.4-B: pode awaitar ROUTER.injectModals quando shell ativo.
   async boot(){
-    // ── DETECÇÃO DE CENÁRIO ──
-    // Se existe #appMain (container de views do shell), estamos no shell;
-    // do contrário, estamos no legado (index.html com páginas embutidas).
-    // O detect é por presença de elemento, não por flag, para que a mesma
-    // build de app.js funcione nos dois index.html sem alteração.
     const isShellMode = !!document.getElementById('appMain');
-
-    // No modo shell, os modais NÃO estão no DOM até injectModals carregar
-    // o fragmento views/modals.html. Aguardamos antes de chamar this.modals(),
-    // que adiciona listeners aos data-close de cada modal.
     if(isShellMode && window.ROUTER && typeof ROUTER.injectModals === 'function'){
       await ROUTER.injectModals();
     }
-
-    // A partir daqui, comportamento idêntico ao legado, com uma exceção:
-    // this.nav() agora delega a ROUTER.navigate quando shell ativo (PATCH 3).
-    // this.modals() é tolerante a elementos null (PATCH 4).
     this.nav(); this.topBtns(); this.modals(); this.selects(); this.filtros();
     this.restoreSidebarState();
     const chip=document.getElementById('sbUserChip');
     if(chip) chip.textContent='👤 '+STATE.usuario;
-    // Configurações só visível para Leo (admin), conforme regra de segurança v1.0
     if(STATE.usuario==='Leo'){
       const navCfg=document.getElementById('navConfig');
       if(navCfg) navCfg.style.display='flex';
       const navUp=document.getElementById('navUpload');
       if(navUp) navUp.style.display='flex';
     }
-    // M06: ativa indicador de scroll na topbar (sombra dinâmica)
     this.initTopbarScroll();
-
-    // No modo shell, ROUTER.navigate carrega a view dashboard.html via fetch
-    // e depois chama APP.renderPage('dashboard'). No modo legado, chama direto.
-    if(isShellMode && window.ROUTER && typeof ROUTER.navigate === 'function'){
+    if(isShellMode && window.ROUTER){
       await ROUTER.navigate('dashboard');
     } else {
       this.renderPage('dashboard');
@@ -185,30 +156,19 @@ const APP = {
 
   // ── NAV ──
   nav(){
-    // Detecta uma vez no boot do nav. Se shell ativa, ROUTER.navigate cuida
-    // do fetch da view; do contrário, renderPage roda direto sobre o DOM legado.
     const isShellMode = !!document.getElementById('appMain') && !!window.ROUTER;
-
     document.querySelectorAll('.nav-item').forEach(el=>{
       el.addEventListener('click',e=>{
         e.preventDefault();
         const page = el.dataset.page;
-
-        // ── UI auxiliar (highlight, título, visibilidade dos botões da topbar) ──
-        // Mantida idêntica em ambos os cenários. ROUTER.navigate também atualiza
-        // o pageTitle e a classe active dos nav-items, mas executar duas vezes
-        // não é problema (operação idempotente).
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
         ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
-          const btn = document.getElementById(id);
-          if(btn) btn.style.display='none';
+          const btn = document.getElementById(id); if(btn) btn.style.display='none';
         });
-        // Nova Conta: só aparece na tela Contas
-        const paginasComNovaConta = ['contas'];
         const btnNova = document.getElementById('btnNovaConta');
-        if(btnNova) btnNova.style.display = paginasComNovaConta.includes(page) ? 'flex' : 'none';
+        if(btnNova) btnNova.style.display = ['contas'].includes(page) ? 'flex' : 'none';
         if(page==='contas'){ const b=document.getElementById('btnGerarRec'); if(b) b.style.display='flex'; }
         if(page==='salario'){
           const b1=document.getElementById('btnNovoSalario'); if(b1) b1.style.display='flex';
@@ -216,43 +176,20 @@ const APP = {
         }
         if(page==='receitas'){ const b=document.getElementById('btnNovaReceita'); if(b) b.style.display='flex'; }
         if(page==='contas'){ const b=document.getElementById('btnCSVContas'); if(b) b.style.display='flex'; }
-
-        // ── Fechamento da sidebar mobile ──
-        const sb = document.getElementById('sidebar');
-        if(sb) sb.classList.remove('open');
+        const sb = document.getElementById('sidebar'); if(sb) sb.classList.remove('open');
         const ov = document.getElementById('sidebarOverlay');
-        if(ov) {
-          ov.classList.remove('visible');
-          setTimeout(() => { ov.style.display = 'none'; }, 300);
-        }
-
-        // ── Render da página ──
-        // No shell, ROUTER.navigate faz fetch da view e depois chama
-        // APP.renderPage(page) automaticamente. No legado, chamamos direto.
-        if(isShellMode){
-          ROUTER.navigate(page);
-        } else {
-          this.renderPage(page);
-        }
+        if(ov){ ov.classList.remove('visible'); setTimeout(()=>{ov.style.display='none';},300); }
+        if(isShellMode){ ROUTER.navigate(page); } else { this.renderPage(page); }
       });
     });
-
-    // Toggle do botão hamburguer (idêntico ao legado, com guard nulo defensivo).
     const menuToggle = document.getElementById('menuToggle');
     if(menuToggle) menuToggle.addEventListener('click',()=>{
-      const sb      = document.getElementById('sidebar');
-      const overlay = document.getElementById('sidebarOverlay');
+      const sb=document.getElementById('sidebar'); const overlay=document.getElementById('sidebarOverlay');
       if(!sb) return;
-      const isOpen  = sb.classList.toggle('open');
-      if(overlay) {
-        if(isOpen) {
-          // M07-sidebar: exibe primeiro, depois aplica .visible para acionar fade-in CSS
-          overlay.style.display = 'block';
-          requestAnimationFrame(() => overlay.classList.add('visible'));
-        } else {
-          overlay.classList.remove('visible');
-          setTimeout(() => { overlay.style.display = 'none'; }, 300);
-        }
+      const isOpen=sb.classList.toggle('open');
+      if(overlay){
+        if(isOpen){ overlay.style.display='block'; requestAnimationFrame(()=>overlay.classList.add('visible')); }
+        else { overlay.classList.remove('visible'); setTimeout(()=>{overlay.style.display='none';},300); }
       }
     });
   },
@@ -268,32 +205,19 @@ const APP = {
   },
 
   modals(){
-    // Helper interno tolerante a null. Adiciona listener somente se o
-    // elemento existir, evitando "Cannot read properties of null".
-    // Vale para legado e para shell com modais injetados sob demanda.
     const safeBind = (id, event, handler) => {
       const el = document.getElementById(id);
       if(el) el.addEventListener(event, handler);
     };
-
-    // M10: usa APP.closeModal para acionar animação de saída antes de remover .open
     document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>APP.closeModal(b.dataset.close)));
     document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)APP.closeModal(ov.id);}));
-
-    // Modal Conta
     safeBind('btnLimparConta', 'click', ()=>this.clearConta());
     safeBind('btnSalvarConta', 'click', ()=>this.saveConta());
     safeBind('fVP',            'input', ()=>this.calcTotal());
     safeBind('fQP',            'input', ()=>this.calcTotal());
-
-    // Modal Salário
     safeBind('btnSalvarSal',   'click', ()=>this.saveSalario());
     ['sSal','sBon','sDeps'].forEach(id => safeBind(id, 'input', ()=>this.calcSalario()));
-
-    // Modal Receita
     safeBind('btnSalvarReceita', 'click', ()=>this.saveReceita());
-
-    // Modal Tabelas IR/INSS
     safeBind('btnBuscarOnline',  'click', ()=>this.buscarTabelasOnline());
     safeBind('btnEditarManual',  'click', ()=>{
       const ed = document.getElementById('tabelasEditor');
@@ -302,14 +226,9 @@ const APP = {
       if(bs) bs.style.display='flex';
     });
     safeBind('btnSalvarTabelas', 'click', ()=>this.salvarTabelas());
-
-    // Popular select de mês inicial do salário (idempotente: só popula se vazio).
     const ms = document.getElementById('sMesInicio');
     if(ms){
-      // Guard idempotência: evita duplicar opções em re-execuções (ex: hot reload).
-      if(ms.options.length === 0){
-        MESES_F.forEach((m,i) => ms.appendChild(new Option(m,i)));
-      }
+      if(ms.options.length === 0){ MESES_F.forEach((m,i) => ms.appendChild(new Option(m,i))); }
       ms.value = new Date().getMonth();
     }
   },
@@ -357,64 +276,27 @@ const APP = {
     mkMes('relMes');
   },
 
-  /**
-   * Instala handlers nos filtros de cada view.
-   *
-   * IDEMPOTENTE: usa atribuição direta (.onchange, .oninput, .onclick) em vez
-   * de addEventListener. Cada chamada SUBSTITUI o handler anterior em vez de
-   * acumular. Isso permite que renderPage() chame filtros() a cada navegação
-   * sem risco de duplicar handlers.
-   *
-   * TOLERANTE A NULL: cada getElementById é guardado. Elementos que ainda não
-   * estão no DOM (view não carregada) são silenciosamente ignorados.
-   *
-   * CICLO DE VIDA NO SHELL:
-   *   1. boot() chama filtros() no início (a maioria dos elements retorna null)
-   *   2. ROUTER.navigate('dashboard') injeta views/dashboard.html no DOM
-   *   3. renderPage('dashboard') chama filtros() novamente
-   *   4. Desta vez filtroAnoDash e filtroMesDash existem e recebem handlers
-   *   5. Quando o usuário navega para Contas, o ciclo se repete para aquela view
-   */
   filtros(){
     const self = this;
-
-    // ── Dashboard: Ano e Mês ──
     ['filtroAnoDash','filtroMesDash'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.onchange = ()=>{
-        STATE.periodoDash=null;
-        self._atualizarPeriodoBadge('dashboard',null);
-        self.renderDashboard();
-      };
+      if(el) el.onchange = ()=>{ STATE.periodoDash=null; self._atualizarPeriodoBadge('dashboard',null); self.renderDashboard(); };
     });
-
-    // ── Contas: busca + todos os filtros ──
     ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus','filtroRecorrente'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{
-        if(id==='filtroAnoContas'||id==='filtroMesContas'){
-          STATE.periodoContas=null;
-          self._atualizarPeriodoBadge('contas',null);
-        }
+        if(id==='filtroAnoContas'||id==='filtroMesContas'){ STATE.periodoContas=null; self._atualizarPeriodoBadge('contas',null); }
         STATE.pg=1; self.renderContas();
       };
     });
-
-    // ── Relatório: Ano, Mês, Categoria, Forma, Responsável ──
     ['relAno','relMes'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.onchange = ()=>{
-        STATE.periodo=null;
-        self._atualizarPeriodoBadge('relatorio', null);
-        self.renderRelatorio();
-      };
+      if(el) el.onchange = ()=>{ STATE.periodo=null; self._atualizarPeriodoBadge('relatorio',null); self.renderRelatorio(); };
     });
     ['relCat','relForma','relResp'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.onchange = ()=> self.renderRelatorio();
     });
-
-    // ── btnCSV (Relatório): exportar CSV ──
     const btnCSV = document.getElementById('btnCSV');
     if(btnCSV) btnCSV.onclick = ()=> self.exportCSV();
   },
@@ -426,29 +308,29 @@ const APP = {
     const el=document.getElementById(`page-${p}`);
     if(el)el.classList.add('active');
 
-    // ── Re-popular selects e re-instalar filtros DEPOIS da view estar no DOM ──
-    // No modo shell, as views são injetadas após boot. selects() e filtros()
-    // rodam no boot quando os elementos não existiam (foram skipados pelos guards).
-    // Re-chamar agora popula os selects e instala handlers na view ativa.
+    // Re-popular selects e re-instalar filtros APÓS a view estar no DOM.
     // Ambas são idempotentes: não duplicam opções nem handlers.
     if(typeof this.selects === 'function') this.selects();
     if(typeof this.filtros === 'function') this.filtros();
 
-    ({
-      dashboard: ()=>this.renderDashboard(),
-      contas:    ()=>{
-        // Guard nulo: filtroStatus vive em views/contas.html
-        const fs = document.getElementById('filtroStatus');
-        if(fs && fs.value === '') fs.value = 'pendente';
-        this.renderContas();
-      },
-      receitas:  ()=>this.renderReceitas(),
-      salario:   ()=>this.renderSalario(),
-      relatorio: ()=>this.renderRelatorio(),
-      upload:    ()=>this.upRenderHistorico(),
-      backup:    ()=>this.renderBackup(),
-      config:    ()=>this.renderConfig(),
-    })[p]?.();
+    try {
+      ({
+        dashboard: ()=>this.renderDashboard(),
+        contas:    ()=>{
+          const fs = document.getElementById('filtroStatus');
+          if(fs && fs.value === '') fs.value = 'pendente';
+          this.renderContas();
+        },
+        receitas:  ()=>this.renderReceitas(),
+        salario:   ()=>this.renderSalario(),
+        relatorio: ()=>this.renderRelatorio(),
+        upload:    ()=>this.upRenderHistorico(),
+        backup:    ()=>this.renderBackup(),
+        config:    ()=>this.renderConfig(),
+      })[p]?.();
+    } catch(err) {
+      console.error('[renderPage] Erro ao renderizar ' + p + ':', err);
+    }
   },
 
   mkChart(id,cfg){
@@ -3579,4 +3461,5 @@ Object.assign(APP, {
     if(wrap) wrap.style.display = chk?.checked ? 'block' : 'none';
   },
 });
+
 
