@@ -3,78 +3,29 @@
  * DUETTO FINANCEIRO, MÓDULO fin-state.js
  * ═══════════════════════════════════════════════════════════════════════════
  * Responsabilidade: constantes globais, helpers de formatação, estado da
- * aplicação e valores default. Este arquivo é o PRIMEIRO a carregar (após
- * firebase-config.js e security.js) e TODOS os outros módulos dependem dele.
+ * aplicação e valores default. PRIMEIRO módulo a carregar após firebase-config.
  *
- * CONTÉM:
- *   Constantes: MESES, MESES_F, COLORS
- *   Helpers:    fmt, fmtN, fmtDate, today, isOverdue, vEfetivo,
- *               getChartColors, getChartDefaults
- *   Defaults:   DEFAULT_TABELAS, SEED_CATS, SEED_FORMAS
- *   Estado:     STATE (mutável, central, compartilhado por todos os módulos)
- *
- * IMPORTAÇÃO NO HTML:
- *   Carregar APÓS firebase-config.js e security.js, ANTES de fin-cache.js.
- *
- * EXPORTS GLOBAIS:
- *   Todos os símbolos acima ficam no escopo léxico global (const/function).
- *   Aliases em window.* mantidos para compatibilidade com onclick no HTML.
+ * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
+ *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo,
+ *   getChartColors, getChartDefaults, DEFAULT_TABELAS, SEED_CATS, SEED_FORMAS,
+ *   STATE
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
 
-// ── CONSTANTES DE CALENDÁRIO E CORES ──
+// ── CONSTANTES ──
 const MESES   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MESES_F = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const COLORS  = ['#006437','#00a85a','#d97706','#dc2626','#2563eb','#7c3aed','#0891b2','#ea580c','#65a30d','#64748b'];
 
-// ══════════════════════════════════════════════════════════════
-// HELPERS DUAL-THEME PARA CHART.JS (M03)
-// Adaptam paleta e defaults conforme o modo claro/escuro ativo.
-// Chamados dinamicamente em cada render, garantindo re-render
-// correto após APP.toggleDark (que invoca renderPage).
-// ══════════════════════════════════════════════════════════════
-
-/**
- * Retorna a paleta de cores adequada ao tema vigente.
- * Tema claro: paleta verde Palmeiras + apoios sóbrios.
- * Tema escuro: paleta Apple-style com saturação ajustada para contraste.
- * @returns {string[]} Array de 10 cores hexadecimais.
- */
+// ── CHART.JS DUAL-THEME (M03) ──
 function getChartColors() {
   const dark = document.documentElement.classList.contains('dark');
   return dark
-    ? [
-        '#32d74b', // verde Apple, cor primaria
-        '#0a84ff', // azul Apple
-        '#ff9f0a', // laranja Apple
-        '#ff453a', // vermelho Apple
-        '#bf5af2', // roxo Apple
-        '#64d2ff', // ciano Apple
-        '#ffd60a', // amarelo Apple
-        '#30d158', // verde menta
-        '#5e5ce6', // indigo Apple
-        '#ac8c00', // dourado dessaturado
-      ]
-    : [
-        '#006437', // verde Palmeiras, cor primaria
-        '#2563eb', // azul institucional
-        '#d97706', // laranja
-        '#dc2626', // vermelho
-        '#7c3aed', // roxo
-        '#0891b2', // ciano
-        '#ea580c', // laranja escuro
-        '#65a30d', // lima
-        '#4f46e5', // indigo
-        '#64748b', // slate, neutro
-      ];
+    ? ['#32d74b','#0a84ff','#ff9f0a','#ff453a','#bf5af2','#64d2ff','#ffd60a','#30d158','#5e5ce6','#ac8c00']
+    : ['#006437','#2563eb','#d97706','#dc2626','#7c3aed','#0891b2','#ea580c','#65a30d','#4f46e5','#64748b'];
 }
 
-/**
- * Retorna defaults de texto, borda e grid para Chart.js conforme o tema.
- * Centraliza a logica de cor que antes estava duplicada em cada grafico.
- * @returns {{color:string, borderColor:string, gridColor:string, tooltipBg:string}}
- */
 function getChartDefaults() {
   const dark = document.documentElement.classList.contains('dark');
   return {
@@ -91,7 +42,6 @@ const fmtN    = v => v==null||isNaN(v)?'—':Number(v).toLocaleString('pt-BR',{m
 const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d.toLocaleDateString('pt-BR'); };
 const today   = () => new Date().toISOString().split('T')[0];
 const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));
-// Valor efetivo: se foi pago, o valor real pago é o que vale (pode ter multa ou desconto)
 const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
 
 // ── DEFAULTS E SEEDS ──
@@ -103,23 +53,20 @@ const DEFAULT_TABELAS = {
 const SEED_CATS = ['Alimentação','Aposta','Barbearia','Calçado','Carro','Casa','Combustível','Contrato','Cursos','Custo com trabalho','Empréstimo','Escola','Estudos','Faculdade','Farmácia','Games','Igreja','Internet','Lanche','Negociação','Outros','Pet','Pós-Graduação','Presente','Restaurante','Roupa','Salão','Saúde','Streamer','Telefone'];
 const SEED_FORMAS = ['Automático','Boleto','Cartão Banescard Chica','Cartão flash','Cartão iFood','Cartão Itaú black','Cartão Itaú signature','Cartão Nubank','Débito','Dinheiro','PIX','Transferência'];
 
-// ── ESTADO GLOBAL (mutável, compartilhado por todos os módulos) ──
+// ── ESTADO GLOBAL ──
 const STATE = {
   page:'dashboard', pg:1, pgSz:20,
   dashResp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
   periodo:null, periodoDash:null, periodoContas:null, periodoTela:null,
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
-  sortContas:{col:null, dir:1},   // col=nome da coluna, dir=1 asc / -1 desc
+  sortContas:{col:null, dir:1},
   sortRel:   {col:null, dir:1},
   darkMode:  localStorage.getItem('dt_dark')==='1',
-  // R14: Modo Privacidade. Por design NÃO persiste em localStorage.
-  // Sempre inicia desativado para que valores não fiquem ocultos sem o usuário saber.
   hideValues: false,
 };
 
 // ── ALIASES TEMPORÁRIOS (compatibilidade com onclick no HTML) ──
-// Serão removidos quando o HTML migrar de onclick para addEventListener.
 window.fmt      = fmt;
 window.fmtN     = fmtN;
 window.fmtDate  = fmtDate;

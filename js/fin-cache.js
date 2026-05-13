@@ -5,11 +5,6 @@
  * Responsabilidade: espelho local do Firestore para acesso síncrono.
  * Populado pelos listeners em fin-db.js. Consultado por TODAS as features.
  *
- * CONTÉM:
- *   CACHE:  objeto com arrays de contas/salarios/outras/cats/formas,
- *           helpers de consulta (getByMes, getOverdue, etc.),
- *           cálculos de IR/INSS, e gate markReady para o boot.
- *
  * DEPENDÊNCIAS:
  *   fin-state.js: isOverdue, vEfetivo, DEFAULT_TABELAS
  *   app.js:       APP.onCacheReady (referenciado em runtime via markReady)
@@ -29,12 +24,6 @@ const CACHE = {
   tabelas:  null,
   _ready:   new Set(),
 
-  /**
-   * Gate do boot: cada listener do Firestore chama markReady com sua chave.
-   * Após 5 chaves coletadas, aciona APP.onCacheReady() que inicia o boot.
-   * APP é referenciado em runtime (late-binding), não em parse-time, por
-   * isso não importa que este arquivo carregue antes de app.js.
-   */
   markReady(key){
     this._ready.add(key);
     if(this._ready.size >= 5 && typeof APP !== 'undefined') APP.onCacheReady();
@@ -64,7 +53,6 @@ const CACHE = {
     const all = mes===null ? [...this.contas] : this.getByMes(mes);
     if(!resp) return all.map(c=>({...c}));
     if(resp === 'Leo & Pri') return all.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-    // Leo ou Pri: inclui compartilhadas com valor ÷2
     return all.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>{
       if(c.resp==='Leo & Pri'){
         const ef=vEfetivo(c);

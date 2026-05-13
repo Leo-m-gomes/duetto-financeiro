@@ -6,35 +6,20 @@
  *   Nenhuma feature deve chamar fbDb.collection diretamente.
  *   Tudo passa por FS.* para centralizar auditoria, log e validação.
  *
- * CONTÉM:
- *   FS:              objeto com CRUD (addConta, updateConta, deleteConta,
- *                    pagarConta, desfazerPagamento, saveSalario, etc.)
- *   setupListeners:  instala listeners real-time do Firestore que populam
- *                    CACHE e disparam re-renders via APP.renderPage
- *   seedIfEmpty:     popula banco vazio com categorias/formas/tabelas default
- *
  * DEPENDÊNCIAS:
- *   firebase-config.js: fbDb (Firestore handle)
+ *   firebase-config.js: fbDb
  *   fin-state.js:       STATE, fmt, today, DEFAULT_TABELAS, SEED_*
- *   fin-cache.js:       CACHE (populado pelos listeners aqui definidos)
+ *   fin-cache.js:       CACHE
  *   app.js:             APP.renderPage, APP.renderContas (refs runtime)
  *
  * IMPORTAÇÃO NO HTML:
  *   Carregar APÓS fin-cache.js, ANTES de app.js.
- *
- * FIX DE RACE CONDITION (Fase 1.4-D-3):
- *   Os listeners de real-time chamam APP.renderPage(STATE.page) quando
- *   dados mudam. Em modo shell, a view pode estar em trânsito (ROUTER
- *   fazendo fetch). Guard adicionado: só re-renderiza se o elemento
- *   #page-{STATE.page} existir no DOM. Isso previne renderPage tentando
- *   popular uma view que ainda não foi injetada.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
 
 const FS = {
 
-  // ── LOG INTERNO ── escreve evento imutável na coleção 'logs'
   async _log(evento, contaId, contaNome, detalhes, extras){
     try{
       await fbDb.collection('logs').add({
@@ -46,7 +31,7 @@ const FS = {
         detalhes:  detalhes || '',
         ...extras,
       });
-    }catch(e){ console.warn('Log error:', e); } // nunca bloqueia operação principal
+    }catch(e){ console.warn('Log error:', e); }
   },
 
   // ── CONTAS ──
@@ -60,11 +45,9 @@ const FS = {
   },
 
   async updateConta(id, data){
-    // Captura estado ANTES para montar diff
     const antes = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     await fbDb.collection('contas').doc(id).update({...data, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
 
-    // Monta descrição das alterações
     const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota'};
     let alteracoes = [];
     if(antes && antes.exists){
@@ -91,7 +74,6 @@ const FS = {
     await this._log('edicao', id, nome, detalhes, {valor:data.vPagar, alteracoes});
   },
 
-  // Soft delete: move para 'lixeira' + registra no log
   async deleteConta(id, motivo){
     const snap = await fbDb.collection('contas').doc(id).get();
     if(!snap.exists) return;
@@ -172,18 +154,8 @@ const FS = {
 // ── LISTENERS TEMPO REAL ──
 const listeners = [];
 
-/**
- * Instala listeners real-time do Firestore que mantêm CACHE sincronizado.
- * Chamado uma vez no onAuthStateChanged de security.js.
- *
- * FIX RACE CONDITION (Fase 1.4-D-3):
- * Cada listener, ao receber atualização após o boot, chama APP.renderPage
- * para refletir os novos dados na UI. Em modo shell, a view pode estar
- * em trânsito (ROUTER fazendo fetch). Guard `_canReRender()` verifica
- * se a view ativa existe no DOM antes de chamar renderPage.
- */
 function setupListeners(){
-  // Helper: só re-renderiza se o app já mostrou a tela principal
+  // Guard: só re-renderiza se o app já mostrou a tela principal
   // E a view ativa (page-{STATE.page}) existe no DOM.
   const _canReRender = () => {
     if(!CACHE._ready.has('_appShown')) return false;
@@ -211,7 +183,6 @@ function setupListeners(){
       CACHE.markReady('cats');
       if(_canReRender()){
         if(STATE.page==='contas') APP.renderContas();
-        // Atualiza lista do modal se estiver aberto em categorias
         const ov=document.getElementById('ovGerenciar');
         if(ov&&ov.classList.contains('open')&&STATE.gerenciarTipo==='cat') APP.renderGerenciarLista();
       }
@@ -219,7 +190,6 @@ function setupListeners(){
     fbDb.collection('formas').onSnapshot(snap=>{
       CACHE.formas=snap.docs.map(d=>({id:d.id,...d.data()}));
       CACHE.markReady('formas');
-      // Atualiza lista do modal se estiver aberto em formas
       const ov=document.getElementById('ovGerenciar');
       if(ov&&ov.classList.contains('open')&&STATE.gerenciarTipo==='forma') APP.renderGerenciarLista();
     }),
