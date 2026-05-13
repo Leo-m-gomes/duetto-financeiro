@@ -1,18 +1,16 @@
 /**
  * ═══════════════════════════════════════════════════════════════════════════
- * DUETTO FINANCEIRO, MÓDULO router.js
+ * DUETTO FINANCEIRO, MÓDULO router.js (Fase 1.4-D-3b)
  * ═══════════════════════════════════════════════════════════════════════════
- * Responsabilidade: gerenciar a navegação entre views HTML, carregando
- * fragmentos via fetch sob demanda, e injetar modais globais no boot.
+ * FIX: Após innerHTML, ativa .active no .page e aguarda 1 frame antes
+ * de chamar APP.renderPage. Elimina race condition de telas brancas.
  *
- * EXPORTS GLOBAIS:
- *   window.ROUTER : { navigate, refreshView, clearCache, injectModals, getCurrentPage }
+ * EXPORTS: window.ROUTER
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
 
 const ROUTER = (() => {
-
   const ROUTES = {
     dashboard: { file: 'views/dashboard.html', title: 'Dashboard',     adminOnly: false },
     contas:    { file: 'views/contas.html',    title: 'Contas',        adminOnly: false },
@@ -24,47 +22,23 @@ const ROUTER = (() => {
     config:    { file: 'views/config.html',    title: 'Configurações', adminOnly: true  }
   };
 
-  /**
-   * Caminho do fragmento que contém todos os 13 modais globais.
-   * Sem underscore: compatibilidade direta com GitHub Pages/Jekyll.
-   */
   const MODALS_FILE = 'views/modals.html';
-
-  /**
-   * ID do container onde os modais são injetados.
-   * Alinhado com o shell: <div id="appModals"></div>.
-   */
   const MODALS_CONTAINER_ID = 'appModals';
-
   const CONTAINER_ID = 'appMain';
-
   const viewCache = new Map();
   let currentPage = null;
   const inFlight = new Map();
   let modalsLoaded = false;
   let modalsInFlight = null;
 
-  // ── HELPERS PRIVADOS ──
-
   async function fetchView(page) {
     if (!ROUTES[page]) throw new Error('Rota desconhecida: "' + page + '"');
     if (viewCache.has(page)) return viewCache.get(page);
     if (inFlight.has(page)) return inFlight.get(page);
-
     const promise = fetch(ROUTES[page].file, { cache: 'no-cache' })
-      .then(response => {
-        if (!response.ok) throw new Error('HTTP ' + response.status + ' ao carregar ' + ROUTES[page].file);
-        return response.text();
-      })
-      .then(html => {
-        viewCache.set(page, html);
-        inFlight.delete(page);
-        return html;
-      })
-      .catch(err => {
-        inFlight.delete(page);
-        throw err;
-      });
+      .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
+      .then(html => { viewCache.set(page, html); inFlight.delete(page); return html; })
+      .catch(err => { inFlight.delete(page); throw err; });
     inFlight.set(page, promise);
     return promise;
   }
@@ -73,70 +47,68 @@ const ROUTER = (() => {
     document.querySelectorAll('.nav-item').forEach(el => {
       el.classList.toggle('active', el.dataset.page === page);
     });
-    const titleEl = document.getElementById('pageTitle');
-    if (titleEl && ROUTES[page]) titleEl.textContent = ROUTES[page].title;
-    if (typeof window.APP !== 'undefined' && typeof APP.closeSidebarMobile === 'function') {
-      APP.closeSidebarMobile();
-    }
+    const t = document.getElementById('pageTitle');
+    if (t && ROUTES[page]) t.textContent = ROUTES[page].title;
   }
 
   function renderError(page, err) {
-    const container = document.getElementById(CONTAINER_ID);
-    if (!container) return;
-    container.innerHTML =
-      '<div class="page-inner" style="padding:40px 24px">' +
-        '<div style="max-width:520px;margin:40px auto;text-align:center">' +
-          '<div style="font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--red);margin-bottom:8px">Erro ao carregar</div>' +
-          '<p style="font-size:13px;color:var(--t3);margin-bottom:18px;line-height:1.5">' +
-            'Não foi possível carregar a página <strong>' + page + '</strong>.<br>' +
-            (err && err.message ? '<span style="font-size:11.5px;color:var(--t4)">' + err.message + '</span>' : '') +
-          '</p>' +
-          '<button class="btn btn-secondary" onclick="ROUTER.navigate(\'' + page + '\')">Tentar novamente</button>' +
-        '</div>' +
-      '</div>';
+    const c = document.getElementById(CONTAINER_ID);
+    if (!c) return;
+    c.innerHTML =
+      '<div class="page active"><div class="page-inner" style="padding:40px 24px">' +
+      '<div style="max-width:520px;margin:40px auto;text-align:center">' +
+      '<div style="font-family:var(--font-d);font-size:22px;font-weight:700;color:var(--red);margin-bottom:8px">Erro ao carregar</div>' +
+      '<p style="font-size:13px;color:var(--t3);margin-bottom:18px">' +
+      'Página <strong>' + page + '</strong> não carregou.' +
+      (err ? '<br><span style="font-size:11px;color:var(--t4)">' + err.message + '</span>' : '') +
+      '</p><button class="btn btn-secondary" onclick="ROUTER.navigate(\'' + page + '\')">Tentar novamente</button>' +
+      '</div></div></div>';
   }
 
-  // ── API PÚBLICA ──
-
   async function navigate(page) {
-    if (!ROUTES[page]) {
-      console.warn('[ROUTER] Página desconhecida:', page);
-      return;
-    }
+    if (!ROUTES[page]) { console.warn('[ROUTER] Rota desconhecida:', page); return; }
     if (ROUTES[page].adminOnly) {
-      const isAdmin = (typeof window.SEC !== 'undefined' && SEC.isAdmin && SEC.isAdmin())
-        || (typeof window.STATE !== 'undefined' && window.STATE && STATE.usuario === 'Leo');
-      if (!isAdmin) {
-        if (typeof window.APP !== 'undefined' && APP.toast) APP.toast('Acesso restrito', 'error');
+      const ok = (typeof SEC !== 'undefined' && SEC.isAdmin && SEC.isAdmin())
+        || (typeof STATE !== 'undefined' && STATE && STATE.usuario === 'Leo');
+      if (!ok) {
+        if (typeof APP !== 'undefined' && APP.toast) APP.toast('Acesso restrito', 'error');
         return;
       }
     }
-
     const container = document.getElementById(CONTAINER_ID);
-    if (!container) {
-      console.error('[ROUTER] Container #' + CONTAINER_ID + ' não encontrado');
-      return;
-    }
+    if (!container) { console.error('[ROUTER] #' + CONTAINER_ID + ' ausente'); return; }
 
     try {
       const html = await fetchView(page);
+
+      // 1. Injetar HTML
       container.innerHTML = html;
       currentPage = page;
+
+      // 2. Ativar .active no .page (GARANTE visibilidade CSS ANTES de render)
+      //    Sem isso, .page{display:none} esconde tudo e render acha null.
+      const pageEl = document.getElementById('page-' + page);
+      if (pageEl) pageEl.classList.add('active');
+
+      // 3. Chrome da sidebar + título
       updateChrome(page);
 
-      try {
-        if (typeof STATE !== 'undefined' && STATE) STATE.page = page;
-      } catch (e) {}
+      // 4. STATE.page
+      try { if (typeof STATE !== 'undefined' && STATE) STATE.page = page; } catch(e){}
 
-      document.dispatchEvent(new CustomEvent('duetto:view-loaded', {
-        detail: { page, container }
-      }));
+      // 5. Evento custom
+      document.dispatchEvent(new CustomEvent('duetto:view-loaded', { detail: { page, container } }));
 
-      if (typeof window.APP !== 'undefined' && typeof APP.renderPage === 'function') {
-        APP.renderPage(page);
+      // 6. Aguardar 1 frame para o browser processar o DOM novo
+      await new Promise(resolve => requestAnimationFrame(resolve));
+
+      // 7. Popular dados via APP.renderPage
+      if (typeof APP !== 'undefined' && typeof APP.renderPage === 'function') {
+        try { APP.renderPage(page); }
+        catch(err) { console.error('[ROUTER] renderPage(' + page + ') falhou:', err); }
       }
     } catch (err) {
-      console.error('[ROUTER] Falha ao carregar view:', err);
+      console.error('[ROUTER] Falha:', err);
       renderError(page, err);
     }
   }
@@ -147,57 +119,24 @@ const ROUTER = (() => {
     await navigate(currentPage);
   }
 
-  function clearCache() {
-    viewCache.clear();
-    modalsLoaded = false;
-    modalsInFlight = null;
-  }
+  function clearCache() { viewCache.clear(); modalsLoaded = false; modalsInFlight = null; }
 
-  /**
-   * Injeta os 13 modais globais no container #appModals do shell.
-   * Idempotente, concorrência segura (Promise compartilhada).
-   * Deve ser chamada no boot ANTES de APP.modals().
-   */
   async function injectModals() {
     if (modalsLoaded) return;
     if (modalsInFlight) return modalsInFlight;
-
     modalsInFlight = (async () => {
-      const container = document.getElementById(MODALS_CONTAINER_ID);
-      if (!container) {
-        throw new Error(
-          'Container #' + MODALS_CONTAINER_ID + ' não encontrado no shell. ' +
-          'Adicione <div id="' + MODALS_CONTAINER_ID + '"></div> ao shell antes do </body>.'
-        );
-      }
-      const response = await fetch(MODALS_FILE, { cache: 'no-cache' });
-      if (!response.ok) {
-        throw new Error('HTTP ' + response.status + ' ao carregar ' + MODALS_FILE);
-      }
-      const html = await response.text();
-      container.innerHTML = html;
+      const c = document.getElementById(MODALS_CONTAINER_ID);
+      if (!c) throw new Error('Container #' + MODALS_CONTAINER_ID + ' ausente no shell.');
+      const r = await fetch(MODALS_FILE, { cache: 'no-cache' });
+      if (!r.ok) throw new Error('HTTP ' + r.status + ' ao carregar ' + MODALS_FILE);
+      c.innerHTML = await r.text();
       modalsLoaded = true;
-      document.dispatchEvent(new CustomEvent('duetto:modals-loaded', {
-        detail: { container }
-      }));
-    })().finally(() => {
-      modalsInFlight = null;
-    });
-
+      document.dispatchEvent(new CustomEvent('duetto:modals-loaded', { detail: { container: c } }));
+    })().finally(() => { modalsInFlight = null; });
     return modalsInFlight;
   }
 
-  function getCurrentPage() {
-    return currentPage;
-  }
-
-  return {
-    navigate,
-    refreshView,
-    clearCache,
-    injectModals,
-    getCurrentPage
-  };
+  function getCurrentPage() { return currentPage; }
+  return { navigate, refreshView, clearCache, injectModals, getCurrentPage };
 })();
-
 window.ROUTER = ROUTER;
