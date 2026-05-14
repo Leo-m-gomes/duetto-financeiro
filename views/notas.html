@@ -1,0 +1,465 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, view notas.html (Fase B.1)
+═══════════════════════════════════════════════════════════════════════════
+  Fragmento HTML carregado via ROUTER.navigate('notas').
+  Sem <html>, <head>, <body>, <script>, <style>.
+
+  Adaptações do protótipo v2 para produção:
+    • Removidos: nt-shell, nt-sidebar, nt-topbar (vivem no shell index.html)
+    • Removidos: nt-userswitch Leo/Pri (autenticação real via security.js)
+    • Removido: nt-toast (usa APP.toast do sistema existente)
+    • Adicionado: wrapper <div class="page" id="page-notas">
+    • Adicionado: nt-action-bar (botões da topbar do protótipo agora dentro da view)
+    • Modais permanecem DENTRO da view (isolamento: saem do DOM ao navegar)
+
+  TODA lógica de render vive em js/notes.js, ativada via evento duetto:view-loaded.
+  APP.renderPage('notas') NÃO tem case para notas (intencional, isolamento total).
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+<div class="page" id="page-notas">
+
+  <!-- ── ACTION BAR ──
+       Botões específicos da tela de Notas. No protótipo estavam na topbar;
+       em produção vivem dentro da page (a topbar do shell é compartilhada). -->
+  <div class="nt-action-bar">
+  <button class="nt-btn nt-btn-secondary" id="ntBtnLog" title="Log de atividades">
+    Log
+  </button>
+  <button class="nt-btn nt-btn-secondary" id="ntBtnTrash" title="Lixeira de notas">
+    Lixeira (<span id="ntTrashCount">0</span>)
+  </button>
+  <!-- Alternância de visualização: grade (Kanban) padrão, ou lista (Planner). -->
+  <div class="nt-viewmode" id="ntViewMode" role="group" aria-label="Modo de visualização">
+    <button data-view="grade" class="active" title="Visualização em grade">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Grade
+    </button>
+    <button data-view="lista" title="Visualização em lista">
+      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+      Lista
+    </button>
+  </div>
+  <button class="nt-btn nt-btn-primary" id="ntBtnNew">+ Nova Nota</button>
+  </div>
+
+<main class="nt-page">
+
+  <!-- ── TOOLBAR ──
+       Toggle do painel e busca rápida sempre visíveis, mesmo com painel recolhido. -->
+  <div class="nt-toolbar">
+    <button class="nt-analytics-toggle" id="ntBtnToggleAnalytics" aria-expanded="false" aria-controls="ntAnalyticsPanel">
+      <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+      <span id="ntToggleAnalyticsLabel">Mostrar Painel de Análise</span>
+    </button>
+    <!-- Busca rápida profunda: varre titulo, descrição geral, descrição/nota dos itens. -->
+    <div class="nt-search-wrap">
+      <span class="nt-search-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      </span>
+      <input type="search" class="nt-search-input" id="ntSearchInput" placeholder="Buscar em título, descrição, itens..." aria-label="Busca rápida">
+      <button class="nt-search-clear" id="ntSearchClear" aria-label="Limpar busca" title="Limpar">&times;</button>
+    </div>
+  </div>
+
+  <!-- ── PAINEL DE ANÁLISE COLAPSÁVEL ──
+       Contém filtros e KPIs. Estado inicial: oculto. -->
+  <div class="nt-analytics-panel" id="ntAnalyticsPanel">
+
+    <!-- ── BARRA DE FILTROS ──
+         Aplica filtragem combinada (AND) sobre Autor, Tipo, Status e Período (apenas Ações).
+         Resultado afeta KPIs e cards/lista simultaneamente. -->
+    <div class="nt-filters" role="region" aria-label="Filtros das notas">
+      <div class="nt-filter-group" id="ntFG_autor">
+        <label for="ntFilterAutor">Autor</label>
+        <select id="ntFilterAutor" aria-label="Filtrar por autor">
+          <option value="">Todos os autores</option>
+          <option value="Leo">Apenas Leo</option>
+          <option value="Pri">Apenas Pri</option>
+        </select>
+      </div>
+      <div class="nt-filter-group" id="ntFG_tipo">
+        <label for="ntFilterTipo">Tipo</label>
+        <select id="ntFilterTipo" aria-label="Filtrar por tipo">
+          <option value="">Anotações e Ações</option>
+          <option value="anotacao">Apenas Anotações</option>
+          <option value="acao">Apenas Ações</option>
+        </select>
+      </div>
+      <div class="nt-filter-group" id="ntFG_status">
+        <label for="ntFilterStatus">Status</label>
+        <select id="ntFilterStatus" aria-label="Filtrar por status">
+          <option value="">Todos os status</option>
+          <option value="ativa">Ativas</option>
+          <option value="atraso">Em Atraso</option>
+          <option value="concluida">Concluídas</option>
+        </select>
+      </div>
+      <!-- Período (apenas Ações), padrão Duetto: Ano + Mês Início + Mês Fim. -->
+      <div class="nt-filter-group" id="ntFG_periodo" style="flex-direction:row;align-items:center;gap:8px;align-self:flex-end">
+        <button class="nt-periodo-btn" id="ntBtnPeriodo" type="button" aria-label="Configurar filtro de período">
+          <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          <span>Período</span>
+        </button>
+        <span class="nt-periodo-badge" id="ntPeriodoBadge" title="Clique para remover o período"></span>
+      </div>
+      <div class="nt-filter-divider"></div>
+      <span class="nt-filter-count" id="ntFilterCount" style="display:none">0 filtros ativos</span>
+      <button class="nt-btn nt-btn-ghost" id="ntBtnClearFilters" style="display:none">Limpar filtros</button>
+    </div>
+
+    <!-- ── KPIs ── -->
+    <div class="nt-kpis" id="ntKpis"></div>
+
+  </div>
+
+  <!-- ── SEÇÕES POR STATUS ── -->
+  <!-- ── MODO GRADE (Kanban) ──
+       Default. Cards distribuídos em três seções por status. -->
+  <div class="nt-grid-view" id="ntGridView">
+
+    <section class="nt-section">
+      <div class="nt-section-header">
+        <span class="nt-status-dot ativa"></span>
+        <h2 class="nt-section-title">Ativas</h2>
+        <span class="nt-section-count" id="ntCountAtiva">0</span>
+      </div>
+      <div class="nt-grid" id="ntGridAtiva"></div>
+    </section>
+
+    <section class="nt-section">
+      <div class="nt-section-header">
+        <span class="nt-status-dot atraso"></span>
+        <h2 class="nt-section-title">Em Atraso</h2>
+        <span class="nt-section-count" id="ntCountAtraso">0</span>
+      </div>
+      <div class="nt-grid" id="ntGridAtraso"></div>
+    </section>
+
+    <section class="nt-section">
+      <div class="nt-section-header">
+        <span class="nt-status-dot concluida"></span>
+        <h2 class="nt-section-title">Concluídas</h2>
+        <span class="nt-section-count" id="ntCountConcluida">0</span>
+      </div>
+      <div class="nt-grid" id="ntGridConcluida"></div>
+    </section>
+
+  </div>
+
+  <!-- ── MODO LISTA (Planner) ──
+       Tabela única. Linha clicável abre o modal de edição.
+       Colunas reordenáveis e configuráveis por usuário (persistência localStorage).
+       Cabeçalhos clicáveis para ordenação ascendente/descendente. -->
+  <div class="nt-list-view" id="ntListView">
+    <div class="nt-list-actions" style="display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:10px">
+      <span class="nt-list-sort-info" id="ntListSortInfo" style="color:var(--t4);font-size:11.5px;font-weight:500"></span>
+      <button class="nt-btn nt-btn-secondary" id="ntBtnColumns" title="Configurar colunas visíveis e sua ordem">
+        <svg viewBox="0 0 24 24" width="13" height="13" style="vertical-align:-2px;margin-right:5px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Colunas
+      </button>
+    </div>
+    <div class="nt-list-wrap">
+      <table class="nt-list-table" id="ntListTable">
+        <thead><tr id="ntListHead"></tr></thead>
+        <tbody id="ntListBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</main>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL: CADASTRO / EDIÇÃO / LEITURA DE NOTA
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-modal-overlay" id="ntModalOverlay">
+  <div class="nt-modal">
+    <div class="nt-modal-header">
+      <h3 id="ntModalTitle">Nova Nota</h3>
+      <div class="nt-modal-header-actions">
+        <button class="nt-btn nt-btn-secondary" id="ntBtnAddItem" title="Adicionar item à seção Notas Adicionais">+ Item</button>
+        <button class="nt-modal-close" data-nt-close="ntModalOverlay">&times;</button>
+      </div>
+    </div>
+    <div class="nt-modal-body">
+
+      <div class="nt-form-section-title">Dados Cadastrais</div>
+      <div class="nt-fg-grid">
+        <div class="nt-fg nt-fg-full">
+          <label>Título *</label>
+          <input type="text" id="ntF_titulo" placeholder="Ex: Renovar seguro do carro">
+        </div>
+        <div class="nt-fg nt-fg-full">
+          <label>Descrição Geral</label>
+          <textarea id="ntF_descricao" rows="3" placeholder="Detalhes, contexto ou observações sobre a nota..."></textarea>
+        </div>
+        <div class="nt-fg">
+          <label>Tipo *</label>
+          <select id="ntF_tipo">
+            <option value="anotacao">Anotação</option>
+            <option value="acao">Ação</option>
+          </select>
+        </div>
+        <div class="nt-fg">
+          <label>Status *</label>
+          <select id="ntF_status">
+            <option value="ativa">Ativa</option>
+            <option value="concluida">Concluída</option>
+          </select>
+        </div>
+        <!-- Os dois campos abaixo são exclusivos do tipo "Ação".
+             Quando tipo=anotação, recebem display:none via ntApplyTipoUX. -->
+        <div class="nt-fg" id="ntFG_prazo">
+          <label>Prazo *</label>
+          <input type="date" id="ntF_prazo">
+        </div>
+        <div class="nt-fg nt-fg-full" id="ntFG_resp">
+          <label>Responsável *</label>
+          <select id="ntF_resp">
+            <option value="">Selecione...</option>
+            <option value="Leo">Leo</option>
+            <option value="Pri">Pri</option>
+            <option value="Leo & Pri">Leo & Pri</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- ── NOTAS ADICIONAIS ──
+           Seção exibida somente quando há ao menos um item.
+           Edição via sub-modal, padrão idêntico à tela de Contas. -->
+      <div class="nt-form-section-title">Notas Adicionais</div>
+
+      <div class="nt-items-empty-block" id="ntItemsEmpty">
+        Nenhum item adicionado. Clique em <strong>+ Item</strong> no topo do modal para começar.
+      </div>
+
+      <div class="nt-items-wrap hidden" id="ntItemsWrap">
+        <table class="nt-items-table" id="ntItemsTable">
+          <thead>
+            <tr>
+              <th style="width:28%">Descrição</th>
+              <th style="width:14%">Data</th>
+              <th style="width:24%">Nota</th>
+              <th class="nt-num" style="width:14%">Previsto</th>
+              <th class="nt-num" style="width:14%">Realizado</th>
+              <th style="width:6%"></th>
+            </tr>
+          </thead>
+          <tbody id="ntItemsBody"></tbody>
+        </table>
+      </div>
+
+      <div class="nt-totals" id="ntItemsTotals" style="display:none">
+        <div class="nt-total-card">
+          <label>Total Previsto</label>
+          <div class="v" id="ntTotalPrevisto">R$ 0,00</div>
+        </div>
+        <div class="nt-total-card realizado">
+          <label>Total Realizado</label>
+          <div class="v" id="ntTotalRealizado">R$ 0,00</div>
+        </div>
+      </div>
+
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-danger" id="ntBtnDelete" style="display:none">Excluir</button>
+      <span style="flex:1"></span>
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntModalOverlay">Cancelar</button>
+      <button class="nt-btn nt-btn-primary" id="ntBtnSave">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     SUB-MODAL: ITEM DE NOTAS ADICIONAIS
+     Sobreposto ao modal principal (z-index var(--z-submodal)).
+     Replica a experiência de cadastro de Contas: Descrição, Data, Nota,
+     Valor Previsto, Valor Realizado.
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-submodal-overlay" id="ntItemModalOverlay">
+  <div class="nt-submodal">
+    <div class="nt-modal-header">
+      <h3 id="ntItemModalTitle">Novo Item</h3>
+      <button class="nt-modal-close" data-nt-close="ntItemModalOverlay">&times;</button>
+    </div>
+    <div class="nt-modal-body">
+      <div class="nt-fg-grid">
+        <div class="nt-fg nt-fg-full">
+          <label>Descrição *</label>
+          <input type="text" id="ntI_descricao" placeholder="Ex: Cotação Porto Seguro">
+        </div>
+        <div class="nt-fg">
+          <label>Data</label>
+          <input type="date" id="ntI_data">
+        </div>
+        <div class="nt-fg">
+          <label>Valor Previsto (R$)</label>
+          <input type="text" id="ntI_vPrevisto" class="nt-money" inputmode="numeric" autocomplete="off" placeholder="0,00">
+        </div>
+        <div class="nt-fg">
+          <label>Valor Realizado (R$)</label>
+          <input type="text" id="ntI_vRealizado" class="nt-money" inputmode="numeric" autocomplete="off" placeholder="0,00">
+        </div>
+        <div class="nt-fg nt-fg-full">
+          <label>Nota / Observação</label>
+          <textarea id="ntI_nota" rows="2" placeholder="Detalhe opcional sobre este item..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-danger" id="ntBtnDeleteItem" style="display:none">Excluir item</button>
+      <span style="flex:1"></span>
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntItemModalOverlay">Cancelar</button>
+      <button class="nt-btn nt-btn-primary" id="ntBtnSaveItem">Salvar item</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL: FILTRO POR PERÍODO (padrão Duetto: Ano + Mês Início + Mês Fim)
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-modal-overlay" id="ntPeriodoOverlay">
+  <div class="nt-modal" style="max-width:480px">
+    <div class="nt-modal-header">
+      <h3>📅 Filtro por Período</h3>
+      <button class="nt-modal-close" data-nt-close="ntPeriodoOverlay">&times;</button>
+    </div>
+    <div class="nt-modal-body">
+      <div class="nt-periodo-info" id="ntPeriodoInfo">
+        Define um intervalo de meses dentro de um único ano. Aplica-se exclusivamente a notas do tipo Ação. Anotações ignoram o filtro.
+      </div>
+      <div class="nt-fg" style="margin-top:14px">
+        <label>Ano *</label>
+        <input type="number" id="ntPeriodoAno" min="2019" max="2035" placeholder="Ex: 2026">
+      </div>
+      <div class="nt-fg-grid" style="margin-top:14px">
+        <div class="nt-fg">
+          <label>Mês inicial *</label>
+          <select id="ntPeriodoMesIni">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+        <div class="nt-fg">
+          <label>Mês final *</label>
+          <select id="ntPeriodoMesFim">
+            <option value="">Selecione...</option>
+            <option value="0">Janeiro</option><option value="1">Fevereiro</option><option value="2">Março</option>
+            <option value="3">Abril</option><option value="4">Maio</option><option value="5">Junho</option>
+            <option value="6">Julho</option><option value="7">Agosto</option><option value="8">Setembro</option>
+            <option value="9">Outubro</option><option value="10">Novembro</option><option value="11">Dezembro</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-ghost" id="ntBtnLimparPeriodo">Limpar filtro</button>
+      <span style="flex:1"></span>
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntPeriodoOverlay">Cancelar</button>
+      <button class="nt-btn nt-btn-primary" id="ntBtnAplicarPeriodo">✅ Aplicar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL: CONFIGURAR COLUNAS DA LISTA
+     Cada usuário define quais colunas ficam visíveis e a ordem delas.
+     Persistência: localStorage com chave nt_columns_<usuario>.
+     Em produção, virará campo no documento users/{uid} no Firestore.
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-modal-overlay" id="ntColumnsOverlay">
+  <div class="nt-modal" style="max-width:560px">
+    <div class="nt-modal-header">
+      <h3>Configurar Colunas da Lista</h3>
+      <button class="nt-modal-close" data-nt-close="ntColumnsOverlay">&times;</button>
+    </div>
+    <div class="nt-modal-body">
+      <div class="nt-cols-help">
+        Marque para exibir, desmarque para ocultar. Arraste para reordenar (use as setas em dispositivos sem mouse). A configuração é salva por usuário e persistida entre sessões.
+      </div>
+      <div class="nt-cols-list" id="ntColumnsList" style="margin-top:14px"></div>
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-ghost" id="ntBtnResetColumns" title="Restaurar configuração original">↺ Restaurar padrão</button>
+      <span style="flex:1"></span>
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntColumnsOverlay">Cancelar</button>
+      <button class="nt-btn nt-btn-primary" id="ntBtnSaveColumns">Salvar configuração</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL: LIXEIRA
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-modal-overlay" id="ntTrashOverlay">
+  <div class="nt-modal" style="max-width:900px">
+    <div class="nt-modal-header">
+      <h3>Lixeira de Notas</h3>
+      <button class="nt-modal-close" data-nt-close="ntTrashOverlay">&times;</button>
+    </div>
+    <div class="nt-modal-body">
+      <p class="nt-text-3" style="margin-bottom:12px">
+        Notas excluídas permanecem aqui até serem restauradas ou removidas em definitivo.
+        Coleção de destino na produção: <strong>trash_notes</strong>.
+      </p>
+      <div class="nt-items-wrap">
+        <table class="nt-items-table">
+          <thead>
+            <tr>
+              <th>Título</th>
+              <th>Tipo</th>
+              <th>Autor</th>
+              <th>Excluído por</th>
+              <th>Excluído em</th>
+              <th style="width:140px"></th>
+            </tr>
+          </thead>
+          <tbody id="ntTrashBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntTrashOverlay">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════════════
+     MODAL: LOG DE ATIVIDADES
+     ════════════════════════════════════════════════════════════════════════ -->
+<div class="nt-modal-overlay" id="ntLogOverlay">
+  <div class="nt-modal" style="max-width:900px">
+    <div class="nt-modal-header">
+      <h3>Log de Atividades, Notas e Ações</h3>
+      <button class="nt-modal-close" data-nt-close="ntLogOverlay">&times;</button>
+    </div>
+    <div class="nt-modal-body">
+      <p class="nt-text-3" style="margin-bottom:12px">
+        Eventos imutáveis registrados a cada criação, edição, exclusão e restauração.
+        Em produção, esta consulta usará <code>activity_log</code> filtrado por <code>noteId</code>, sem combinar <code>orderBy + where</code>: a ordenação ocorre em JavaScript após o fetch.
+      </p>
+      <div class="nt-items-wrap">
+        <table class="nt-items-table">
+          <thead>
+            <tr>
+              <th style="width:160px">Data e hora</th>
+              <th style="width:120px">Evento</th>
+              <th>Detalhes</th>
+              <th style="width:80px">Usuário</th>
+            </tr>
+          </thead>
+          <tbody id="ntLogBody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="nt-modal-footer">
+      <button class="nt-btn nt-btn-ghost" data-nt-close="ntLogOverlay">Fechar</button>
+    </div>
+  </div>
+</div>
+
+</div><!-- /#page-notas -->
