@@ -17,6 +17,7 @@ const ROUTER = (() => {
     receitas:  { file: 'views/receitas.html',  title: 'Receitas',      adminOnly: false },
     salario:   { file: 'views/salario.html',   title: 'Salários',      adminOnly: false },
     relatorio: { file: 'views/relatorio.html', title: 'Relatório',     adminOnly: false },
+    notas:     { file: 'views/notas.html',     title: 'Notas e Ações', adminOnly: false },
     upload:    { file: 'views/upload.html',    title: 'Upload Cards',  adminOnly: true  },
     backup:    { file: 'views/backup.html',    title: 'Backup',        adminOnly: true  },
     config:    { file: 'views/config.html',    title: 'Configurações', adminOnly: true  }
