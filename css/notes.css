@@ -108,11 +108,10 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    TOPBAR
    ═════════════════════════════════════════════════════════════════════ */
 .nt-action-bar{
-  background:var(--surface);
-  border-bottom:1px solid var(--border);
-  
-  display:flex;align-items:center;flex-wrap:wrap;
-  box-shadow:0 1px 0 var(--border-soft);
+  background:transparent;
+  border:none;
+  box-shadow:none;
+  display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
