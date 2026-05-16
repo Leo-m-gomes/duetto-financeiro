@@ -4,7 +4,7 @@
  *
  * ARQUITETURA:
  *   Estado:       NOTES_STATE (local, nao polui STATE global)
- *   Persistencia: localStorage chave 'duetto_notes' (Firestore na Parte 2)
+ *   Persistencia: Firestore colecoes 'notes', 'notes_trash', 'notes_log'
  *   Render:       acionado via evento 'duetto:view-loaded' page='notas'
  *   Permissoes:   consome SEC.isAdmin() e STATE.usuario
  *   Toast:        consome APP.toast(msg, type)
@@ -251,38 +251,45 @@ function ntStatusEfetivo(note){
    ───────────────────────────────────────────────────────────────────── */
 
 /**
- * Registra evento imutável no log do módulo.
+ * Registra evento imutável na coleção notes_log do Firestore.
  * Toda criação, edição, exclusão e restauração passa por aqui.
+ * Imutável: Security Rules devem bloquear update e delete nesta coleção.
  *
  * @param {string} evento identificador semântico (cadastro, edicao, etc)
  * @param {string} noteId
  * @param {string} detalhes texto livre legível
  */
-function ntLog(evento, noteId, detalhes){
-  NOTES_STATE.activityLog.unshift({
-    id: ntUid(),
-    evento,
-    noteId: noteId || null,
-    detalhes: detalhes || '',
-    usuario: STATE.usuario,
-    timestamp: ntNow()
-  });
+async function ntLog(evento, noteId, detalhes){
+  try {
+    await fbDb.collection('notes_log').add({
+      evento,
+      noteId: noteId || null,
+      detalhes: detalhes || '',
+      usuario: STATE.usuario,
+      timestamp: ntNow(),
+      serverTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  } catch(e) {
+    console.warn('[NT] Falha ao registrar log:', e);
+    // Log nunca bloqueia operação principal
+  }
 }
 
 /* ═════════════════════════════════════════════════════════════════════
-   OPERAÇÕES CRUD, MOCKADAS PARA O PROTÓTIPO
-   Cada função simula a chamada que será feita ao Firestore.
-   Mantemos a mesma assinatura prevista para não exigir refactor depois.
+   OPERAÇÕES CRUD, FIRESTORE REAL
+   Cada função escreve em fbDb.collection('notes'), 'notes_trash' ou
+   'notes_log'. Os arrays NOTES_STATE.notes e .trash são atualizados
+   automaticamente pelos listeners onSnapshot (setupNotesListeners).
+   Por isso, as funções CRUD NÃO manipulam os arrays diretamente.
    ───────────────────────────────────────────────────────────────────── */
 
 /**
- * Cria nota nova. Autor é fixado no usuário corrente e nunca muda.
+ * Cria nota nova no Firestore. Autor fixado no usuário corrente.
  * @param {object} data
- * @returns {string} id da nota criada
+ * @returns {Promise<string>} id do documento criado
  */
-function ntCreateNote(data){
-  const note = {
-    id: ntUid(),
+async function ntCreateNote(data){
+  const doc = {
     titulo: data.titulo,
     descricao: data.descricao || '',
     tipo: data.tipo,
@@ -292,27 +299,28 @@ function ntCreateNote(data){
     autor: STATE.usuario,
     criadaEm: ntNow(),
     atualizadaEm: ntNow(),
-    itens: data.itens || []
+    itens: data.itens || [],
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
   };
-  NOTES_STATE.notes.push(note);
-  ntLog('cadastro', note.id, 'Nota "' + note.titulo + '" criada');
-  return note.id;
+  const ref = await fbDb.collection('notes').add(doc);
+  await ntLog('cadastro', ref.id, 'Nota "' + data.titulo + '" criada');
+  return ref.id;
 }
 
 /**
- * Atualiza nota existente. Bloqueia se o usuário não for autor.
+ * Atualiza nota existente. Bloqueia se o usuário não for autor/admin.
  * @param {string} id
  * @param {object} data
- * @returns {boolean} sucesso
+ * @returns {Promise<boolean>} sucesso
  */
-function ntUpdateNote(id, data){
+async function ntUpdateNote(id, data){
   const note = NOTES_STATE.notes.find(n => n.id === id);
   if(!note) return false;
   if(!ntCanEdit(note, STATE.usuario)){
     APP.toast('Sem permissão: somente o autor pode editar', 'error');
     return false;
   }
-  Object.assign(note, {
+  await fbDb.collection('notes').doc(id).update({
     titulo: data.titulo,
     descricao: data.descricao || '',
     tipo: data.tipo,
@@ -320,54 +328,62 @@ function ntUpdateNote(id, data){
     prazo: data.prazo || null,
     responsavel: data.responsavel || null,
     itens: data.itens || [],
-    atualizadaEm: ntNow()
+    atualizadaEm: ntNow(),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
   });
-  ntLog('edicao', note.id, 'Nota "' + note.titulo + '" editada');
+  await ntLog('edicao', id, 'Nota "' + data.titulo + '" editada');
   return true;
 }
 
 /**
- * Move nota para a lixeira. Operação reversível via ntRestoreNote.
+ * Soft-delete: move nota para coleção 'notes_trash' e remove de 'notes'.
  * @param {string} id
- * @returns {boolean}
+ * @returns {Promise<boolean>}
  */
-function ntDeleteNote(id){
-  const idx = NOTES_STATE.notes.findIndex(n => n.id === id);
-  if(idx < 0) return false;
-  const note = NOTES_STATE.notes[idx];
+async function ntDeleteNote(id){
+  const note = NOTES_STATE.notes.find(n => n.id === id);
+  if(!note) return false;
   if(!ntCanEdit(note, STATE.usuario)){
     APP.toast('Sem permissão: somente o autor pode excluir', 'error');
     return false;
   }
-  NOTES_STATE.notes.splice(idx, 1);
-  NOTES_STATE.trash.unshift({
-    ...note,
-    excluidoPor: STATE.usuario,
-    excluidoEm: ntNow()
-  });
-  ntLog('exclusao', note.id, 'Nota "' + note.titulo + '" movida para lixeira');
+  // Copia para trash com metadados de exclusão
+  const trashData = { ...note };
+  delete trashData.id; // Firestore gera novo ID no trash
+  trashData.origemId = id;
+  trashData.excluidoPor = STATE.usuario;
+  trashData.excluidoEm = ntNow();
+  trashData.excluidoAt = firebase.firestore.FieldValue.serverTimestamp();
+  await fbDb.collection('notes_trash').add(trashData);
+  await fbDb.collection('notes').doc(id).delete();
+  await ntLog('exclusao', id, 'Nota "' + note.titulo + '" movida para lixeira');
   return true;
 }
 
 /**
  * Restaura nota da lixeira para a coleção principal.
- * @param {string} id
- * @returns {boolean}
+ * @param {string} trashDocId ID do documento na coleção notes_trash
+ * @returns {Promise<boolean>}
  */
-function ntRestoreNote(id){
-  const idx = NOTES_STATE.trash.findIndex(n => n.id === id);
-  if(idx < 0) return false;
-  const note = NOTES_STATE.trash[idx];
+async function ntRestoreNote(trashDocId){
+  const note = NOTES_STATE.trash.find(n => n.id === trashDocId);
+  if(!note) return false;
   if(!ntCanEdit(note, STATE.usuario)){
     APP.toast('Sem permissão: somente o autor pode restaurar', 'error');
     return false;
   }
-  NOTES_STATE.trash.splice(idx, 1);
-  // Limpa metadados de lixeira antes de devolver à coleção principal.
-  delete note.excluidoPor;
-  delete note.excluidoEm;
-  NOTES_STATE.notes.push(note);
-  ntLog('restauracao', note.id, 'Nota "' + note.titulo + '" restaurada da lixeira');
+  // Reconstrói o documento limpo (sem metadados de lixeira)
+  const restored = { ...note };
+  delete restored.id;
+  delete restored.excluidoPor;
+  delete restored.excluidoEm;
+  delete restored.excluidoAt;
+  delete restored.origemId;
+  restored.atualizadaEm = ntNow();
+  restored.restoredAt = firebase.firestore.FieldValue.serverTimestamp();
+  await fbDb.collection('notes').add(restored);
+  await fbDb.collection('notes_trash').doc(trashDocId).delete();
+  await ntLog('restauracao', trashDocId, 'Nota "' + note.titulo + '" restaurada da lixeira');
   return true;
 }
 
@@ -1238,7 +1254,7 @@ function ntDeleteItem(){
 
 
 
-function ntSaveNote(){
+async function ntSaveNote(){
   const titulo    = document.getElementById('ntF_titulo').value.trim();
   const descricao = document.getElementById('ntF_descricao').value.trim();
   const tipo      = document.getElementById('ntF_tipo').value;
@@ -1277,29 +1293,41 @@ function ntSaveNote(){
     }))
   };
 
-  if(NOTES_STATE.editingId){
-    if(ntUpdateNote(NOTES_STATE.editingId, payload)){
-      APP.toast('Nota atualizada', 'success');
+  try {
+    if(NOTES_STATE.editingId){
+      const ok = await ntUpdateNote(NOTES_STATE.editingId, payload);
+      if(ok){
+        APP.toast('Nota atualizada', 'success');
+        ntCloseOverlay('ntModalOverlay');
+        // onSnapshot re-renderiza automaticamente
+      }
+    } else {
+      await ntCreateNote(payload);
+      APP.toast('Nota criada', 'success');
       ntCloseOverlay('ntModalOverlay');
-      ntRenderAll();
+      // onSnapshot re-renderiza automaticamente
     }
-  } else {
-    ntCreateNote(payload);
-    APP.toast('Nota criada', 'success');
-    ntCloseOverlay('ntModalOverlay');
-    ntRenderAll();
+  } catch(err) {
+    console.error('[NT] Erro ao salvar nota:', err);
+    APP.toast('Erro ao salvar: ' + err.message, 'error');
   }
 }
 
-function ntDeleteCurrent(){
+async function ntDeleteCurrent(){
   if(!NOTES_STATE.editingId) return;
   const note = NOTES_STATE.notes.find(n => n.id === NOTES_STATE.editingId);
   if(!note) return;
   if(!confirm(`Mover "${note.titulo}" para a lixeira?`)) return;
-  if(ntDeleteNote(note.id)){
-    APP.toast('Nota movida para lixeira', 'success');
-    ntCloseOverlay('ntModalOverlay');
-    ntRenderAll();
+  try {
+    const ok = await ntDeleteNote(note.id);
+    if(ok){
+      APP.toast('Nota movida para lixeira', 'success');
+      ntCloseOverlay('ntModalOverlay');
+      // onSnapshot re-renderiza automaticamente
+    }
+  } catch(err) {
+    console.error('[NT] Erro ao excluir:', err);
+    APP.toast('Erro ao excluir: ' + err.message, 'error');
   }
 }
 
@@ -1335,30 +1363,43 @@ function ntRenderTrash(){
     `;
   }).join('');
   tbody.querySelectorAll('[data-restore]').forEach(btn => {
-    btn.addEventListener('click', () => {
-      if(ntRestoreNote(btn.dataset.restore)){
-        APP.toast('Nota restaurada', 'success');
-        ntRenderTrash();
-        ntRenderAll();
+    btn.addEventListener('click', async () => {
+      try {
+        const ok = await ntRestoreNote(btn.dataset.restore);
+        if(ok){
+          APP.toast('Nota restaurada', 'success');
+          // onSnapshot re-renderiza automaticamente
+        }
+      } catch(err) {
+        console.error('[NT] Erro ao restaurar:', err);
+        APP.toast('Erro ao restaurar: ' + err.message, 'error');
       }
     });
   });
 }
 
-function ntRenderLog(){
+async function ntRenderLog(){
   const tbody = document.getElementById('ntLogBody');
-  // Diretriz: ordenamos no JS, sem combinar where + orderBy no Firestore.
-  const sorted = [...NOTES_STATE.activityLog].sort((a, b) => b.timestamp.localeCompare(a.timestamp));
-  if(sorted.length === 0){
-    tbody.innerHTML = `<tr><td colspan="4" class="nt-items-empty">Nenhum evento registrado.</td></tr>`;
-    return;
-  }
-  const evMap = {
-    cadastro:    'Cadastro',
-    edicao:      'Edição',
-    exclusao:    'Exclusão',
-    restauracao: 'Restauração'
-  };
+  tbody.innerHTML = '<tr><td colspan="4" class="nt-items-empty">Carregando...</td></tr>';
+
+  try {
+    // Carrega os últimos 100 eventos do log, ordenados por timestamp descendente.
+    // Diretriz: não combinar orderBy + where. Ordenamos no JS.
+    const snap = await fbDb.collection('notes_log').get();
+    const sorted = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.timestamp || '').localeCompare(a.timestamp || ''));
+
+    if(sorted.length === 0){
+      tbody.innerHTML = '<tr><td colspan="4" class="nt-items-empty">Nenhum evento registrado.</td></tr>';
+      return;
+    }
+    const evMap = {
+      cadastro:    'Cadastro',
+      edicao:      'Edição',
+      exclusao:    'Exclusão',
+      restauracao: 'Restauração'
+    };
   tbody.innerHTML = sorted.map(e => `
     <tr>
       <td>${ntFmtDateTime(e.timestamp)}</td>
@@ -1367,6 +1408,10 @@ function ntRenderLog(){
       <td>${e.usuario}</td>
     </tr>
   `).join('');
+  } catch(err) {
+    console.error('[NT] Erro ao carregar log:', err);
+    tbody.innerHTML = '<tr><td colspan="4" class="nt-items-empty">Erro ao carregar log.</td></tr>';
+  }
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -1403,79 +1448,75 @@ function ntCloseOverlay(id){
 }
 
 /* ═════════════════════════════════════════════════════════════════════
-   SEED, DADOS DE DEMONSTRAÇÃO
+   SEED DESATIVADO (dados reais vêm do Firestore)
    ───────────────────────────────────────────────────────────────────── */
 
 function ntSeed(){
-  // Útil para validar visualmente todas as combinações: autores diferentes,
-  // tipos diferentes, status diferentes, com e sem itens.
-  const hojeMinus5 = new Date(Date.now() - 5*86400000).toISOString().slice(0,10);
-  const hojeMinus1 = new Date(Date.now() - 1*86400000).toISOString().slice(0,10);
-  const hojePlus10 = new Date(Date.now() + 10*86400000).toISOString().slice(0,10);
-  const hojePlus20 = new Date(Date.now() + 20*86400000).toISOString().slice(0,10);
+  // Desativado na Fase B.2: dados reais vêm do Firestore via onSnapshot.
+  // Mantido como função vazia para compatibilidade com chamadas existentes.
+}
 
-  NOTES_STATE.notes = [
-    {
-      id: ntUid(),
-      titulo: 'Renovar seguro do carro',
-      descricao: 'Comparar três cotações antes de fechar. Verificar coberturas para enchente e roubo, dado que estacionamos na rua.',
-      tipo: 'acao', status: 'ativa', prazo: hojePlus10, responsavel: 'Leo',
-      autor: 'Leo', criadaEm: ntNow(), atualizadaEm: ntNow(),
-      itens: [
-        {id:ntUid(), descricao:'Cotação Porto Seguro', data:hojeMinus1, nota:'Anual à vista', vPrevistoCent:240000, vRealizadoCent:0},
-        {id:ntUid(), descricao:'Cotação Bradesco',     data:hojeMinus1, nota:'',              vPrevistoCent:265000, vRealizadoCent:0}
-      ]
-    },
-    {
-      id: ntUid(),
-      titulo: 'Comprar passagens férias julho',
-      descricao: 'Saída em 12/07, retorno em 22/07. Avaliar Smiles e Latam Pass para usar pontos.',
-      tipo: 'acao', status: 'ativa', prazo: hojeMinus5, responsavel: 'Leo & Pri',
-      autor: 'Leo', criadaEm: ntNow(), atualizadaEm: ntNow(),
-      itens: [
-        {id:ntUid(), descricao:'Trecho Rio, Porto', data:'', nota:'2 adultos', vPrevistoCent:380000, vRealizadoCent:0}
-      ]
-    },
-    {
-      id: ntUid(),
-      titulo: 'Lista de presentes aniversário Pri',
-      descricao: 'Brainstorm aberto, ideias chegam ao longo do ano. Filtrar pelas três melhores em junho.',
-      tipo: 'anotacao', status: 'ativa', prazo: null, responsavel: null,
-      autor: 'Leo', criadaEm: ntNow(), atualizadaEm: ntNow(),
-      itens: []
-    },
-    {
-      id: ntUid(),
-      titulo: 'Ideias de jantar fim de semana',
-      descricao: '',
-      tipo: 'anotacao', status: 'ativa', prazo: null, responsavel: null,
-      autor: 'Pri', criadaEm: ntNow(), atualizadaEm: ntNow(),
-      itens: [
-        {id:ntUid(), descricao:'Risoto de funghi', data:'', nota:'pegar funghi seco', vPrevistoCent:8500, vRealizadoCent:0}
-      ]
-    },
-    {
-      id: ntUid(),
-      titulo: 'Trocar lâmpadas LED da sala',
-      descricao: 'Substituir todas as lâmpadas amarelas por LED 9W brancas para padronizar.',
-      tipo: 'acao', status: 'concluida', prazo: hojePlus20, responsavel: 'Leo',
-      autor: 'Leo', criadaEm: ntNow(), atualizadaEm: ntNow(),
-      itens: [
-        {id:ntUid(), descricao:'4 lâmpadas LED 9W', data:hojeMinus5, nota:'compradas no Carrefour', vPrevistoCent:6000, vRealizadoCent:6420}
-      ]
-    }
-  ];
-  // Pré-popular log com os cadastros sintéticos.
-  NOTES_STATE.notes.forEach(n => {
-    NOTES_STATE.activityLog.push({
-      id: ntUid(),
-      evento: 'cadastro',
-      noteId: n.id,
-      detalhes: 'Nota "' + n.titulo + '" criada (seed)',
-      usuario: n.autor,
-      timestamp: n.criadaEm
-    });
+/* ═════════════════════════════════════════════════════════════════════
+   LISTENERS REAL-TIME (FIRESTORE)
+   Espelham os dados do Firestore em NOTES_STATE.notes e .trash.
+   Cada snapshot atualiza o array local e re-renderiza a UI.
+   Mesma abordagem usada por fin-db.js para CACHE.contas.
+   ───────────────────────────────────────────────────────────────────── */
+
+const _ntListeners = [];
+
+/**
+ * Instala listeners onSnapshot para as coleções notes e notes_trash.
+ * Chamado UMA VEZ no NT.init(). Idempotente: se já instalou, não duplica.
+ *
+ * Os listeners atualizam NOTES_STATE.notes e .trash automaticamente.
+ * Cada mudança no Firestore (por Leo OU Pri, em qualquer dispositivo)
+ * dispara re-render imediato sem precisar de refresh.
+ */
+function setupNotesListeners(){
+  // Guard: não duplicar listeners
+  if(_ntListeners.length > 0) return;
+
+  // ── Coleção principal: notes ──
+  _ntListeners.push(
+    fbDb.collection('notes').onSnapshot(snap => {
+      NOTES_STATE.notes = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // Re-renderizar apenas se estamos na tela de Notas
+      if(typeof STATE !== 'undefined' && STATE.page === 'notas'){
+        ntRenderAll();
+      }
+    }, err => {
+      console.error('[NT] Erro no listener de notes:', err);
+    })
+  );
+
+  // ── Coleção de lixeira: notes_trash ──
+  _ntListeners.push(
+    fbDb.collection('notes_trash').onSnapshot(snap => {
+      NOTES_STATE.trash = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if(typeof STATE !== 'undefined' && STATE.page === 'notas'){
+        ntRenderTrashCount();
+        // Se o modal da lixeira estiver aberto, re-renderiza
+        const trashOv = document.getElementById('ntTrashOverlay');
+        if(trashOv && trashOv.classList.contains('open')){
+          ntRenderTrash();
+        }
+      }
+    }, err => {
+      console.error('[NT] Erro no listener de notes_trash:', err);
+    })
+  );
+}
+
+/**
+ * Remove listeners. Chamado no NT.destroy() para evitar listeners
+ * órfãos consumindo quota do Firestore quando o módulo não está ativo.
+ */
+function teardownNotesListeners(){
+  _ntListeners.forEach(unsub => {
+    if(typeof unsub === 'function') unsub();
   });
+  _ntListeners.length = 0;
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -1980,16 +2021,22 @@ const NT = {
   _initialized: false,
 
   init() {
-    ntSeed();
+    // Instalar listeners real-time do Firestore (idempotente)
+    setupNotesListeners();
+    // Carregar preferências do usuário (colunas, ordenação, viewMode)
     ntApplyUserPrefs(STATE.usuario);
+    // Instalar event listeners nos elementos da view
     ntBindEvents();
+    // Aplicar estado visual inicial
     ntApplyAnalyticsState();
     ntApplyViewMode();
+    // Render inicial (onSnapshot populará os dados e re-renderizará)
     ntRenderAll();
     this._initialized = true;
   },
 
   destroy() {
+    teardownNotesListeners();
     this._initialized = false;
   }
 };
