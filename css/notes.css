@@ -105,13 +105,32 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
    ═════════════════════════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════════════════════════
-   TOPBAR
+   TOPBAR UNIFICADA (Melhoria 03 — toolbar absorvida no action-bar)
    ═════════════════════════════════════════════════════════════════════ */
 .nt-action-bar{
   background:transparent;
   border:none;
   box-shadow:none;
-  display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;
+  display:flex;align-items:center;flex-wrap:nowrap;
+}
+
+/* Search-wrap dentro do action-bar expande para preencher espaço disponível */
+.nt-action-bar .nt-search-wrap{
+  flex:1 1 auto;
+}
+
+/* Divisor visual entre busca e botões de ação */
+.nt-bar-divider{
+  width:1px;
+  background:var(--border2);
+  align-self:stretch;
+  flex-shrink:0;
+}
+
+/* ── Botão + Item reposicionado abaixo da tabela de itens (Melhoria 02) ── */
+.nt-add-item-bar{
+  display:flex;
+  align-items:center;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -343,7 +362,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   transition:color .15s var(--ease), border-color .15s var(--ease), background .15s var(--ease);
 }
 .nt-modal-close:hover{color:var(--red);border-color:var(--red-100);background:var(--red-lt)}
-.nt-modal-body{overflow-y:auto;flex:1;background:var(--surface)}
+.nt-modal-body{overflow-y:auto;flex:1;min-height:0;background:var(--surface)}
 .nt-modal-footer{
   display:flex;justify-content:flex-end;
   border-top:1px solid var(--border);
@@ -487,7 +506,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 /* ═══════════════════════════════════════════════════════════════════════
    TOOLBAR (busca + toggle)
    ═════════════════════════════════════════════════════════════════════ */
-.nt-toolbar{display:flex;align-items:center;flex-wrap:wrap}
+/* ─── nt-toolbar foi absorvida no nt-action-bar (Melhoria 03) ─── */
 .nt-search-wrap{position:relative;display:flex;align-items:center;flex:1}
 .nt-search-input{
   background:var(--surface);
@@ -794,7 +813,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   
   
-  .nt-action-bar{padding:10px 12px;gap:8px}
+  .nt-action-bar{padding:10px 12px;gap:8px;flex-wrap:wrap}
+  .nt-bar-divider{width:1px;margin:0 2px}
+  .nt-add-item-bar{margin-top:10px}
   
   
   .nt-periodo-btn{padding:6px 11px;font-size:11px;gap:5px}
@@ -861,10 +882,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   .nt-total-card label{font-size:9.5px}
   .nt-total-card .v{font-size:17px;margin-top:5px}
   
-  .nt-analytics-toggle{padding:8px 12px;font-size:11.5px;gap:6px;margin-bottom:0}
-  .nt-analytics-toggle svg{width:12px;height:12px}
-  .nt-toolbar{gap:8px;margin-bottom:12px;flex-direction:column;align-items:stretch}
-  .nt-search-wrap{flex:1 1 100%}
+  /* nt-toolbar absorvida no nt-action-bar: regras de espaçamento agora em .nt-action-bar */
+  .nt-search-wrap{flex:1 1 100%;min-width:0}
   .nt-search-input{padding:9px 34px 9px 32px;font-size:12px;height:36px}
   .nt-search-icon{left:10px;width:14px;height:14px}
   .nt-search-icon svg{width:13px;height:13px}
@@ -905,7 +924,9 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   
   
-  .nt-action-bar{padding:13px 16px;gap:10px}
+  .nt-action-bar{padding:13px 16px;gap:10px;flex-wrap:wrap}
+  .nt-bar-divider{width:1px;margin:0 2px}
+  .nt-add-item-bar{margin-top:12px}
   
   
   .nt-periodo-btn{padding:7px 13px;font-size:11.5px;gap:6px}
@@ -975,8 +996,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   .nt-analytics-toggle{padding:9px 14px;font-size:12px;gap:7px;margin-bottom:0}
   .nt-analytics-toggle svg{width:13px;height:13px}
-  .nt-toolbar{gap:10px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
-  .nt-search-wrap{flex:1 1 100%;min-width:0}
+  /* nt-toolbar absorvida no action-bar */
+  .nt-search-wrap{flex:1 1 auto;min-width:160px}
   .nt-search-input{padding:9px 36px 9px 34px;font-size:12.5px;height:38px}
   .nt-search-icon{left:11px;width:14px;height:14px}
   .nt-search-icon svg{width:13px;height:13px}
@@ -1016,6 +1037,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   
   .nt-action-bar{padding:16px 22px;gap:12px}
+  .nt-bar-divider{width:1px;margin:0 4px}
+  .nt-add-item-bar{margin-top:14px}
   
   
   .nt-periodo-btn{padding:9px 14px;font-size:12px;gap:7px}
@@ -1084,7 +1107,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   .nt-analytics-toggle{padding:10px 16px;font-size:12.5px;gap:8px;margin-bottom:0}
   .nt-analytics-toggle svg{width:14px;height:14px}
-  .nt-toolbar{gap:12px;margin-bottom:16px;align-items:center}
+  /* nt-toolbar absorvida no action-bar */
   .nt-search-wrap{flex:1 1 auto;max-width:440px}
   .nt-search-input{padding:10px 36px 10px 38px;font-size:13px;height:40px}
   .nt-search-icon{left:13px;width:16px;height:16px}
@@ -1122,6 +1145,8 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   
   .nt-action-bar{padding:16px 30px;gap:14px}
+  .nt-bar-divider{width:1px;margin:0 4px}
+  .nt-add-item-bar{margin-top:14px}
   
   
   .nt-periodo-btn{padding:10px 16px;font-size:12.5px;gap:7px}
@@ -1190,7 +1215,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
   
   .nt-analytics-toggle{padding:11px 18px;font-size:12.5px;gap:8px;margin-bottom:0}
   .nt-analytics-toggle svg{width:14px;height:14px}
-  .nt-toolbar{gap:14px;margin-bottom:20px;align-items:center}
+  /* nt-toolbar absorvida no action-bar */
   .nt-search-wrap{flex:1 1 auto;max-width:500px}
   .nt-search-input{padding:11px 40px 11px 40px;font-size:13px;height:42px}
   .nt-search-icon{left:14px;width:16px;height:16px}
