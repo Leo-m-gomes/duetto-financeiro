@@ -1197,9 +1197,11 @@ function ntOpenItemModal(idx){
 
 /**
  * Persiste o item editado no sub-modal de volta em draftItems.
- * Não toca no estado da nota até o usuário clicar em Salvar no modal principal.
+ * Quando a nota já existe no Firestore (editingId != null), persiste
+ * imediatamente o array de itens, sem precisar clicar em Salvar no modal
+ * principal (Melhoria 02 — save imediato de item).
  */
-function ntSaveItem(){
+async function ntSaveItem(){
   const desc       = document.getElementById('ntI_descricao').value.trim();
   const data       = document.getElementById('ntI_data').value || null;
   const nota       = document.getElementById('ntI_nota').value.trim();
@@ -1219,7 +1221,6 @@ function ntSaveItem(){
       vPrevistoCent:  vPrevisto,
       vRealizadoCent: vRealizado
     });
-    APP.toast('Item adicionado', 'success');
   } else {
     // Edição.
     const it = NOTES_STATE.draftItems[idx];
@@ -1229,27 +1230,81 @@ function ntSaveItem(){
     it.nota = nota;
     it.vPrevistoCent  = vPrevisto;
     it.vRealizadoCent = vRealizado;
-    APP.toast('Item atualizado', 'success');
   }
+
   NOTES_STATE.editingItemIdx = null;
   ntCloseOverlay('ntItemModalOverlay');
   ntRenderItems();
+
+  // ── Persist imediato ao Firestore (apenas quando nota já existe) ──
+  // Para notas novas (editingId === null), o save ocorre quando o usuário
+  // salvar a nota pela primeira vez no modal principal (comportamento mantido).
+  if(NOTES_STATE.editingId){
+    try {
+      const itensPayload = NOTES_STATE.draftItems.map(it => ({
+        id:             it.id,
+        descricao:      it.descricao || '',
+        data:           it.data || null,
+        nota:           it.nota || '',
+        vPrevistoCent:  it.vPrevistoCent  || 0,
+        vRealizadoCent: it.vRealizadoCent || 0
+      }));
+      await fbDb.collection('notes').doc(NOTES_STATE.editingId).update({
+        itens:       itensPayload,
+        atualizadaEm: ntNow(),
+        updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
+      });
+      APP.toast(idx == null ? 'Item adicionado e salvo' : 'Item atualizado e salvo', 'success');
+    } catch(err) {
+      console.error('[NT] Erro ao salvar item imediatamente:', err);
+      // Item já está em draftItems; o toast alerta sem bloquear fluxo.
+      APP.toast('Item salvo localmente (falha ao sincronizar)', 'warning');
+    }
+  } else {
+    APP.toast(idx == null ? 'Item adicionado' : 'Item atualizado', 'success');
+  }
 }
 
 /**
  * Remove o item atualmente em edição. Confirmação obrigatória.
+ * Quando a nota já existe no Firestore, persiste a remoção imediatamente.
  */
-function ntDeleteItem(){
+async function ntDeleteItem(){
   const idx = NOTES_STATE.editingItemIdx;
   if(idx == null){ APP.toast('Sem item selecionado', 'error'); return; }
   const it = NOTES_STATE.draftItems[idx];
   if(!it) return;
   if(!confirm(`Remover o item "${it.descricao || '(sem descrição)'}" desta nota?`)) return;
+
   NOTES_STATE.draftItems.splice(idx, 1);
   NOTES_STATE.editingItemIdx = null;
   ntCloseOverlay('ntItemModalOverlay');
   ntRenderItems();
-  APP.toast('Item removido', 'success');
+
+  // Persist imediato quando a nota já existe no Firestore.
+  if(NOTES_STATE.editingId){
+    try {
+      const itensPayload = NOTES_STATE.draftItems.map(it => ({
+        id:             it.id,
+        descricao:      it.descricao || '',
+        data:           it.data || null,
+        nota:           it.nota || '',
+        vPrevistoCent:  it.vPrevistoCent  || 0,
+        vRealizadoCent: it.vRealizadoCent || 0
+      }));
+      await fbDb.collection('notes').doc(NOTES_STATE.editingId).update({
+        itens:       itensPayload,
+        atualizadaEm: ntNow(),
+        updatedAt:   firebase.firestore.FieldValue.serverTimestamp()
+      });
+      APP.toast('Item removido e salvo', 'success');
+    } catch(err) {
+      console.error('[NT] Erro ao remover item imediatamente:', err);
+      APP.toast('Item removido localmente (falha ao sincronizar)', 'warning');
+    }
+  } else {
+    APP.toast('Item removido', 'success');
+  }
 }
 
 
@@ -1988,9 +2043,9 @@ function ntBindEvents(){
   // + Item, agora abre o sub-modal em modo criação.
   document.getElementById('ntBtnAddItem').addEventListener('click', () => ntOpenItemModal(null));
 
-  // Sub-modal de item: salvar e excluir.
-  document.getElementById('ntBtnSaveItem').addEventListener('click', ntSaveItem);
-  document.getElementById('ntBtnDeleteItem').addEventListener('click', ntDeleteItem);
+  // Sub-modal de item: salvar e excluir (async: persist imediato ao Firestore).
+  document.getElementById('ntBtnSaveItem').addEventListener('click', () => ntSaveItem());
+  document.getElementById('ntBtnDeleteItem').addEventListener('click', () => ntDeleteItem());
 
   // Máscara de moeda em tempo real para todos os campos .nt-money.
   // Reaproveita ntParseCents (string → centavos) e ntFmtNumero (centavos → string pt-BR).
