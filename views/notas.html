@@ -23,45 +23,57 @@
   <!-- ── ACTION BAR ──
        Botões específicos da tela de Notas. No protótipo estavam na topbar;
        em produção vivem dentro da page (a topbar do shell é compartilhada). -->
+  <!-- ── ACTION BAR UNIFICADA ──
+       Toggle de análise + busca rápida + divisor + ações da tela,
+       todos na mesma linha (Melhoria 03). -->
   <div class="nt-action-bar">
-  <button class="nt-btn nt-btn-secondary" id="ntBtnLog" title="Log de atividades">
-    Log
-  </button>
-  <button class="nt-btn nt-btn-secondary" id="ntBtnTrash" title="Lixeira de notas">
-    Lixeira (<span id="ntTrashCount">0</span>)
-  </button>
-  <!-- Alternância de visualização: grade (Kanban) padrão, ou lista (Planner). -->
-  <div class="nt-viewmode" id="ntViewMode" role="group" aria-label="Modo de visualização">
-    <button data-view="grade" class="active" title="Visualização em grade">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
-      Grade
-    </button>
-    <button data-view="lista" title="Visualização em lista">
-      <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
-      Lista
-    </button>
-  </div>
-  <button class="nt-btn nt-btn-primary" id="ntBtnNew">+ Nova Nota</button>
-  </div>
 
-<main class="nt-page">
-
-  <!-- ── TOOLBAR ──
-       Toggle do painel e busca rápida sempre visíveis, mesmo com painel recolhido. -->
-  <div class="nt-toolbar">
-    <button class="nt-analytics-toggle" id="ntBtnToggleAnalytics" aria-expanded="false" aria-controls="ntAnalyticsPanel">
+    <!-- Toggle do painel de análise (antes em nt-toolbar) -->
+    <button class="nt-analytics-toggle" id="ntBtnToggleAnalytics"
+            aria-expanded="false" aria-controls="ntAnalyticsPanel">
       <svg viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
       <span id="ntToggleAnalyticsLabel">Mostrar Painel de Análise</span>
     </button>
-    <!-- Busca rápida profunda: varre titulo, descrição geral, descrição/nota dos itens. -->
+
+    <!-- Busca rápida profunda (antes em nt-toolbar, agora inline) -->
     <div class="nt-search-wrap">
       <span class="nt-search-icon" aria-hidden="true">
         <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
       </span>
-      <input type="search" class="nt-search-input" id="ntSearchInput" placeholder="Buscar em título, descrição, itens..." aria-label="Busca rápida">
-      <button class="nt-search-clear" id="ntSearchClear" aria-label="Limpar busca" title="Limpar">&times;</button>
+      <input type="search" class="nt-search-input" id="ntSearchInput"
+             placeholder="Buscar em título, descrição, itens..."
+             aria-label="Busca rápida">
+      <button class="nt-search-clear" id="ntSearchClear"
+              aria-label="Limpar busca" title="Limpar">&times;</button>
     </div>
+
+    <!-- Divisor visual entre busca e botões de ação -->
+    <div class="nt-bar-divider" aria-hidden="true"></div>
+
+    <!-- Botões de ação da tela -->
+    <button class="nt-btn nt-btn-secondary" id="ntBtnLog" title="Log de atividades">
+      Log
+    </button>
+    <button class="nt-btn nt-btn-secondary" id="ntBtnTrash" title="Lixeira de notas">
+      Lixeira (<span id="ntTrashCount">0</span>)
+    </button>
+
+    <!-- Alternância de visualização: grade (Kanban) padrão, ou lista (Planner). -->
+    <div class="nt-viewmode" id="ntViewMode" role="group" aria-label="Modo de visualização">
+      <button data-view="grade" class="active" title="Visualização em grade">
+        <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+        Grade
+      </button>
+      <button data-view="lista" title="Visualização em lista">
+        <svg viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+        Lista
+      </button>
+    </div>
+
+    <button class="nt-btn nt-btn-primary" id="ntBtnNew">+ Nova Nota</button>
   </div>
+
+<main class="nt-page">
 
   <!-- ── PAINEL DE ANÁLISE COLAPSÁVEL ──
        Contém filtros e KPIs. Estado inicial: oculto. -->
@@ -178,7 +190,6 @@
     <div class="nt-modal-header">
       <h3 id="ntModalTitle">Nova Nota</h3>
       <div class="nt-modal-header-actions">
-        <button class="nt-btn nt-btn-secondary" id="ntBtnAddItem" title="Adicionar item à seção Notas Adicionais">+ Item</button>
         <button class="nt-modal-close" data-nt-close="ntModalOverlay">&times;</button>
       </div>
     </div>
@@ -248,6 +259,14 @@
           </thead>
           <tbody id="ntItemsBody"></tbody>
         </table>
+      </div>
+
+      <!-- Botão + Item posicionado abaixo da tabela (Melhoria 02) -->
+      <div class="nt-add-item-bar">
+        <button class="nt-btn nt-btn-secondary" id="ntBtnAddItem"
+                title="Adicionar item à seção Notas Adicionais">
+          + Item
+        </button>
       </div>
 
       <div class="nt-totals" id="ntItemsTotals" style="display:none">
