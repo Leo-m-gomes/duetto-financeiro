@@ -1564,12 +1564,6 @@ const APP = {
     if(!confirm(`Excluir "${item.nome}"?`))return;
     tipo==='cat'?await FS.deleteCat(id):await FS.deleteForma(id);
     this.toast(`"${item.nome}" excluído`,'success');
-  },
-
-  // ── TOAST ──
-  toast(msg,type='success'){
-    const t=document.getElementById('toast');t.textContent=msg;t.className=`toast show ${type}`;
-    clearTimeout(this._tt);this._tt=setTimeout(()=>t.classList.remove('show'),3500);
   }
 };
 
@@ -2279,39 +2273,9 @@ Object.assign(APP, {
 });
 
 // ============================================================
-// DARK MODE + SORT + DESFAZER + PDF
+// MODALS + SORT + DESFAZER + PDF
 // ============================================================
 Object.assign(APP, {
-
-  // ── DARK MODE ──
-  toggleDark(){
-    STATE.darkMode = !STATE.darkMode;
-    document.documentElement.classList.toggle('dark', STATE.darkMode);
-    localStorage.setItem('dt_dark', STATE.darkMode?'1':'0');
-    // Re-renderiza página atual para atualizar gráficos com as cores corretas
-    this.renderPage(STATE.page);
-  },
-
-  /**
-   * R14: Alterna o Modo Privacidade (ocultar valores monetários).
-   * Aplica/remove a classe .privacy-mode no <html>, que via CSS aplica blur
-   * em valores de KPIs, células .money, totais e barra de pagamento em massa.
-   *
-   * Decisão de design: estado NÃO persiste em localStorage. Cada nova sessão
-   * inicia com valores visíveis, evitando que o usuário esqueça que valores
-   * estão ocultos. Para alternar, basta clicar no botão na topbar.
-   */
-  togglePrivacy(){
-    STATE.hideValues = !STATE.hideValues;
-    document.documentElement.classList.toggle('privacy-mode', STATE.hideValues);
-    // Alterna ícones do botão (olho aberto ↔ olho cortado)
-    const iconOn  = document.getElementById('iconPrivacyOn');
-    const iconOff = document.getElementById('iconPrivacyOff');
-    if(iconOn)  iconOn.style.display  = STATE.hideValues ? 'none'  : 'block';
-    if(iconOff) iconOff.style.display = STATE.hideValues ? 'block' : 'none';
-    const btn = document.getElementById('btnTogglePrivacy');
-    if(btn) btn.title = STATE.hideValues ? 'Mostrar valores' : 'Ocultar valores';
-  },
 
   // ══════════════════════════════════════════════════════════════
   // HELPERS DE UI: FECHAMENTO ANIMADO DE MODAL, FADE DE LOADING,
@@ -2378,10 +2342,6 @@ Object.assign(APP, {
         });
       }, { passive: true });
     }
-  },
-
-  initDark(){
-    if(STATE.darkMode) document.documentElement.classList.add('dark');
   },
 
   // ── DESFAZER PAGAMENTO ──
@@ -2588,9 +2548,6 @@ Object.assign(APP, {
     this.toast(`PDF gerado: ${nome} ✅`,'success');
   },
 });
-
-// Inicializar dark mode ao carregar
-APP.initDark();
 
 // ============================================================
 // CONFIGURAÇÕES MODULE — somente Leo
