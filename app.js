@@ -333,12 +333,6 @@ const APP = {
     }
   },
 
-  mkChart(id,cfg){
-    if(STATE.charts[id]){STATE.charts[id].destroy();delete STATE.charts[id];}
-    const c=document.getElementById(id);if(!c)return;
-    STATE.charts[id]=new Chart(c,cfg);return STATE.charts[id];
-  },
-
   // ── Tema visual por responsável ──
   // Aplica/remove classe no <html> — apenas variáveis CSS, zero impacto em layout
   _aplicarTemaResp(resp){
@@ -1234,58 +1228,6 @@ const APP = {
       APP.closeModal('ovTabelas');
       this.toast('Tabelas fiscais atualizadas! ✅','success');
     }catch(e){this.toast('JSON inválido. Verifique o formato.','error');}
-  },
-
-  // ── PERÍODO (compartilhado entre Dashboard, Contas e Relatório) ──
-  openPeriodo(tela){
-    const t = tela || 'relatorio';
-    STATE.periodoTela = t;
-    document.getElementById('ovPeriodo').setAttribute('data-tela', t);
-    const p = t==='dashboard' ? STATE.periodoDash : t==='contas' ? STATE.periodoContas : STATE.periodo;
-    document.getElementById('periodoAno').value    = p ? p.ano    : new Date().getFullYear();
-    document.getElementById('periodoMesIni').value = p ? p.mesIni : '';
-    document.getElementById('periodoMesFim').value = p ? p.mesFim : '';
-    document.getElementById('ovPeriodo').classList.add('open');
-  },
-
-  aplicarPeriodo(tela){
-    const t = tela || document.getElementById('ovPeriodo').getAttribute('data-tela') || STATE.periodoTela || 'relatorio';
-    const ano    = parseInt(document.getElementById('periodoAno').value);
-    const mesIni = document.getElementById('periodoMesIni').value;
-    const mesFim = document.getElementById('periodoMesFim').value;
-    if(!ano||ano<2019||ano>2035) return this.toast('Informe um ano válido (2019–2035)','error');
-    if(mesIni===''||mesFim==='')  return this.toast('Selecione o mês inicial e o mês final','error');
-    if(parseInt(mesFim)<parseInt(mesIni)) return this.toast('O mês final não pode ser anterior ao mês inicial','error');
-    const p = {ano, mesIni:parseInt(mesIni), mesFim:parseInt(mesFim)};
-    if(t==='dashboard')     STATE.periodoDash   = p;
-    else if(t==='contas')   STATE.periodoContas = p;
-    else                    STATE.periodo       = p;
-    APP.closeModal('ovPeriodo');
-    this._atualizarPeriodoBadge(t, p);
-    if(t==='dashboard')   this.renderDashboard();
-    else if(t==='contas') { STATE.pg=1; this.renderContas(); }
-    else                  this.renderRelatorio();
-  },
-
-  limparPeriodo(tela){
-    const t = tela || document.getElementById('ovPeriodo').getAttribute('data-tela') || STATE.periodoTela || 'relatorio';
-    if(t==='dashboard')   STATE.periodoDash   = null;
-    else if(t==='contas') STATE.periodoContas = null;
-    else                  STATE.periodo       = null;
-    APP.closeModal('ovPeriodo');
-    this._atualizarPeriodoBadge(t, null);
-    if(t==='dashboard')   this.renderDashboard();
-    else if(t==='contas') { STATE.pg=1; this.renderContas(); }
-    else                  this.renderRelatorio();
-  },
-
-  _atualizarPeriodoBadge(tela, p){
-    const idMap = {dashboard:'periodoBadgeDash', contas:'periodoBadgeContas', relatorio:'periodoBadge'};
-    const badge = document.getElementById(idMap[tela]);
-    if(!badge) return;
-    if(!p){ badge.style.display='none'; return; }
-    badge.style.display='inline-flex';
-    badge.innerHTML = `📅 ${MESES_F[p.mesIni]} → ${MESES_F[p.mesFim]} ${p.ano} &nbsp;✕`;
   },
 
   // ============================================================
@@ -2273,76 +2215,9 @@ Object.assign(APP, {
 });
 
 // ============================================================
-// MODALS + SORT + DESFAZER + PDF
+// SORT + DESFAZER + PDF
 // ============================================================
 Object.assign(APP, {
-
-  // ══════════════════════════════════════════════════════════════
-  // HELPERS DE UI: FECHAMENTO ANIMADO DE MODAL, FADE DE LOADING,
-  // SCROLL DA TOPBAR (M06, M10, M11)
-  // ══════════════════════════════════════════════════════════════
-
-  /**
-   * Fecha um modal com animação de saída (M10).
-   * Aplica .closing por 180ms (duração da animação CSS), depois
-   * remove .open e .closing, restaurando o estado inicial.
-   * Seguro: se o modal já estiver fechado, não faz nada.
-   * @param {string} id - ID do elemento .modal-overlay (ex: 'ovConta')
-   */
-  closeModal(id){
-    const ov = document.getElementById(id);
-    if(!ov || !ov.classList.contains('open')) return;
-    // Adiciona classe que dispara a animação de saída via CSS
-    ov.classList.add('closing');
-    // Aguarda a animação completar (180ms = duração CSS) antes de ocultar
-    setTimeout(() => {
-      ov.classList.remove('open', 'closing');
-    }, 180);
-  },
-
-  /**
-   * Inicializa o listener de scroll da topbar (M06).
-   * Adiciona/remove a classe .scrolled conforme o conteúdo rola,
-   * acionando a sombra de "flutuação" via CSS. Usa rAF throttle
-   * para evitar layout thrashing.
-   * Idempotente: pode ser chamada múltiplas vezes sem efeito colateral.
-   *
-   * BUGFIX: o scroll real ocorre no window (body), não no .main.
-   * O .main não declara overflow:auto no CSS (linha 59 do style.css),
-   * portanto o listener anterior nunca disparava. Agora escuta tanto
-   * no window quanto em qualquer elemento com overflow ativo.
-   */
-  initTopbarScroll(){
-    if(this._topbarScrollInit) return;
-    this._topbarScrollInit = true;
-    const topbar = document.querySelector('.topbar');
-    if(!topbar) return;
-    let ticking = false;
-    const onScroll = () => {
-      if(ticking) return;
-      ticking = true;
-      requestAnimationFrame(() => {
-        // Lê o scroll de window (default em layouts sem overflow customizado)
-        const scrollTop = window.pageYOffset || document.documentElement.scrollTop || 0;
-        topbar.classList.toggle('scrolled', scrollTop > 8);
-        ticking = false;
-      });
-    };
-    // Listener primário: window (cobre o caso real do Duetto)
-    window.addEventListener('scroll', onScroll, { passive: true });
-    // Fallback defensivo: caso o layout futuro mude .main para overflow:auto
-    const mainEl = document.querySelector('.main');
-    if(mainEl) {
-      mainEl.addEventListener('scroll', () => {
-        if(ticking) return;
-        ticking = true;
-        requestAnimationFrame(() => {
-          topbar.classList.toggle('scrolled', mainEl.scrollTop > 8);
-          ticking = false;
-        });
-      }, { passive: true });
-    }
-  },
 
   // ── DESFAZER PAGAMENTO ──
   async desfazerPagamento(id){
@@ -2353,56 +2228,6 @@ Object.assign(APP, {
     const vOriginal = c.vPago || c.vPagar;
     await FS.desfazerPagamento(id, vOriginal);
     this.toast(`Pagamento desfeito: ${c.conta}`,'success');
-  },
-
-  // ── ORDENAÇÃO ──
-  sortTable(tabela, col){
-    const key = tabela==='contas' ? 'sortContas' : 'sortRel';
-    if(STATE[key].col===col){
-      STATE[key].dir *= -1; // inverte direção
-    } else {
-      STATE[key].col = col;
-      STATE[key].dir = 1;
-    }
-    // Atualizar ícones
-    document.querySelectorAll('.sort-icon').forEach(el=>{
-      el.classList.remove('asc','desc');
-    });
-    const icone = document.querySelector(`.sort-icon[data-col="${col}"]`);
-    if(icone) icone.classList.add(STATE[key].dir===1?'asc':'desc');
-
-    if(tabela==='contas') this.renderContas();
-    else                  this.renderRelatorio();
-  },
-
-  _aplicarSort(data, key){
-    const s = STATE[key];
-    if(!s.col) return data;
-    return [...data].sort((a,b)=>{
-      let va, vb;
-      const col = s.col;
-      if(col==='conta'||col==='resp'||col==='parcela'){
-        va=String(a[col]||'').toLowerCase();
-        vb=String(b[col]||'').toLowerCase();
-      } else if(col==='data'){
-        va=a.data||'';
-        vb=b.data||'';
-      } else if(col==='vPagar'||col==='vPago'){
-        va=Number(a[col]||0);
-        vb=Number(b[col]||0);
-      } else if(col==='forma'){
-        va=CACHE.resolveForma(a.formaId||a.forma).toLowerCase();
-        vb=CACHE.resolveForma(b.formaId||b.forma).toLowerCase();
-      } else if(col==='cat'){
-        va=CACHE.resolveCat(a.catId||a.cat).toLowerCase();
-        vb=CACHE.resolveCat(b.catId||b.cat).toLowerCase();
-      } else {
-        va=a[col]||''; vb=b[col]||'';
-      }
-      if(va<vb) return -1*s.dir;
-      if(va>vb) return  1*s.dir;
-      return 0;
-    });
   },
 
   // ── PDF DO RELATÓRIO ──
