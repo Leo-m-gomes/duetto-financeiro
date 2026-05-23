@@ -194,14 +194,15 @@ const APP = {
     });
   },
 
-  goPage(p){ document.querySelector(`.nav-item[data-page="${p}"]`).click(); },
+  goPage(p){ const el=document.querySelector(`.nav-item[data-page="${p}"]`); if(el) el.click(); },
 
   topBtns(){
-    document.getElementById('btnNovaConta').addEventListener('click',()=>this.openConta());
-    document.getElementById('btnNovoSalario').addEventListener('click',()=>this.openSalario());
-    document.getElementById('btnNovaReceita').addEventListener('click',()=>this.openReceita());
-    document.getElementById('btnAtualizarTabelas').addEventListener('click',()=>this.openTabelas());
-    document.getElementById('btnCSVContas').addEventListener('click',()=>this.exportCSVContas());
+    const safeBind = (id, handler) => { const el=document.getElementById(id); if(el) el.addEventListener('click', handler); };
+    safeBind('btnNovaConta',()=>this.openConta());
+    safeBind('btnNovoSalario',()=>this.openSalario());
+    safeBind('btnNovaReceita',()=>this.openReceita());
+    safeBind('btnAtualizarTabelas',()=>this.openTabelas());
+    safeBind('btnCSVContas',()=>this.exportCSVContas());
   },
 
   modals(){
@@ -259,9 +260,16 @@ const APP = {
       s.value = String(mesAtual);
     };
 
-    // Filtros cat/forma (já tinham guard, mantidos como estavam).
-    CACHE.getAllCats().forEach(c=>{ ['filtroCatContas','relCat'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(c.nome,c.nome)); }); });
-    CACHE.getAllFormas().forEach(f=>{ ['filtroFormaContas','relForma'].forEach(id=>{ const s=document.getElementById(id); if(s)s.appendChild(new Option(f.nome,f.id)); }); });
+    // Filtros cat/forma — idempotente: só popula se vazio (além do placeholder).
+    const mkCatForma = (ids, items, valFn, labelFn) => {
+      ids.forEach(id => {
+        const s = document.getElementById(id); if(!s) return;
+        if(s.options.length > 1) return;
+        items.forEach(item => s.appendChild(new Option(labelFn(item), valFn(item))));
+      });
+    };
+    mkCatForma(['filtroCatContas','relCat'], CACHE.getAllCats(), c=>c.nome, c=>c.nome);
+    mkCatForma(['filtroFormaContas','relForma'], CACHE.getAllFormas(), f=>f.id, f=>f.nome);
 
     // ── Ano + Mês Dashboard ──
     mkAno('filtroAnoDash');

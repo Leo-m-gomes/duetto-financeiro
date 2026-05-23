@@ -1430,7 +1430,7 @@ html { transition: --palm .25s ease; }
    Padroniza o rítmo vertical entre seções nas demais telas. */
 #page-contas .page-inner,
 #page-receitas .page-inner,
-#page-salarios .page-inner,
+#page-salario .page-inner,
 #page-relatorio .page-inner,
 #page-upload .page-inner,
 #page-config .page-inner {
@@ -1441,7 +1441,7 @@ html { transition: --palm .25s ease; }
 /* Remove margin-bottom redundante dentro dessas páginas */
 #page-contas .page-inner > *,
 #page-receitas .page-inner > *,
-#page-salarios .page-inner > *,
+#page-salario .page-inner > *,
 #page-relatorio .page-inner > *,
 #page-upload .page-inner > *,
 #page-config .page-inner > * {
@@ -1482,7 +1482,7 @@ html { transition: --palm .25s ease; }
   .dash-page-inner,
   #page-contas .page-inner,
   #page-receitas .page-inner,
-  #page-salarios .page-inner,
+  #page-salario .page-inner,
   #page-relatorio .page-inner,
   #page-upload .page-inner,
   #page-config .page-inner {
