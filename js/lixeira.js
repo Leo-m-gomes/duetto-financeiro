@@ -105,9 +105,13 @@ Object.assign(APP, {
     if(!confirm(`⚠️ ATENÇÃO: Esvaziar a lixeira apagará PERMANENTEMENTE ${snap.size} item(ns).\n\nEsta ação é IRREVERSÍVEL.`)) return;
     if(!confirm('Confirmar esvaziamento total da lixeira?')) return; // dupla confirmação
 
-    const batch = fbDb.batch();
-    snap.docs.forEach(d=>batch.delete(d.ref));
-    await batch.commit();
+    const docs = snap.docs;
+    for(let i=0; i<docs.length; i+=500){
+      const chunk = docs.slice(i, i+500);
+      const batch = fbDb.batch();
+      chunk.forEach(d=>batch.delete(d.ref));
+      await batch.commit();
+    }
     this.toast(`${snap.size} item(ns) excluído(s) permanentemente`,'success');
     this.lixeiraCarregar();
   },

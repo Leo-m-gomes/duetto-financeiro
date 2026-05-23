@@ -1955,7 +1955,12 @@ function ntResetColumns(){
 
 
 
+var _ntEventsBound = false;
+var _ntEscHandler = null;
+
 function ntBindEvents(){
+  if(_ntEventsBound) return;
+  _ntEventsBound = true;
   document.getElementById('ntBtnNew').addEventListener('click', ntOpenNewModal);
   document.getElementById('ntBtnTrash').addEventListener('click', () => {
     ntRenderTrash();
@@ -2062,13 +2067,13 @@ function ntBindEvents(){
   // Idempotente: pode ser chamado várias vezes sem duplicar listeners (guard data-nt-money-bound).
   ntBindMoneyMasks(document);
 
-  // ESC fecha o overlay mais alto na pilha (sub-modal antes do modal principal).
-  document.addEventListener('keydown', e => {
+  _ntEscHandler = e => {
     if(e.key !== 'Escape') return;
     const subOpen = document.querySelector('.nt-submodal-overlay.open');
     if(subOpen){ ntCloseOverlay(subOpen.id); return; }
     document.querySelectorAll('.nt-modal-overlay.open').forEach(ov => ntCloseOverlay(ov.id));
-  });
+  };
+  document.addEventListener('keydown', _ntEscHandler);
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -2102,6 +2107,8 @@ const NT = {
 
   destroy() {
     teardownNotesListeners();
+    if(_ntEscHandler) { document.removeEventListener('keydown', _ntEscHandler); _ntEscHandler = null; }
+    _ntEventsBound = false;
     this._initialized = false;
   }
 };

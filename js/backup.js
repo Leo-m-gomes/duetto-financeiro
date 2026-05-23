@@ -90,7 +90,7 @@ Object.assign(APP, {
 
   async backupJSON(){
     const btn=document.getElementById('btnBackupJSON');
-    btn.disabled=true; btn.textContent='⏳ Exportando...';
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Exportando...'; }
     try{
       const dados = await this._coletarDados();
       const json  = JSON.stringify(dados, null, 2);
@@ -104,13 +104,13 @@ Object.assign(APP, {
     }catch(e){
       this.toast('Erro ao exportar: '+e.message,'error');
     }
-    btn.disabled=false; btn.textContent='Exportar JSON';
+    if(btn){ btn.disabled=false; btn.textContent='Exportar JSON'; }
   },
 
   async backupExcel(){
     if(typeof XLSX==='undefined') return this.toast('Biblioteca Excel não carregada','error');
     const btn=document.getElementById('btnBackupExcel');
-    btn.disabled=true; btn.textContent='⏳ Exportando...';
+    if(btn){ btn.disabled=true; btn.textContent='⏳ Exportando...'; }
     try{
       const dados = await this._coletarDados();
       const wb    = XLSX.utils.book_new();
@@ -177,7 +177,7 @@ Object.assign(APP, {
     }catch(e){
       this.toast('Erro ao exportar: '+e.message,'error');
     }
-    btn.disabled=false; btn.textContent='Exportar Excel';
+    if(btn){ btn.disabled=false; btn.textContent='Exportar Excel'; }
   },
 
   async backupAmbos(){

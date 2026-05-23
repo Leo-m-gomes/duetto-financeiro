@@ -4,6 +4,7 @@ Object.assign(APP, {
 
   toast(msg, type = 'success') {
     const t = document.getElementById('toast');
+    if(!t) return;
     t.textContent = msg;
     t.className = `toast show ${type}`;
     clearTimeout(this._tt);
@@ -14,7 +15,6 @@ Object.assign(APP, {
     STATE.darkMode = !STATE.darkMode;
     document.documentElement.classList.toggle('dark', STATE.darkMode);
     localStorage.setItem('dt_dark', STATE.darkMode ? '1' : '0');
-    this.renderPage(STATE.page);
   },
 
   initDark() {
