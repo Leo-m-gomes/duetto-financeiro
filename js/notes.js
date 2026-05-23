@@ -16,8 +16,6 @@
  */
 "use strict";
 
-"use strict";
-
 /* ═════════════════════════════════════════════════════════════════════
    CONSTANTES GLOBAIS DO MÓDULO
    ───────────────────────────────────────────────────────────────────── */
@@ -1496,10 +1494,22 @@ function ntApplyAnalyticsState(){
    ───────────────────────────────────────────────────────────────────── */
 
 function ntOpenOverlay(id){
-  document.getElementById(id).classList.add('open');
+  const el = document.getElementById(id);
+  if(!el) return;
+  if(!el._ntOrigParent) el._ntOrigParent = el.parentNode;
+  document.body.appendChild(el);
+  el.classList.add('open');
 }
 function ntCloseOverlay(id){
-  document.getElementById(id).classList.remove('open');
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.classList.add('closing');
+  setTimeout(() => {
+    el.classList.remove('open', 'closing');
+    if(el._ntOrigParent && el._ntOrigParent.isConnected){
+      el._ntOrigParent.appendChild(el);
+    }
+  }, 180);
 }
 
 /* ═════════════════════════════════════════════════════════════════════
@@ -2056,8 +2066,8 @@ function ntBindEvents(){
   document.addEventListener('keydown', e => {
     if(e.key !== 'Escape') return;
     const subOpen = document.querySelector('.nt-submodal-overlay.open');
-    if(subOpen){ subOpen.classList.remove('open'); return; }
-    document.querySelectorAll('.nt-modal-overlay.open').forEach(ov => ov.classList.remove('open'));
+    if(subOpen){ ntCloseOverlay(subOpen.id); return; }
+    document.querySelectorAll('.nt-modal-overlay.open').forEach(ov => ntCloseOverlay(ov.id));
   });
 }
 
