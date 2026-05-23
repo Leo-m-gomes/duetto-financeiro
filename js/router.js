@@ -36,7 +36,7 @@ const ROUTER = (() => {
     if (!ROUTES[page]) throw new Error('Rota desconhecida: "' + page + '"');
     if (viewCache.has(page)) return viewCache.get(page);
     if (inFlight.has(page)) return inFlight.get(page);
-    const promise = fetch(ROUTES[page].file, { cache: 'no-cache' })
+    const promise = fetch(ROUTES[page].file, { cache: 'default' })
       .then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.text(); })
       .then(html => { viewCache.set(page, html); inFlight.delete(page); return html; })
       .catch(err => { inFlight.delete(page); throw err; });
@@ -128,7 +128,7 @@ const ROUTER = (() => {
     modalsInFlight = (async () => {
       const c = document.getElementById(MODALS_CONTAINER_ID);
       if (!c) throw new Error('Container #' + MODALS_CONTAINER_ID + ' ausente no shell.');
-      const r = await fetch(MODALS_FILE, { cache: 'no-cache' });
+      const r = await fetch(MODALS_FILE, { cache: 'default' });
       if (!r.ok) throw new Error('HTTP ' + r.status + ' ao carregar ' + MODALS_FILE);
       c.innerHTML = await r.text();
       modalsLoaded = true;
