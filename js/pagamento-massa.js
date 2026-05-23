@@ -65,8 +65,8 @@ Object.assign(APP, {
         <td>${c.resp}</td>
         <td><span class="badge bg-cat">${catNome}</span></td>
         <td style="color:var(--t4)">${fmt(s.val)}</td>
-        <td><input type="number" class="pag-massa-val" data-id="${c.id}"
-          value="${s.val}" step="0.01" min="0"
+        <td><input type="text" inputmode="numeric" class="pag-massa-val money-input" data-id="${c.id}"
+          value="${maskMoney(floatToCentsStr(s.val))}"
           oninput="APP.recalcularTotalMassa()"
           style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;text-align:right;background:var(--bg);color:var(--t1)"></td>
       </tr>`;
@@ -74,11 +74,12 @@ Object.assign(APP, {
 
     this.recalcularTotalMassa();
     document.getElementById('ovPagMassa').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovPagMassa'));
   },
 
   recalcularTotalMassa(){
     const vals = [...document.querySelectorAll('.pag-massa-val')];
-    const total = vals.reduce((s,el)=>s+(parseFloat(el.value)||0), 0);
+    const total = vals.reduce((s,el)=>s+parseMoney(el.value), 0);
     document.getElementById('pagMassaTotal').textContent = fmt(total);
   },
 
@@ -89,14 +90,14 @@ Object.assign(APP, {
 
     // Validar valores
     for(const el of inputs){
-      if(!parseFloat(el.value)||parseFloat(el.value)<=0){
+      if(!parseMoney(el.value)||parseMoney(el.value)<=0){
         this.toast('Informe um valor válido para todas as contas','error');
         el.focus(); el.style.borderColor='var(--red)';
         return;
       }
     }
 
-    const total = inputs.reduce((s,el)=>s+(parseFloat(el.value)||0),0);
+    const total = inputs.reduce((s,el)=>s+parseMoney(el.value),0);
     const n = inputs.length;
     if(!confirm(`Confirmar pagamento de ${n} conta${n>1?'s':''} totalizando ${fmt(total)}?`)) return;
 
@@ -106,7 +107,7 @@ Object.assign(APP, {
     let ok = 0, erros = 0;
     for(const el of inputs){
       try{
-        await FS.pagarConta(el.dataset.id, STATE.usuario, parseFloat(el.value));
+        await FS.pagarConta(el.dataset.id, STATE.usuario, parseMoney(el.value));
         ok++;
         btn.textContent = `⏳ Pagando ${ok} de ${n}...`;
       } catch(e){ erros++; }

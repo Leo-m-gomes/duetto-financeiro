@@ -379,7 +379,7 @@ Object.assign(APP, {
           <td><select onchange="APP._upUpdCampo(${i},'forma',this.value)" style="min-width:120px">${formas.map(f=>`<option ${f===c.forma?'selected':''}>${f}</option>`).join('')}</select></td>
           <td><select onchange="APP._upUpdCampo(${i},'cat',this.value)" style="min-width:110px">${cats.map(x=>`<option ${x===c.cat?'selected':''}>${x}</option>`).join('')}</select></td>
           <td><input type="date" value="${g.parcs[0]?.dataF||c.data}" readonly style="min-width:110px;color:var(--t3)" title="Data da 1ª parcela — gerado automaticamente"></td>
-          <td><input type="number" value="${c.vPagar}" step="0.01" oninput="APP._upUpdValor(${i},this.value)" style="width:88px"></td>
+          <td><input type="text" inputmode="numeric" class="money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" oninput="APP._upUpdValor(${i},this.value)" style="width:100px"></td>
           <td style="text-align:center">${tp
             ?`<span class="badge bg-cat" style="cursor:pointer" onclick="APP._upVerParcelas(${i})" title="Ver todas as parcelas">${g.parcs.length} × 🔍</span>`
             :`<span class="audit-chip">1 de 1</span>`}</td>
@@ -387,10 +387,11 @@ Object.assign(APP, {
           <td><button class="action-btn del" onclick="APP._upDelGrupo(${i})">✕</button></td>
         </tr>`;
       }).join('');
+    bindAllMoneyInputs(document.getElementById('upTbodyPreview'));
   },
 
   _upUpdCampo(i,k,v){ this._upGrupos[i].base[k]=v; this._upGrupos[i].parcs.forEach(p=>p[k]=v); },
-  _upUpdValor(i,v){ const n=parseFloat(v)||0; this._upGrupos[i].base.vPagar=n; this._upGrupos[i].parcs.forEach(p=>p.vPagar=n); },
+  _upUpdValor(i,v){ const n=parseMoney(v); this._upGrupos[i].base.vPagar=n; this._upGrupos[i].parcs.forEach(p=>p.vPagar=n); },
   _upDelGrupo(i){ this._upGrupos.splice(i,1); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
 
   _upVerParcelas(i){

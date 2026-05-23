@@ -37,8 +37,8 @@ function getChartDefaults() {
 }
 
 // ── FORMATAÇÃO ──
-const fmt     = v => v==null||isNaN(v)?'—':'R$ '+Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-const fmtN    = v => v==null||isNaN(v)?'—':Number(v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+const fmt     = v => { if(v==null||isNaN(v)) return '—'; const cfg = typeof MONEY_CFG!=='undefined'?MONEY_CFG:{simbolo:'R$',locale:'pt-BR'}; return cfg.simbolo+' '+Number(v).toLocaleString(cfg.locale,{minimumFractionDigits:2,maximumFractionDigits:2}); };
+const fmtN    = v => { if(v==null||isNaN(v)) return '—'; const loc = typeof MONEY_CFG!=='undefined'?MONEY_CFG.locale:'pt-BR'; return Number(v).toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d.toLocaleDateString('pt-BR'); };
 const today   = () => new Date().toISOString().split('T')[0];
 const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));

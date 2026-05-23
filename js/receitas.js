@@ -45,7 +45,7 @@ Object.assign(APP, {
     const rows=outras.map(r=>{
       const respChip=r.resp?`<span class="badge bg-cat">${r.resp}</span>`:`<span style="font-size:10.5px;color:var(--t4)">Ambos</span>`;
       const cells=r.valores.map((v,m)=>{
-        if(edit)return`<td><input class="cell-input" type="number" step="0.01" min="0" id="rec_${r.id}_${m}" value="${v||''}" placeholder="0" oninput="APP.recalcRowTotal('${r.id}')" onchange="APP.saveOutraValor('${r.id}',${m},this.value)"></td>`;
+        if(edit)return`<td><input class="cell-input money-input" type="text" inputmode="numeric" id="rec_${r.id}_${m}" value="${v?maskMoney(floatToCentsStr(v)):''}" placeholder="0" oninput="APP.recalcRowTotal('${r.id}')" onchange="APP.saveOutraValor('${r.id}',${m},this.value)"></td>`;
         return`<td style="text-align:right;font-size:11.5px;color:var(--t2)">${v?fmtN(v):'—'}</td>`;
       }).join('');
       const total=r.valores.reduce((a,b)=>a+b,0);
@@ -54,17 +54,18 @@ Object.assign(APP, {
     const totals=Array.from({length:12},(_,m)=>outras.reduce((s,r)=>s+(r.valores[m]||0),0));
     const tTotal=totals.reduce((a,b)=>a+b,0);
     document.getElementById('tblRecOutras').innerHTML=header+`<tbody>${rows}</tbody><tfoot><tr><td colspan="2">Total Outras Receitas</td>${totals.map(v=>`<td style="text-align:right">${fmtN(v)}</td>`).join('')}<td style="text-align:right">${fmtN(tTotal)}</td><td></td></tr></tfoot>`;
+    if(edit) bindAllMoneyInputs(document.getElementById('tblRecOutras'));
   },
 
   recalcRowTotal(id){
     const r=CACHE.outras.find(x=>x.id===id);if(!r)return;
-    let total=0;for(let m=0;m<12;m++){const el=document.getElementById(`rec_${id}_${m}`);total+=parseFloat(el?.value||0)||0;}
+    let total=0;for(let m=0;m<12;m++){const el=document.getElementById(`rec_${id}_${m}`);total+=parseMoney(el?.value);}
     const totEl=document.getElementById(`rec_total_${id}`);if(totEl)totEl.textContent=fmtN(total);
   },
 
   async saveOutraValor(id,mes,val){
     const r=CACHE.outras.find(x=>x.id===id);if(!r)return;
-    const valores=[...r.valores];valores[mes]=parseFloat(val)||0;
+    const valores=[...r.valores];valores[mes]=parseMoney(val);
     await FS.updateOutra(id,{valores,updatedBy:STATE.usuario,updatedAt:today()});
   },
 
@@ -207,6 +208,7 @@ Object.assign(APP, {
     const rMesFim=document.getElementById('rMesFim');if(rMesFim)rMesFim.value='-1';
     this.rAtualizarPeriodoInfo();
     document.getElementById('ovReceita').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovReceita'));
     setTimeout(()=>document.getElementById('rDesc').focus(),100);
   },
   rAtualizarPeriodoInfo(){
@@ -222,7 +224,7 @@ Object.assign(APP, {
   async saveReceita(){
     const desc=document.getElementById('rDesc').value.trim();
     const resp=document.getElementById('rResp').value;
-    const val=parseFloat(document.getElementById('rValor').value)||0;
+    const val=parseMoney(document.getElementById('rValor').value);
     const ini=parseInt(document.getElementById('rMesIni')?.value??'-1');
     const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
     if(!desc)return this.toast('Informe a descrição','error');

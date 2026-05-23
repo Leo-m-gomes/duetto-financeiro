@@ -32,32 +32,33 @@ Object.assign(APP, {
         document.getElementById('sNome').disabled=true;
         if(document.getElementById('sPessoa'))document.getElementById('sPessoa').value=s.pessoa||'';
         const h=s.historico[s.historico.length-1];
-        document.getElementById('sSal').value=h.salario;
-        document.getElementById('sBon').value=h.bonificacao||0;
+        setMoneyValue(document.getElementById('sSal'),h.salario);
+        setMoneyValue(document.getElementById('sBon'),h.bonificacao);
         document.getElementById('sDeps').value=h.deps||0;
         this.calcSalario();
       }
     }
     document.getElementById('ovSalario').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovSalario'));
     setTimeout(()=>document.getElementById('sSal').focus(),100);
   },
 
   calcSalario(){
-    const sal=parseFloat(document.getElementById('sSal').value)||0;
-    const bon=parseFloat(document.getElementById('sBon').value)||0;
+    const sal=parseMoney(document.getElementById('sSal').value);
+    const bon=parseMoney(document.getElementById('sBon').value);
     const dep=parseInt(document.getElementById('sDeps').value)||0;
     const total=sal+bon;const inss=CACHE.calcINSS(total);const ir=CACHE.calcIR(total,inss,dep);
     const liq=parseFloat((total-inss-ir).toFixed(2));
-    document.getElementById('sINSS').value=inss.toFixed(2);
-    document.getElementById('sIR').value=ir.toFixed(2);
-    document.getElementById('sLiq').value=liq.toFixed(2);
+    document.getElementById('sINSS').value=fmtMoney(inss);
+    document.getElementById('sIR').value=fmtMoney(ir);
+    document.getElementById('sLiq').value=fmtMoney(liq);
   },
 
   async saveSalario(){
     const nome=document.getElementById('sNome').value.trim();
     const pessoa=document.getElementById('sPessoa')?.value||'';
-    const sal=parseFloat(document.getElementById('sSal').value)||0;
-    const bon=parseFloat(document.getElementById('sBon').value)||0;
+    const sal=parseMoney(document.getElementById('sSal').value);
+    const bon=parseMoney(document.getElementById('sBon').value);
     const deps=parseInt(document.getElementById('sDeps').value)||0;
     const mes=parseInt(document.getElementById('sMesInicio').value);
     if(!sal)return this.toast('Informe o salário','error');
@@ -105,10 +106,11 @@ Object.assign(APP, {
     document.getElementById('atualizarStatus').innerHTML='';
     document.getElementById('editorIR').value=JSON.stringify(tab.ir,null,2);
     document.getElementById('editorINSS').value=JSON.stringify(tab.inss,null,2);
-    document.getElementById('edDedDep').value=tab.dedDep;
-    document.getElementById('edTetoINSS').value=tab.tetoINSS;
+    setMoneyValue(document.getElementById('edDedDep'),tab.dedDep);
+    setMoneyValue(document.getElementById('edTetoINSS'),tab.tetoINSS);
     document.getElementById('vigencia').value=tab.vigencia||'';
     document.getElementById('ovTabelas').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovTabelas'));
   },
 
   async buscarTabelasOnline(){
@@ -123,8 +125,8 @@ Object.assign(APP, {
       const parsed=JSON.parse(match[0]);
       document.getElementById('editorIR').value=JSON.stringify(parsed.ir,null,2);
       document.getElementById('editorINSS').value=JSON.stringify(parsed.inss,null,2);
-      document.getElementById('edDedDep').value=parsed.dedDep||189.59;
-      document.getElementById('edTetoINSS').value=parsed.tetoINSS||908.86;
+      setMoneyValue(document.getElementById('edDedDep'),parsed.dedDep||189.59);
+      setMoneyValue(document.getElementById('edTetoINSS'),parsed.tetoINSS||908.86);
       document.getElementById('vigencia').value=parsed.vigencia||'2025';
       status.innerHTML=`<div style="background:var(--green-lt);border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--green)">✅ Encontrado! Revise e clique em Salvar.</div>`;
       document.getElementById('tabelasEditor').style.display='block';document.getElementById('btnSalvarTabelas').style.display='flex';
@@ -139,8 +141,8 @@ Object.assign(APP, {
     try{
       const ir=JSON.parse(document.getElementById('editorIR').value);
       const inss=JSON.parse(document.getElementById('editorINSS').value);
-      const dedDep=parseFloat(document.getElementById('edDedDep').value)||189.59;
-      const tetoINSS=parseFloat(document.getElementById('edTetoINSS').value)||908.86;
+      const dedDep=parseMoney(document.getElementById('edDedDep').value)||189.59;
+      const tetoINSS=parseMoney(document.getElementById('edTetoINSS').value)||908.86;
       const vigencia=document.getElementById('vigencia').value;
       await FS.saveTabelas({ir,inss,dedDep,tetoINSS,vigencia});
       APP.closeModal('ovTabelas');

@@ -59,7 +59,7 @@ Object.assign(APP, {
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
           <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
-          <input type="text" inputmode="decimal" class="rec-val money-input" value="${fmtMoney(c.vPagar)}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
+          <input type="text" inputmode="numeric" class="rec-val money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
         </div>
       </div>`;
     }).join('');

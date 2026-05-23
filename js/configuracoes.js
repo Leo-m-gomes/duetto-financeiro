@@ -159,8 +159,8 @@ Object.assign(APP, {
         </div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
-        <div class="fg"><label>Dedução por dependente (R$)</label><input type="number" id="cfgEdDedDep" step="0.01" value="${tab.dedDep||189.59}" style="background:var(--bg);color:var(--t1)"></div>
-        <div class="fg"><label>Teto INSS (R$)</label><input type="number" id="cfgEdTetoINSS" step="0.01" value="${tab.tetoINSS||908.86}" style="background:var(--bg);color:var(--t1)"></div>
+        <div class="fg"><label>Dedução por dependente (R$)</label><input type="text" inputmode="numeric" id="cfgEdDedDep" class="money-input" value="${maskMoney(floatToCentsStr(tab.dedDep||189.59))}" style="background:var(--bg);color:var(--t1)"></div>
+        <div class="fg"><label>Teto INSS (R$)</label><input type="text" inputmode="numeric" id="cfgEdTetoINSS" class="money-input" value="${maskMoney(floatToCentsStr(tab.tetoINSS||908.86))}" style="background:var(--bg);color:var(--t1)"></div>
         <div class="fg"><label>Vigência</label><input type="text" id="cfgVigencia" value="${tab.vigencia||''}" placeholder="Ex: Jan/2024" style="background:var(--bg);color:var(--t1)"></div>
       </div>
       <div style="display:flex;gap:8px">
@@ -168,6 +168,7 @@ Object.assign(APP, {
         <button class="btn btn-primary" onclick="APP.salvarTabelasConfig()">💾 Salvar Tabelas</button>
       </div>`;
     document.getElementById('cfgBtnSalvarTabelas').style.display='none';
+    bindAllMoneyInputs(el);
   },
 
   async salvarTabelasConfig(){
@@ -180,8 +181,8 @@ Object.assign(APP, {
     try{
       const ir      = JSON.parse(irEl.value);
       const inss    = JSON.parse(inssEl.value);
-      const dedDep  = parseFloat(dedEl.value)||189.59;
-      const tetoINSS= parseFloat(tetoEl.value)||908.86;
+      const dedDep  = parseMoney(dedEl.value)||189.59;
+      const tetoINSS= parseMoney(tetoEl.value)||908.86;
       const vigencia= vigEl.value;
       await FS.saveTabelas({ir,inss,dedDep,tetoINSS,vigencia});
       // Fechar modal se estiver aberto
@@ -319,13 +320,16 @@ Object.assign(APP, {
     if(parcPad && prefs.parcPadrao)   parcPad.value = prefs.parcPadrao;
     if(alertD  && prefs.alertaDias!=null) alertD.value = prefs.alertaDias;
     if(tema)                           tema.value    = STATE.darkMode?'dark':'light';
+    const moeda = document.getElementById('cfgMoeda');
+    if(moeda && prefs.moeda)           moeda.value   = prefs.moeda;
   },
 
   cfgSalvarPrefs(){
     const pgSz    = parseInt(document.getElementById('cfgPgSz')?.value)||20;
     const parcPad = parseInt(document.getElementById('cfgParcelaPadrao')?.value)||1;
     const alertD  = parseInt(document.getElementById('cfgAlertaDias')?.value)||5;
-    const prefs   = {pgSz, parcPadrao:parcPad, alertaDias:alertD};
+    const moeda   = document.getElementById('cfgMoeda')?.value||'BRL';
+    const prefs   = {pgSz, parcPadrao:parcPad, alertaDias:alertD, moeda};
     localStorage.setItem('dt_prefs', JSON.stringify(prefs));
     STATE.pgSz = pgSz;
     this.toast('Preferências salvas ✅','success');
@@ -338,10 +342,17 @@ Object.assign(APP, {
     this.cfgSalvarPrefs();
   },
 
+  cfgAplicarMoeda(valor){
+    moneySetCurrency(valor);
+    this.cfgSalvarPrefs();
+    this.toast(`Moeda alterada para ${MONEY_CFG.simbolo} (${valor})`,'success');
+  },
+
   // Carregar preferências salvas na inicialização
   carregarPrefsInicio(){
     const prefs = JSON.parse(localStorage.getItem('dt_prefs')||'{}');
     if(prefs.pgSz) STATE.pgSz = parseInt(prefs.pgSz);
+    if(prefs.moeda) moneySetCurrency(prefs.moeda);
   },
 });
 

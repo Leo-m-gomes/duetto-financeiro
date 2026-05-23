@@ -93,7 +93,7 @@ Object.assign(APP, {
   atualizarDiffPagamento(){
     const id   = document.getElementById('pgContaId').value;
     const c    = CACHE.contas.find(x=>x.id===id);
-    const pago = parseFloat(document.getElementById('pgValorPago').value)||0;
+    const pago = parseMoney(document.getElementById('pgValorPago').value);
     const prev = c ? c.vPagar : 0;
     const diff = pago - prev;
     const el   = document.getElementById('pgDiff');
@@ -115,9 +115,10 @@ Object.assign(APP, {
     document.getElementById('pgContaData').textContent  = fmtDate(c.data);
     document.getElementById('pgContaParc').textContent  = c.parcela||'';
     document.getElementById('pgValorPrevisto').textContent = fmt(c.vPagar);
-    document.getElementById('pgValorPago').value        = c.vPagar.toFixed(2);
+    setMoneyValue(document.getElementById('pgValorPago'),c.vPagar);
     document.getElementById('pgDiff').style.display     = 'none';
     document.getElementById('ovPagamento').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovPagamento'));
     setTimeout(()=>{ const el=document.getElementById('pgValorPago'); el.focus(); el.select(); },150);
   },
 
@@ -126,7 +127,7 @@ Object.assign(APP, {
     if(btn) btn.classList.add('loading');
     try{
       const id    = document.getElementById('pgContaId').value;
-      const valor = parseFloat(document.getElementById('pgValorPago').value);
+      const valor = parseMoney(document.getElementById('pgValorPago').value);
       if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
       await FS.pagarConta(id, STATE.usuario, valor);
       APP.closeModal('ovPagamento');
@@ -155,13 +156,14 @@ Object.assign(APP, {
         <td><input type="text" value="${c.conta}" id="parc_desc_${c.id}"></td>
         <td><select id="parc_resp_${c.id}" style="min-width:90px">${['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}"${c.resp===r?' selected':''}>${r}</option>`).join('')}</select></td>
         <td><input type="date" value="${c.data}" id="parc_data_${c.id}"></td>
-        <td><input type="number" value="${c.vPagar}" id="parc_val_${c.id}" step="0.01" style="width:90px"></td>
+        <td><input type="text" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" id="parc_val_${c.id}" class="money-input" style="width:100px"></td>
         <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?'<span class="badge bg-atr">Atrasado</span>':'<span class="badge bg-pend">Pendente</span>'}</td>
         <td>${c.paidBy||c.updatedBy||c.createdBy||'—'}</td>
         <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div></td>
       </tr>`;
     }).join('');
     document.getElementById('ovParcelas').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovParcelas'));
   },
 
   async parcsPayAll(){
@@ -177,7 +179,7 @@ Object.assign(APP, {
     if(!parcs.length){this.toast('Nenhuma pendente','info');return;}
     const val=prompt(`Valor do pagamento antecipado (${parcs.length} parcelas):`);if(!val)return;
     const nota=prompt('Observação:')||'Pagamento antecipado';
-    await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,parseFloat(val)/parcs.length)));
+    await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,parseMoney(val)/parcs.length)));
     this.toast('Pagamento antecipado registrado','success');
     APP.closeModal('ovParcelas');
   },
@@ -213,7 +215,7 @@ Object.assign(APP, {
       const data=document.getElementById(`parc_data_${c.id}`)?.value;
       const val =document.getElementById(`parc_val_${c.id}`)?.value;
       const parc=document.getElementById(`parc_parc_${c.id}`)?.value;
-      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseFloat(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
+      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
     }));
     this.toast('Alterações salvas','success');
     APP.closeModal('ovParcelas');
@@ -236,12 +238,13 @@ Object.assign(APP, {
       if(c){
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
         document.getElementById('fResp').value=c.resp;document.getElementById('fData').value=c.data;
-        document.getElementById('fVP').value=c.vPagar;document.getElementById('fParc').value=c.parcela||'';
+        setMoneyValue(document.getElementById('fVP'),c.vPagar);document.getElementById('fParc').value=c.parcela||'';
         const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=!!c.recorrente;
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
       }
     }
     document.getElementById('ovConta').classList.add('open');
+    bindAllMoneyInputs(document.getElementById('ovConta'));
     setTimeout(()=>document.getElementById('fDesc').focus(),100);
   },
 
@@ -250,7 +253,7 @@ Object.assign(APP, {
     document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
   },
-  calcTotal(){ const v=parseFloat(document.getElementById('fVP').value)||0;const q=parseInt(document.getElementById('fQP').value)||1;document.getElementById('fVT').value=(v*q).toFixed(2); },
+  calcTotal(){ const v=parseMoney(document.getElementById('fVP').value);const q=parseInt(document.getElementById('fQP').value)||1;document.getElementById('fVT').value=v>0?fmtMoney(v*q):''; },
 
   async saveConta(){
     const btn=document.getElementById('btnSalvarConta');
@@ -258,7 +261,7 @@ Object.assign(APP, {
     try{
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
-    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseFloat(document.getElementById('fVP').value)||0,vPago:null,parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
+    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),vPago:null,parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
     if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
     if(!c.resp){this.toast('Selecione o responsável','error');return;}
     if(!catId){this.toast('Selecione a categoria','error');return;}
