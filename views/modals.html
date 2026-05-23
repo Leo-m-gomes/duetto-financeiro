@@ -57,7 +57,7 @@
         <div class="fg"><label>Forma de Pagamento *</label><select id="fForma"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Categoria *</label><select id="fCat"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
-        <div class="fg"><label>Valor da Parcela (R$) *</label><input type="text" inputmode="decimal" id="fVP" class="money-input" placeholder="0,00"></div>
+        <div class="fg"><label>Valor da Parcela (R$) *</label><input type="text" inputmode="numeric" id="fVP" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" inputmode="numeric" min="1" value="1"></div>
         <div class="fg"><label>Valor Total (auto)</label><input type="text" id="fVT" readonly placeholder="—"></div>
         <div class="fg"><label>Parcela Atual</label><input type="text" id="fParc" placeholder="Ex: 3 de 12"></div>
@@ -100,8 +100,8 @@
         <div class="fg full"><label>Nome Completo *</label><input type="text" id="sNome" placeholder="Ex: Leonardo Gomes"></div>
         <div class="fg"><label>Pessoa *</label><select id="sPessoa"><option value="">Selecione...</option><option value="Leo">Leo</option><option value="Pri">Pri</option></select></div>
         <div class="fg"><label>Válido a partir de</label><select id="sMesInicio"></select></div>
-        <div class="fg"><label>Salário Bruto (R$) *</label><input type="text" inputmode="decimal" id="sSal" class="money-input" placeholder="0,00"></div>
-        <div class="fg"><label>Bonificação (R$)</label><input type="text" inputmode="decimal" id="sBon" class="money-input" placeholder="0,00"></div>
+        <div class="fg"><label>Salário Bruto (R$) *</label><input type="text" inputmode="numeric" id="sSal" class="money-input" placeholder="0,00"></div>
+        <div class="fg"><label>Bonificação (R$)</label><input type="text" inputmode="numeric" id="sBon" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Nº de Dependentes</label><input type="number" id="sDeps" inputmode="numeric" min="0" value="0"></div>
         <div class="form-sep"></div>
         <div class="fg"><label>INSS (calculado)</label><input type="text" id="sINSS" readonly></div>
@@ -121,7 +121,7 @@
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><input type="text" id="rDesc" placeholder="Ex: Freelance, Aluguel..."></div>
         <div class="fg"><label>Responsável</label><select id="rResp"><option value="">Ambos</option><option>Leo</option><option>Pri</option></select></div>
-        <div class="fg"><label>Valor (R$)</label><input type="text" inputmode="decimal" id="rValor" class="money-input" placeholder="0,00"></div>
+        <div class="fg"><label>Valor (R$)</label><input type="text" inputmode="numeric" id="rValor" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Mês inicial</label>
           <select id="rMesIni" onchange="APP.rAtualizarPeriodoInfo()">
             <option value="-1">Todos os meses</option>
@@ -165,8 +165,8 @@
           <div><div style="font-size:11px;font-weight:700;color:var(--palm);margin-bottom:6px">TABELA INSS</div><textarea id="editorINSS" rows="7" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:monospace;font-size:10.5px;outline:none;resize:vertical"></textarea></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
-          <div class="fg"><label>Dedução por dependente (R$)</label><input type="text" inputmode="decimal" id="edDedDep" class="money-input"></div>
-          <div class="fg"><label>Teto INSS (R$)</label><input type="text" inputmode="decimal" id="edTetoINSS" class="money-input"></div>
+          <div class="fg"><label>Dedução por dependente (R$)</label><input type="text" inputmode="numeric" id="edDedDep" class="money-input"></div>
+          <div class="fg"><label>Teto INSS (R$)</label><input type="text" inputmode="numeric" id="edTetoINSS" class="money-input"></div>
         </div>
       </div>
     </div>
@@ -212,7 +212,7 @@
         </div>
         <div class="fg full">
           <label>Valor Pago (R$) *</label>
-          <input type="text" inputmode="decimal" id="pgValorPago" class="money-input" placeholder="0,00" oninput="APP.atualizarDiffPagamento()">
+          <input type="text" inputmode="numeric" id="pgValorPago" class="money-input" placeholder="0,00" oninput="APP.atualizarDiffPagamento()">
           <div id="pgDiff" style="display:none;margin-top:5px"></div>
         </div>
         <div class="form-note" style="grid-column:1/-1">
