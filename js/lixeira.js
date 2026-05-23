@@ -64,15 +64,16 @@ Object.assign(APP, {
     const dados = snap.data();
     const {_lid, origemId, origemColecao, excluidoPor, excluidoEm, motivo, excluidoAt, ...dadosOriginais} = dados;
 
+    const colecao = origemColecao || 'contas';
     if(origemId){
-      await fbDb.collection('contas').doc(origemId).set({
+      await fbDb.collection(colecao).doc(origemId).set({
         ...dadosOriginais,
         restauradoPor: STATE.usuario,
         restauradoEm:  new Date().toISOString(),
         updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
       });
     } else {
-      await fbDb.collection('contas').add({
+      await fbDb.collection(colecao).add({
         ...dadosOriginais,
         restauradoPor: STATE.usuario,
         restauradoEm:  new Date().toISOString(),

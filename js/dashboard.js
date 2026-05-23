@@ -54,7 +54,7 @@ Object.assign(APP, {
     });
 
     const totP    = contas.reduce((s,c)=>s+vEfetivo(c),0);
-    const totPend = contas.reduce((s,c)=>s+(c.vPago>0?0:vEfetivo(c)),0);
+    const totPend = contas.reduce((s,c)=>s+vPendente(c),0);
     const pendList= contas.filter(c=>!(c.vPago>0));
     const saldo   = recMes-totP;
     const anoLabel = todosAnos ? 'Todos os anos' : String(anoVal);

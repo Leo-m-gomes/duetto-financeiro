@@ -87,8 +87,13 @@ function parseMoney(str) {
       s = s.replace(/,/g, '');
     }
   } else if (hasComma) {
-    // So virgula: pt-BR decimal
-    s = s.replace(/,/, '.');
+    var lastComma = s.lastIndexOf(',');
+    if (s.indexOf(',') !== lastComma) {
+      // Multiplas virgulas: ultima e decimal, demais sao milhar
+      s = s.substring(0, lastComma).replace(/,/g, '') + '.' + s.substring(lastComma + 1);
+    } else {
+      s = s.replace(',', '.');
+    }
   }
   // So ponto ou nenhum: ja e formato numerico
 

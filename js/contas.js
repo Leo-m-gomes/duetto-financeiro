@@ -44,7 +44,7 @@ Object.assign(APP, {
 
     document.getElementById('totalGeral').textContent    = fmt(data.reduce((s,c)=>s+vEfetivo(c),0));
     document.getElementById('totalPago').textContent     = fmt(data.reduce((s,c)=>s+(c.vPago||0),0));
-    document.getElementById('totalPendente').textContent = fmt(data.reduce((s,c)=>s+(c.vPago>0?0:vEfetivo(c)),0));
+    document.getElementById('totalPendente').textContent = fmt(data.reduce((s,c)=>s+vPendente(c),0));
 
     const atrasadas=CACHE.getOverdue();
     const alertEl=document.getElementById('overdueAlert');
@@ -62,7 +62,7 @@ Object.assign(APP, {
     const paged=data.slice(start,start+STATE.pgSz);
 
     document.getElementById('tbodyContas').innerHTML=paged.map((c,i)=>{
-      const pago=c.vPago>0; const atr=isOverdue(c); const ef=vEfetivo(c); const pend=pago?0:ef;
+      const pago=c.vPago>0; const atr=isOverdue(c); const ef=vEfetivo(c); const pend=vPendente(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
@@ -273,7 +273,7 @@ Object.assign(APP, {
     try{
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
-    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),vPago:null,parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
+    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
     if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
     if(!c.resp){this.toast('Selecione o responsável','error');return;}
     if(!catId){this.toast('Selecione a categoria','error');return;}
@@ -282,18 +282,20 @@ Object.assign(APP, {
     if(!c.vPagar){this.toast('Informe o valor','error');return;}
 
     if(STATE.editContaId){
-      await FS.updateConta(STATE.editContaId,{...c,updatedBy:STATE.usuario});
+      const {createdBy, ...editData} = c;
+      await FS.updateConta(STATE.editContaId,{...editData,updatedBy:STATE.usuario});
       this.toast('Conta atualizada ✅','success');
     } else {
       const qt=parseInt(document.getElementById('fQP').value)||1;
       const grupo=`grp-${Date.now()}`;
+      const novaConta = {...c, vPago:null};
       if(qt>1){
         const base=new Date(c.data+'T12:00');const proms=[];
-        for(let i=0;i<qt;i++){const d=new Date(base);d.setMonth(d.getMonth()+i);proms.push(FS.addConta({...c,data:d.toISOString().split('T')[0],parcela:`${i+1} de ${qt}`,grupo}));}
+        for(let i=0;i<qt;i++){const d=new Date(base);d.setMonth(d.getMonth()+i);proms.push(FS.addConta({...novaConta,data:d.toISOString().split('T')[0],parcela:`${i+1} de ${qt}`,grupo}));}
         await Promise.all(proms);
       } else {
-        if(!c.parcela)c.parcela='1 de 1';
-        await FS.addConta({...c,grupo});
+        if(!novaConta.parcela)novaConta.parcela='1 de 1';
+        await FS.addConta({...novaConta,grupo});
       }
       this.toast('Conta cadastrada ✅','success');
     }

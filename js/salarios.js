@@ -31,7 +31,7 @@ Object.assign(APP, {
         document.getElementById('sNome').value=s.nome;
         document.getElementById('sNome').disabled=true;
         if(document.getElementById('sPessoa'))document.getElementById('sPessoa').value=s.pessoa||'';
-        const h=s.historico[s.historico.length-1];
+        const h=[...s.historico].sort((a,b)=>b.mesInicio-a.mesInicio)[0];
         setMoneyValue(document.getElementById('sSal'),h.salario);
         setMoneyValue(document.getElementById('sBon'),h.bonificacao);
         document.getElementById('sDeps').value=h.deps||0;
@@ -113,28 +113,11 @@ Object.assign(APP, {
     bindAllMoneyInputs(document.getElementById('ovTabelas'));
   },
 
-  async buscarTabelasOnline(){
-    const btn=document.getElementById('btnBuscarOnline');const status=document.getElementById('atualizarStatus');
-    btn.innerHTML='⏳ Buscando...';btn.disabled=true;
-    status.innerHTML='<div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#1d4ed8">🌐 Consultando Receita Federal...</div>';
-    try{
-      const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1500,tools:[{type:'web_search_20250305',name:'web_search'}],messages:[{role:'user',content:'Busque as tabelas vigentes 2025/2026 do IRPF e INSS Brasil. Retorne SOMENTE JSON: {"ir":[{"de":0,"ate":2259.20,"al":0,"ded":0}],"inss":[{"de":0,"ate":1518,"al":0.075,"ded":0}],"dedDep":189.59,"tetoINSS":908.86,"vigencia":"2025","fonte":"URL"}'}]})});
-      const data=await resp.json();const text=data.content.map(b=>b.text||'').join('');
-      const match=text.replace(/```json?|```/g,'').trim().match(/\{[\s\S]*\}/);
-      if(!match)throw new Error('JSON não encontrado');
-      const parsed=JSON.parse(match[0]);
-      document.getElementById('editorIR').value=JSON.stringify(parsed.ir,null,2);
-      document.getElementById('editorINSS').value=JSON.stringify(parsed.inss,null,2);
-      setMoneyValue(document.getElementById('edDedDep'),parsed.dedDep||189.59);
-      setMoneyValue(document.getElementById('edTetoINSS'),parsed.tetoINSS||908.86);
-      document.getElementById('vigencia').value=parsed.vigencia||'2025';
-      status.innerHTML=`<div style="background:var(--green-lt);border:1px solid #bbf7d0;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--green)">✅ Encontrado! Revise e clique em Salvar.</div>`;
-      document.getElementById('tabelasEditor').style.display='block';document.getElementById('btnSalvarTabelas').style.display='flex';
-    }catch(e){
-      status.innerHTML='<div style="background:var(--red-lt);border:1px solid #fecaca;border-radius:8px;padding:10px 14px;font-size:12.5px;color:var(--red)">⚠️ Não foi possível buscar. Use "Editar manualmente".</div>';
-      document.getElementById('tabelasEditor').style.display='block';document.getElementById('btnSalvarTabelas').style.display='flex';
-    }
-    btn.innerHTML='🌐 Buscar nos sites oficiais';btn.disabled=false;
+  buscarTabelasOnline(){
+    const status=document.getElementById('atualizarStatus');
+    status.innerHTML='<div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-radius:8px;padding:10px 14px;font-size:12.5px;color:#1d4ed8">Consulte os valores vigentes em <a href="https://www.gov.br/receitafederal" target="_blank" rel="noopener">gov.br/receitafederal</a> e edite manualmente abaixo.</div>';
+    document.getElementById('tabelasEditor').style.display='block';
+    document.getElementById('btnSalvarTabelas').style.display='flex';
   },
 
   async salvarTabelas(){

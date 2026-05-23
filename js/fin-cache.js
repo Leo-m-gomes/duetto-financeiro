@@ -38,7 +38,7 @@ const CACHE = {
   getAllFormas(){ return [...this.formas].sort((a,b)=>a.nome.localeCompare(b.nome,'pt')); },
 
   // ── CONSULTAS DE CONTAS ──
-  getByMes(mes){ return this.contas.filter(c=>new Date(c.data+'T12:00').getMonth()===mes); },
+  getByMes(mes, ano){ return this.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); if(ano!=null && d.getFullYear()!==ano) return false; return d.getMonth()===mes; }); },
   getByAnoMes(ano,mes){
     return this.contas.filter(c=>{
       const d=new Date(c.data+'T12:00');
@@ -49,8 +49,8 @@ const CACHE = {
   },
   getOverdue(){ return this.contas.filter(isOverdue); },
   getByGrupo(grupo){ return this.contas.filter(c=>c.grupo===grupo).sort((a,b)=>a.data.localeCompare(b.data)); },
-  getContasFiltradas(mes, resp){
-    const all = mes===null ? [...this.contas] : this.getByMes(mes);
+  getContasFiltradas(mes, resp, ano){
+    const all = mes===null ? [...this.contas] : this.getByMes(mes, ano);
     if(!resp) return all.map(c=>({...c}));
     if(resp === 'Leo & Pri') return all.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
     return all.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>{
@@ -61,9 +61,9 @@ const CACHE = {
       return{...c};
     });
   },
-  getTotalByMes(){
+  getTotalByMes(ano){
     const t=Array(12).fill(0);
-    this.contas.forEach(c=>{ const m=new Date(c.data+'T12:00').getMonth(); if(m>=0&&m<12)t[m]+=c.vPagar; });
+    this.contas.forEach(c=>{ const d=new Date(c.data+'T12:00'); if(ano!=null && d.getFullYear()!==ano) return; const m=d.getMonth(); if(m>=0&&m<12)t[m]+=c.vPagar; });
     return t;
   },
 
@@ -85,7 +85,7 @@ const CACHE = {
   calcINSS(sal){
     if(!this.tabelas)return 0;
     let r=0;
-    for(const f of this.tabelas.inss){ if(sal<=f.de)break; r+=(Math.min(sal,f.ate)-f.de)*f.al; }
+    for(const f of this.tabelas.inss){ if(sal<f.de)break; r+=(Math.min(sal,f.ate)-f.de)*f.al; }
     return Math.min(parseFloat(r.toFixed(2)),this.tabelas.tetoINSS||908.86);
   },
   calcIR(sal,inss,deps){

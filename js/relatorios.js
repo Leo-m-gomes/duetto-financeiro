@@ -51,7 +51,7 @@ Object.assign(APP, {
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
     const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
-    const tPend = data.reduce((s,c)=>s+(c.vPago>0?0:vEfetivo(c)),0);
+    const tPend = data.reduce((s,c)=>s+vPendente(c),0);
 
     document.getElementById('relKpis').innerHTML=[
       {label:'Qtd. Contas',val:data.length,c:'var(--blue)'},
@@ -64,7 +64,7 @@ Object.assign(APP, {
     data = this._aplicarSort(data,'sortRel');
 
     document.getElementById('tbodyRel').innerHTML=data.map((c,i)=>{
-      const ef=vEfetivo(c); const pend=c.vPago>0?0:ef; const atr=isOverdue(c);
+      const ef=vEfetivo(c); const pend=vPendente(c); const atr=isOverdue(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat); const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const splitBadge=c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);font-size:9px;margin-left:4px">÷2</span>':'';
       return`<tr class="mob-card">
@@ -98,7 +98,7 @@ Object.assign(APP, {
     if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
     if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
     const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
-    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),(c.vPago>0?0:vEfetivo(c)),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
+    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=todosMeses?(todosAnos?'completo':'ano_'+anoVal):MESES[parseInt(mesVal)]+'_'+anoVal;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
@@ -111,7 +111,7 @@ Object.assign(APP, {
     const mes=document.getElementById('filtroMesContas').value;
     const data=CACHE.getByAnoMes(ano,mes);
     const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
-    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),c.vPagar,(c.vPago||0),(c.vPago>=c.vPagar?0:c.vPagar-(c.vPago||0)),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
+    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=mes==='todos'?(ano==='todos'?'todos':'ano_'+ano):`${MESES[parseInt(mes)]}_${ano}`;
     const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));

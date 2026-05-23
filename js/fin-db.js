@@ -100,7 +100,6 @@ const FS = {
     const parc  = snap?.exists ? snap.data().parcela : '';
     await fbDb.collection('contas').doc(id).update({
       vPago:  valorPago,
-      vPagar: valorPago,
       paidBy: quem,
       paidAt: today(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()

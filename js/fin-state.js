@@ -6,7 +6,7 @@
  * aplicação e valores default. PRIMEIRO módulo a carregar após firebase-config.
  *
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
- *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo,
+ *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
  *   getChartColors, getChartDefaults, DEFAULT_TABELAS, SEED_CATS, SEED_FORMAS,
  *   STATE
  * ═══════════════════════════════════════════════════════════════════════════
@@ -43,6 +43,7 @@ const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d
 const today   = () => new Date().toISOString().split('T')[0];
 const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));
 const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
+const vPendente = c => Math.max(0, (c.vPagar||0) - (c.vPago||0));
 
 // ── DEFAULTS E SEEDS ──
 const DEFAULT_TABELAS = {
@@ -72,4 +73,5 @@ window.fmtN     = fmtN;
 window.fmtDate  = fmtDate;
 window.today    = today;
 window.isOverdue = isOverdue;
-window.vEfetivo = vEfetivo;
+window.vEfetivo  = vEfetivo;
+window.vPendente = vPendente;

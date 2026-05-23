@@ -42,7 +42,7 @@ Object.assign(APP, {
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
     const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
-    const tPend = data.reduce((s,c)=>s+(c.vPago>0?0:vEfetivo(c)),0);
+    const tPend = data.reduce((s,c)=>s+vPendente(c),0);
 
     // Período label
     let periodoLabel = '';
@@ -86,7 +86,7 @@ Object.assign(APP, {
     // ── TABELA ──
     const rows = data.map((c,i)=>{
       const ef=vEfetivo(c);
-      const pend=c.vPago>0?'—':fmt(ef);
+      const pend=vPendente(c)>0?fmt(vPendente(c)):'—';
       const atr=isOverdue(c);
       return [
         i+1,
