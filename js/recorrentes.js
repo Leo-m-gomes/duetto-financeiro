@@ -59,10 +59,11 @@ Object.assign(APP, {
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
           <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
-          <input type="number" class="rec-val" value="${c.vPagar}" step="0.01" min="0" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
+          <input type="text" inputmode="decimal" class="rec-val money-input" value="${fmtMoney(c.vPagar)}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
         </div>
       </div>`;
     }).join('');
+    bindAllMoneyInputs(lista);
   },
 
   recToggleItem(el){
@@ -94,7 +95,7 @@ Object.assign(APP, {
         const chk   = el.querySelector('.rec-chk');
         const base  = JSON.parse(chk.dataset.conta.replace(/&apos;/g,"'"));
         const data  = el.querySelector('.rec-data')?.value;
-        const valor = parseFloat(el.querySelector('.rec-val')?.value)||0;
+        const valor = parseMoney(el.querySelector('.rec-val')?.value);
         if(!data || !valor){ erros++; continue; }
         await FS.addConta({
           ...base,
