@@ -20,6 +20,18 @@ Object.assign(APP, {
       ? CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; })
       : CACHE.getByAnoMes(ano,mes);
 
+    let mergeRef=null;
+    if(p) mergeRef={y:p.ano,m:p.mesIni};
+    else if(ano!=='todos'&&mes!=='todos') mergeRef={y:parseInt(ano),m:parseInt(mes)};
+    if(mergeRef){
+      const ids=new Set(data.map(c=>c.id));
+      CACHE.getOverdue().forEach(c=>{
+        if(ids.has(c.id))return;
+        const d=new Date(c.data+'T12:00');
+        if(d.getFullYear()<mergeRef.y||(d.getFullYear()===mergeRef.y&&d.getMonth()<mergeRef.m))data.push(c);
+      });
+    }
+
     if(search)  data = data.filter(c=>c.conta.toLowerCase().includes(search));
     if(resp)    data = data.filter(c=>c.resp===resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
