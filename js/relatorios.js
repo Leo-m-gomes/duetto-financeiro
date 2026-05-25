@@ -13,15 +13,11 @@ Object.assign(APP, {
     this._aplicarTemaResp(resp);
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
-    // BUGFIX: variável `p` (período do Relatório) era usada sem declaração,
-    // causando ReferenceError que abortava toda a renderização (KPIs, tabela e Pareto vazios).
-    // Padrão alinhado com renderDashboard (STATE.periodoDash) e renderContas (STATE.periodoContas).
     const p = STATE.periodo;
 
     let data = CACHE.contas;
 
     if(p){
-      // Filtro por período: ano fixo + intervalo de meses
       data = data.filter(c=>{
         const d = new Date(c.data+'T12:00');
         return d.getFullYear()===p.ano && d.getMonth()>=p.mesIni && d.getMonth()<=p.mesFim;
@@ -32,22 +28,7 @@ Object.assign(APP, {
     }
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
-    // Filtro responsável: Leo ou Pri inclui "Leo & Pri" com valor ÷2; "Leo & Pri" mostra valor inteiro
-    if(resp){
-      if(resp === 'Leo & Pri'){
-        data = data.filter(c => c.resp === 'Leo & Pri');
-      } else {
-        data = data
-          .filter(c => c.resp === resp || c.resp === 'Leo & Pri')
-          .map(c => {
-            if(c.resp === 'Leo & Pri'){
-              const ef = vEfetivo(c);
-              return {...c, vPagar: ef/2, vPago: c.vPago>0 ? c.vPago/2 : null, _split: true};
-            }
-            return c;
-          });
-      }
-    }
+    if(resp) data = filtrarPorResp(data, resp);
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
     const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
@@ -92,17 +73,30 @@ Object.assign(APP, {
   exportCSV(){
     const anoVal  = document.getElementById('relAno').value;
     const mesVal  = document.getElementById('relMes').value;
+    const cat     = document.getElementById('relCat').value;
+    const formaId = document.getElementById('relForma')?.value||'';
+    const resp    = document.getElementById('relResp').value;
+    const p       = STATE.periodo;
     const todosAnos  = anoVal==='todos';
     const todosMeses = mesVal==='todos';
+
     let data = CACHE.contas;
-    if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
-    if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+    if(p){
+      data = data.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; });
+    } else {
+      if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
+      if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+    }
+    if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
+    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
+    if(resp) data = filtrarPorResp(data, resp);
+
     const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
     const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=todosMeses?(todosAnos?'completo':'ano_'+anoVal):MESES[parseInt(mesVal)]+'_'+anoVal;
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
-    a.download=`duetto_${label}.csv`;a.click();
+    const a=document.createElement('a');const url=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+    a.href=url;a.download=`duetto_${label}.csv`;a.click();URL.revokeObjectURL(url);
     this.toast('CSV exportado ⬇','success');
   },
 
@@ -114,10 +108,9 @@ Object.assign(APP, {
     const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=mes==='todos'?(ano==='todos'?'todos':'ano_'+ano):`${MESES[parseInt(mes)]}_${ano}`;
-    const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8'}));
-    a.download=`duetto_contas_${label}.csv`;a.click();
+    const a=document.createElement('a');const url=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
+    a.href=url;a.download=`duetto_contas_${label}.csv`;a.click();URL.revokeObjectURL(url);
     this.toast('CSV exportado ⬇','success');
   },
 
 });
-

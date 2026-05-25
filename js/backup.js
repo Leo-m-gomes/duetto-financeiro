@@ -97,8 +97,9 @@ Object.assign(APP, {
       const blob  = new Blob([json],{type:'application/json'});
       const nome  = this._nomeArquivo('json');
       const a=document.createElement('a');
-      a.href=URL.createObjectURL(blob);
-      a.download=nome; a.click();
+      const url=URL.createObjectURL(blob);
+      a.href=url; a.download=nome; a.click();
+      URL.revokeObjectURL(url);
       this._registrarLog('json',nome,dados);
       this.toast(`Backup JSON exportado: ${nome} ✅`,'success');
     }catch(e){

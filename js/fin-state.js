@@ -7,8 +7,8 @@
  *
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
- *   getChartColors, getChartDefaults, DEFAULT_TABELAS, SEED_CATS, SEED_FORMAS,
- *   STATE
+ *   filtrarPorResp, getChartColors, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
+ *   SEED_FORMAS, STATE
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -45,6 +45,25 @@ const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));
 const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
 const vPendente = c => Math.max(0, (c.vPagar||0) - (c.vPago||0));
 
+/**
+ * DUP-004: helper centralizado para filtrar contas por responsável
+ * com split ÷2 para despesas compartilhadas ("Leo & Pri").
+ * @param {Array} data - array de contas
+ * @param {string} resp - 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
+ * @returns {Array} contas filtradas (com _split:true nas divididas)
+ */
+const filtrarPorResp = (data, resp) => {
+  if(!resp) return data;
+  if(resp === 'Leo & Pri') return data.filter(c => c.resp === 'Leo & Pri');
+  return data
+    .filter(c => c.resp === resp || c.resp === 'Leo & Pri')
+    .map(c => {
+      if(c.resp !== 'Leo & Pri') return c;
+      const ef = vEfetivo(c);
+      return {...c, vPagar: ef/2, vPago: c.vPago > 0 ? c.vPago/2 : null, _split: true};
+    });
+};
+
 // ── DEFAULTS E SEEDS ──
 const DEFAULT_TABELAS = {
   ir:[{de:0,ate:2259.20,al:0,ded:0},{de:2259.21,ate:2826.65,al:.075,ded:169.44},{de:2826.66,ate:3751.06,al:.15,ded:381.44},{de:3751.07,ate:4664.68,al:.225,ded:662.77},{de:4664.69,ate:null,al:.275,ded:896.00}],
@@ -75,3 +94,4 @@ window.today    = today;
 window.isOverdue = isOverdue;
 window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
+window.filtrarPorResp = filtrarPorResp;

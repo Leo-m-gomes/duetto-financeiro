@@ -52,14 +52,7 @@ const CACHE = {
   getContasFiltradas(mes, resp, ano){
     const all = mes===null ? [...this.contas] : this.getByMes(mes, ano);
     if(!resp) return all.map(c=>({...c}));
-    if(resp === 'Leo & Pri') return all.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-    return all.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>{
-      if(c.resp==='Leo & Pri'){
-        const ef=vEfetivo(c);
-        return{...c,vPagar:ef/2,vPago:c.vPago>0?c.vPago/2:null,_split:true};
-      }
-      return{...c};
-    });
+    return filtrarPorResp(all, resp);
   },
   getTotalByMes(ano){
     const t=Array(12).fill(0);

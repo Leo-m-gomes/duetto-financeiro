@@ -23,6 +23,7 @@ Object.assign(APP, {
     const anoVal  = document.getElementById('relAno').value;
     const mesVal  = document.getElementById('relMes').value;
     const cat     = document.getElementById('relCat').value;
+    const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
     const p       = STATE.periodo;
 
@@ -33,11 +34,9 @@ Object.assign(APP, {
       if(anoVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
       if(mesVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
     }
-    if(cat) data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
-    if(resp){
-      if(resp==='Leo & Pri') data=data.filter(c=>c.resp==='Leo & Pri');
-      else data=data.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2,vPago:c.vPago>0?c.vPago/2:null,_split:true}:{...c});
-    }
+    if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
+    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
+    if(resp) data = filtrarPorResp(data, resp);
     data = this._aplicarSort(data,'sortRel');
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);

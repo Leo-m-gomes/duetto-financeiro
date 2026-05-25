@@ -191,7 +191,11 @@ Object.assign(APP, {
     if(!parcs.length){this.toast('Nenhuma pendente','info');return;}
     const val=prompt(`Valor do pagamento antecipado (${parcs.length} parcelas):`);if(!val)return;
     const nota=prompt('Observação:')||'Pagamento antecipado';
-    await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,parseMoney(val)/parcs.length)));
+    const total=parseMoney(val);const perParc=Math.round(total/parcs.length*100)/100;
+    await Promise.all(parcs.map((c,i)=>{
+      const v = i===parcs.length-1 ? Math.round((total-perParc*(parcs.length-1))*100)/100 : perParc;
+      return FS.pagarConta(c.id,STATE.usuario,v);
+    }));
     this.toast('Pagamento antecipado registrado','success');
     APP.closeModal('ovParcelas');
   },

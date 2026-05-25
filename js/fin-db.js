@@ -75,19 +75,25 @@ const FS = {
   },
 
   async deleteConta(id, motivo){
-    const snap = await fbDb.collection('contas').doc(id).get();
-    if(!snap.exists) return;
-    const dados = snap.data();
-    await fbDb.collection('lixeira').add({
-      ...dados,
-      origemId:      id,
-      origemColecao: 'contas',
-      excluidoPor:   STATE.usuario,
-      excluidoEm:    new Date().toISOString(),
-      motivo:        motivo||'exclusão manual',
-      excluidoAt:    firebase.firestore.FieldValue.serverTimestamp(),
+    const contaRef = fbDb.collection('contas').doc(id);
+    const dados = await fbDb.runTransaction(async tx => {
+      const snap = await tx.get(contaRef);
+      if(!snap.exists) return null;
+      const d = snap.data();
+      const lixRef = fbDb.collection('lixeira').doc();
+      tx.set(lixRef, {
+        ...d,
+        origemId:      id,
+        origemColecao: 'contas',
+        excluidoPor:   STATE.usuario,
+        excluidoEm:    new Date().toISOString(),
+        motivo:        motivo||'exclusão manual',
+        excluidoAt:    firebase.firestore.FieldValue.serverTimestamp(),
+      });
+      tx.delete(contaRef);
+      return d;
     });
-    await fbDb.collection('contas').doc(id).delete();
+    if(!dados) return;
     await this._log('exclusao', id, dados.conta,
       `Excluído por ${STATE.usuario}${motivo?' — '+motivo:''}`,
       {valor:dados.vPagar, resp:dados.resp, parcela:dados.parcela}

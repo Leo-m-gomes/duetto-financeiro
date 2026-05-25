@@ -26,18 +26,7 @@ Object.assign(APP, {
       return r;
     };
     const baseContas = filtrarContas(CACHE.contas);
-    let contas;
-    if(!resp){
-      contas = baseContas.map(c=>({...c}));
-    } else if(resp === 'Leo & Pri'){
-      contas = baseContas.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-    } else {
-      // Leo ou Pri: inclui compartilhadas com valor ÷2
-      contas = baseContas.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>
-        c.resp==='Leo & Pri'
-          ?{...c,vPagar:vEfetivo(c)/2,vPago:c.vPago>0?c.vPago/2:null,_split:true}
-          :{...c});
-    }
+    const contas = resp ? filtrarPorResp(baseContas, resp) : baseContas.map(c=>({...c}));
 
     // Receita: sempre ano completo por mês (o gráfico mostra o ano todo)
     let recMes=0;
@@ -49,7 +38,10 @@ Object.assign(APP, {
     });
     CACHE.outras.forEach(r=>{
       mesesCalc.forEach(m=>{ const v=r.valores[m]||0;
-        if(!resp)recMes+=v; else if(r.resp===resp)recMes+=v; else if(!r.resp||r.resp==='Ambos')recMes+=v/2;
+        if(!resp) recMes+=v;
+        else if(r.resp===resp) recMes+=v;
+        else if(resp==='Leo & Pri'&&(!r.resp||r.resp==='Ambos')) recMes+=v;
+        else if(!r.resp||r.resp==='Ambos') recMes+=v/2;
       });
     });
 
@@ -145,9 +137,9 @@ Object.assign(APP, {
     if(mes !== null && ano !== null){
       const recorrentes = CACHE.contas.filter(c=>c.recorrente);
       const comMes = new Set(
-        CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase())
+        CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase()+'|'+c.resp)
       );
-      const semMes = recorrentes.filter(c=>!comMes.has(c.conta.toLowerCase()));
+      const semMes = recorrentes.filter(c=>!comMes.has(c.conta.toLowerCase()+'|'+c.resp));
       if(semMes.length > 0) chips.push({cls:'insight-warn', text:`🔁 ${semMes.length} conta${semMes.length>1?'s recorrentes':'recorrente'} sem registro neste mês`});
     }
 
@@ -161,17 +153,8 @@ Object.assign(APP, {
     const textColor  = dark ? 'rgba(235,235,245,.85)' : '#374151';
     const borderColor = dark ? '#2c2c2e' : '#fff';
     const base = baseContas || CACHE.contas;
-    let contas;
-    if(mes===null){
-      if(!resp) contas=[...base];
-      else if(resp==='Leo & Pri') contas=base.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-      else contas=base.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2}:{...c});
-    } else {
-      const porMes=base.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
-      if(!resp) contas=[...porMes];
-      else if(resp==='Leo & Pri') contas=porMes.filter(c=>c.resp==='Leo & Pri').map(c=>({...c}));
-      else contas=porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').map(c=>c.resp==='Leo & Pri'?{...c,vPagar:vEfetivo(c)/2}:{...c});
-    }
+    let src = mes===null ? base : base.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
+    const contas = resp ? filtrarPorResp(src, resp) : [...src];
     const map={};contas.forEach(c=>{const n=CACHE.resolveCat(c.catId||c.cat);map[n]=(map[n]||0)+vEfetivo(c);});
     const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,9);
     const total = sorted.reduce((s,[,v])=>s+v,0);
@@ -233,17 +216,14 @@ Object.assign(APP, {
     // Agrupa por mês com filtro de responsável — usa vEfetivo
     const despFilt = Array.from({length:12},(_,m)=>{
       const porMes = contasAno.filter(c=>new Date(c.data+'T12:00').getMonth()===m);
-      if(!resp) return porMes.reduce((s,c)=>s+vEfetivo(c),0);
-      if(resp==='Leo & Pri') return porMes.filter(c=>c.resp==='Leo & Pri').reduce((s,c)=>s+vEfetivo(c),0);
-      return porMes.filter(c=>c.resp===resp||c.resp==='Leo & Pri').reduce((s,c)=>{
-        return s+(c.resp==='Leo & Pri'?vEfetivo(c)/2:vEfetivo(c));
-      },0);
+      const filtrado = resp ? filtrarPorResp(porMes, resp) : porMes;
+      return filtrado.reduce((s,c)=>s+vEfetivo(c),0);
     });
 
     const rec=Array.from({length:12},(_,m)=>{
       let t=0;
       CACHE.salarios.forEach(s=>{if(!resp||s.pessoa===resp){const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;}});
-      CACHE.outras.forEach(r=>{const v=r.valores[m]||0;if(!resp)t+=v;else if(r.resp===resp)t+=v;else if(!r.resp||r.resp==='Ambos')t+=v/2;});
+      CACHE.outras.forEach(r=>{const v=r.valores[m]||0;if(!resp)t+=v;else if(r.resp===resp)t+=v;else if(resp==='Leo & Pri'&&(!r.resp||r.resp==='Ambos'))t+=v;else if(!r.resp||r.resp==='Ambos')t+=v/2;});
       return t;
     });
     const mesAtual = new Date().getMonth();
