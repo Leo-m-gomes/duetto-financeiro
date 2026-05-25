@@ -4,17 +4,12 @@
    Responsabilidade: tokens globais, reset universal, dark mode, scrollbar.
    Não contém: layout, componentes, tabelas, regras específicas de página.
 
-   ESTRATÉGIA DE EXTRAÇÃO
+   FONTE AUTORITATIVA
    ───────────────────────────────────────────────────────────────────────────
-   Este arquivo é CÓPIA LITERAL (bit-a-bit) das seguintes faixas do legado
-   style.css, sem modificação de valores ou ordem:
-     - Linhas 1 a 39   (:root + reset + scrollbar)
-     - Linhas 432 a 464 (.dark)
-     - Linhas 1364 a 1389 (overrides .dark mobile do mob-card)
-
-   Adições NOVAS (claramente marcadas):
-     - Tokens --ui-z-* para a hierarquia de modal/sub-modal/toast
-     - Token --ui-radius-pill para uso comum em badges
+   Conteúdo:
+     - :root (tokens visuais, espaçamento, z-index, radius)
+     - Reset universal + scrollbar
+     - .dark (overrides de tokens para dark mode)
 
    PRESERVAÇÃO MOBILE
    ───────────────────────────────────────────────────────────────────────────
@@ -24,7 +19,7 @@
 
 /* ─────────────────────────────────────────────────────────────────────────
    VARIÁVEIS GLOBAIS, modo claro (default)
-   Cópia literal das linhas 1 a 34 do style.css legado.
+   Fonte autoritativa de tokens visuais do sistema.
    ───────────────────────────────────────────────────────────────────────── */
 :root {
   --palm:    #006437;
@@ -56,18 +51,22 @@
   --shadow-sm: 0 1px 4px rgba(0,0,0,.05), 0 0 0 1px rgba(0,0,0,.03);
   --shadow:    0 4px 20px rgba(0,0,0,.08), 0 1px 4px rgba(0,0,0,.04);
   --shadow-lg: 0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
+  --palm-border: #c6e8d4;
+  --palm-grad:   #d4efdf;
+  --orange-border: #fed7aa;
   --font-d:'Playfair Display',Georgia,serif;
   --font-b:'DM Sans',system-ui,sans-serif;
   --transition: .2s cubic-bezier(.4,0,.2,1);
 
-  /* ── NOVO: hierarquia de z-index para modais e sub-modais ──
-     Centralizar evita "z-index war" entre módulos.
-     Valores espaçados em 100 para acomodar futuros níveis sem realocação. */
-  --ui-z-toast:    2000;  /* sempre acima de tudo */
+  /* ── Hierarquia de z-index centralizada ──
+     Valores refletem o uso real. Espaçados para acomodar futuros níveis. */
+  --ui-z-toast:    9999;  /* toast: acima de tudo */
+  --ui-z-screen:   9000;  /* loading overlay full-screen */
   --ui-z-submodal: 1100;  /* sub-modal sobre modal */
-  --ui-z-modal:    1000;  /* modais principais (compatível com z-index legado) */
+  --ui-z-modal:    1000;  /* modais principais */
   --ui-z-sidebar:   200;  /* sidebar e overlays mobile */
-  --ui-z-sticky:     50;  /* topbar, headers fixos */
+  --ui-z-topbar:    100;  /* topbar (acima de thead sticky) */
+  --ui-z-sticky:     10;  /* thead sticky dentro de scroll containers */
 
   /* ── NOVO: raio "pill" frequente em badges e chips ── */
   --ui-radius-pill: 99px;
@@ -76,7 +75,7 @@
 
 /* ─────────────────────────────────────────────────────────────────────────
    RESET UNIVERSAL
-   Cópia literal das linhas 35 a 37 do style.css legado.
+   Fonte autoritativa: reset universal.
    ───────────────────────────────────────────────────────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 html{font-size:14px}
@@ -85,15 +84,15 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 
 /* ─────────────────────────────────────────────────────────────────────────
    SCROLLBAR
-   Cópia literal das linhas 38 a 39 do style.css legado.
+   Fonte autoritativa: scrollbar custom.
    ───────────────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar{width:4px;height:4px}
-::-webkit-scrollbar-thumb{background:var(--border2);border-radius:99px}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:var(--ui-radius-pill)}
 
 
 /* ═══════════════════════════════════════════════════════════════════════════
    DARK MODE
-   Cópia literal das linhas 432 a 464 do style.css legado.
+   Fonte autoritativa: overrides de tokens para dark mode.
    ATENÇÃO: as regras `.dark .X` específicas (linhas 467-1390 do legado)
    ficam nos respectivos arquivos modulares (layout.css, components.css,
    tables.css), não aqui. Aqui ficam APENAS os overrides de tokens.
@@ -115,6 +114,7 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
 
   /* Sombras mais profundas */
   --shadow-sm:0 1px 4px rgba(0,0,0,.5);
+  --shadow:   0 4px 20px rgba(0,0,0,.4), 0 1px 4px rgba(0,0,0,.3);
   --shadow-lg:0 8px 32px rgba(0,0,0,.6);
 
   /* Manter cores funcionais vibrantes mas ligeiramente dessaturadas */

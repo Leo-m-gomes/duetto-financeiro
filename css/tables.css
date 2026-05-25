@@ -7,18 +7,15 @@
      - Pagination, badges, action buttons (acoplados às tabelas no legado)
      - NOVO: sistema universal de ordenação e linha clicável (.ui-*)
 
-   ESTRATÉGIA DE EXTRAÇÃO
+   FONTE AUTORITATIVA
    ───────────────────────────────────────────────────────────────────────────
-   Cópia LITERAL (bit-a-bit) das seguintes faixas do legado style.css:
-     - Linhas 149-216 (.table-wrap, .data-table, .badge, .action-btn, .pagination)
-     - Linhas 219-232 (.rec-section, .rec-table, .cell-input)
-     - Linhas 279-284 (.parcs-table)
-     - Linhas 523-527 (.th-sort, .sort-icon)
-     - Bloco mobile @media(max-width:640px) linhas 614-722 (somente regras
-       de tabela, mob-card, badges em mobile)
-     - Linhas 1264-1292 (M01, M07 mob-card overrides v1.0)
-     - Linhas 479-481 (.dark .data-table)
-     - Linhas 1383-1389 (.dark mobile mob-card)
+   Este arquivo é a fonte autoritativa para todas as regras de tabelas:
+     - .table-wrap, .data-table, .badge, .action-btn, .pagination
+     - .rec-table, .cell-input
+     - .parcs-table
+     - .th-sort, .sort-icon
+     - Mob-card pattern (mobile)
+     - Dark mode de tabelas
 
    Adições NOVAS, claramente marcadas com prefixo "ui-":
      - .ui-table-zebra (zebra-striping opcional)
@@ -59,14 +56,14 @@
 
 /* ── DATA-TABLE base ── (linhas 191-196) */
 .data-table{width:100%;border-collapse:collapse;font-size:12px}
-.data-table thead{position:sticky;top:0;z-index:10}
+.data-table thead{position:sticky;top:0;z-index:var(--ui-z-sticky)}
 .data-table th{background:#f8fbf9;color:var(--t4);font-weight:700;font-size:10px;letter-spacing:.5px;text-transform:uppercase;padding:10px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
 .data-table td{padding:9px 12px;border-bottom:1px solid var(--border);color:var(--t2)}
 .data-table tbody tr:last-child td{border-bottom:none}
 .data-table tbody tr:hover td{background:var(--hover)}
 
 /* ── BADGES ── (linhas 199-203) */
-.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:99px;font-size:10.5px;font-weight:600}
+.badge{display:inline-flex;align-items:center;gap:3px;padding:2px 8px;border-radius:var(--ui-radius-pill);font-size:10.5px;font-weight:600}
 .bg-pago{background:var(--green-lt);color:var(--green)}
 .bg-pend{background:var(--red-lt);color:var(--red)}
 .bg-atr{background:var(--orange-lt);color:var(--orange)}
@@ -175,8 +172,8 @@
    PARTE 3, BLOCO MOBILE, MOB-CARD PATTERN
    ═══════════════════════════════════════════════════════════════════════════
    ATENÇÃO: este bloco é CRÍTICO para a UX mobile.
-   Cópia LITERAL das linhas 614-722 do style.css legado, dentro do mesmo
-   media query. Qualquer alteração aqui afeta diretamente a apresentação
+   Fonte autoritativa do mobile pattern de tabelas.
+   Qualquer alteração aqui afeta diretamente a apresentação
    das tabelas em telas pequenas.
 
    Apenas regras de tabela/mob-card/badges foram extraídas. As demais
@@ -322,9 +319,9 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    PARTE 4, DARK MODE DAS TABELAS
    ═══════════════════════════════════════════════════════════════════════════
-   Cópia literal das regras .dark relacionadas a tabelas do legado:
-     - Linhas 479-481 (.dark .data-table)
-     - Linhas 1383-1389 (override mobile dark do mob-card)
+   Fonte autoritativa: regras dark mode de tabelas.
+     - .dark .data-table
+     - .dark mob-card (mobile)
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .dark .data-table th       { background:var(--surface2); color:var(--t3); border-color:var(--border); }
