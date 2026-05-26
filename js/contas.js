@@ -38,14 +38,15 @@ Object.assign(APP, {
       return [c.conta,c.nota,c.resp,cat,forma,c.parcela,c.data,c.updatedBy,c.createdBy,c.paidBy]
         .some(v=>v&&String(v).toLowerCase().includes(search));
     });
-    if(resp)    data = data.filter(c=>c.resp===resp);
+    if(resp)    data = filtrarPorResp(data, resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(recFiltro==='sim') data = data.filter(c=>c.recorrente);
     else if(recFiltro==='nao') data = data.filter(c=>!c.recorrente);
-    if(status==='pago')          data=data.filter(c=>c.vPago>0);
-    else if(status==='pendente') data=data.filter(c=>!(c.vPago>0));
-    else if(status==='atrasado') data=data.filter(isOverdue);
+    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
+    if(status==='pago')          data=data.filter(c=>_quitada(c));
+    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
 
     document.getElementById('totalGeral').textContent    = fmt(data.reduce((s,c)=>s+vEfetivo(c),0));
     document.getElementById('totalPago').textContent     = fmt(data.reduce((s,c)=>s+(c.vPago||0),0));
@@ -68,18 +69,19 @@ Object.assign(APP, {
 
     document.getElementById('tbodyContas').innerHTML=paged.map((c,i)=>{
       const isShared=c.resp==='Leo & Pri';
-      const fullyPaid=isShared&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0;
+      const fullyPaid=c._split?c.vPago>0:(isShared&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
       const hasPg=c.vPago>0;
-      const atr=!fullyPaid&&isOverdue(c); const ef=vEfetivo(c); const pend=fullyPaid?0:vPendente(c);
+      const atr=!fullyPaid&&(c._split?c.data<today():isOverdue(c)); const ef=vEfetivo(c); const pend=fullyPaid?0:vPendente(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
-      const pgBadge=isShared&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
+      const splitBadge=c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':'';
+      const pgBadge=isShared&&!c._split&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
         ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${ef}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${splitBadge}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
