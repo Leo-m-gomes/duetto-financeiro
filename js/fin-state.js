@@ -59,8 +59,13 @@ const filtrarPorResp = (data, resp) => {
     .filter(c => c.resp === resp || c.resp === 'Leo & Pri')
     .map(c => {
       if(c.resp !== 'Leo & Pri') return c;
-      const ef = vEfetivo(c);
-      return {...c, vPagar: ef/2, vPago: c.vPago > 0 ? c.vPago/2 : null, _split: true};
+      const metade = (c.vPagar||0) / 2;
+      const pgInd = c.pagamentos?.[resp];
+      if(pgInd) return {...c, vPagar: metade, vPago: pgInd.valor, _split: true};
+      const outra = resp === 'Leo' ? 'Pri' : 'Leo';
+      const pgOutra = c.pagamentos?.[outra];
+      if(pgOutra) return {...c, vPagar: metade, vPago: null, _split: true};
+      return {...c, vPagar: metade, vPago: c.vPago > 0 ? c.vPago/2 : null, _split: true};
     });
 };
 

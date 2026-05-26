@@ -116,6 +116,70 @@ const FS = {
     );
   },
 
+  async pagarContaIndividual(id, resp, quem, valorPago){
+    const contaRef = fbDb.collection('contas').doc(id);
+    const result = await fbDb.runTransaction(async tx => {
+      const snap = await tx.get(contaRef);
+      if(!snap.exists) return null;
+      const d = snap.data();
+      if(d.pagamentos?.[resp]) return {erro:`${resp} já registrou pagamento nesta conta`};
+      const pgNovo = {valor:valorPago, paidBy:quem, paidAt:today()};
+      const pagamentos = {...(d.pagamentos||{}), [resp]:pgNovo};
+      const vPagoTotal = Object.values(pagamentos).reduce((s,p)=>s+(p.valor||0),0);
+      tx.update(contaRef, {
+        [`pagamentos.${resp}`]: pgNovo,
+        vPago: vPagoTotal,
+        paidBy: quem,
+        paidAt: today(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return {nome:d.conta, parcela:d.parcela, quitada:Object.keys(pagamentos).length>=2};
+    });
+    if(!result) return;
+    if(result.erro) throw new Error(result.erro);
+    const evento = result.quitada ? 'pagamento_complementar' : 'pagamento_individual';
+    const status = result.quitada ? 'conta integralmente quitada' : 'pagamento parcial';
+    await this._log(evento, id, result.nome,
+      `Pagamento de ${fmt(valorPago)} (${resp}) por ${quem}${result.parcela?' ('+result.parcela+')':''} — ${status}`,
+      {valor:valorPago, resp, tipoPagamento:result.quitada?'complementar':'individual'}
+    );
+  },
+
+  async desfazerPagamentoIndividual(id, resp){
+    const contaRef = fbDb.collection('contas').doc(id);
+    const result = await fbDb.runTransaction(async tx => {
+      const snap = await tx.get(contaRef);
+      if(!snap.exists) return null;
+      const d = snap.data();
+      if(!d.pagamentos?.[resp]) return null;
+      const valor = d.pagamentos[resp].valor;
+      const restantes = {...d.pagamentos};
+      delete restantes[resp];
+      const vPagoTotal = Object.values(restantes).reduce((s,p)=>s+(p.valor||0),0);
+      const updates = {
+        [`pagamentos.${resp}`]: firebase.firestore.FieldValue.delete(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      if(vPagoTotal > 0){
+        const outroResp = Object.keys(restantes)[0];
+        updates.vPago = vPagoTotal;
+        updates.paidBy = restantes[outroResp].paidBy;
+        updates.paidAt = restantes[outroResp].paidAt;
+      } else {
+        updates.vPago = null;
+        updates.paidBy = firebase.firestore.FieldValue.delete();
+        updates.paidAt = firebase.firestore.FieldValue.delete();
+      }
+      tx.update(contaRef, updates);
+      return {nome:d.conta, valor};
+    });
+    if(!result) return;
+    await this._log('desfazer_pagamento_individual', id, result.nome,
+      `Pagamento de ${resp} (${fmt(result.valor)}) desfeito por ${STATE.usuario}`,
+      {valor:result.valor, resp}
+    );
+  },
+
   async desfazerPagamento(id, vPagarOriginal){
     const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     const nome = snap?.exists ? snap.data().conta : '—';

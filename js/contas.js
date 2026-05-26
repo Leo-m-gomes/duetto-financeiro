@@ -67,27 +67,32 @@ Object.assign(APP, {
     const paged=data.slice(start,start+STATE.pgSz);
 
     document.getElementById('tbodyContas').innerHTML=paged.map((c,i)=>{
-      const pago=c.vPago>0; const atr=isOverdue(c); const ef=vEfetivo(c); const pend=vPendente(c);
+      const isShared=c.resp==='Leo & Pri';
+      const fullyPaid=isShared&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0;
+      const hasPg=c.vPago>0;
+      const atr=!fullyPaid&&isOverdue(c); const ef=vEfetivo(c); const pend=fullyPaid?0:vPendente(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
+      const pgBadge=isShared&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
+        ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
-        <td class="td-chk desk-only">${!pago?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${ef}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
+        <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${ef}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
         <td data-label="A Pagar" class="money neg">${fmt(ef)}</td>
-        <td data-label="Pago" class="money ${pago?'pos':'dim'}">${pago?fmt(c.vPago):'—'}</td>
+        <td data-label="Pago" class="money ${fullyPaid?'pos':(hasPg?'':'dim')}">${hasPg?fmt(c.vPago):'—'}</td>
         <td data-label="Pendente" class="money ${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
         <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
         <td data-label="Parcela" class="col-hide" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
         <td data-label="Por" class="col-hide">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
         <td data-label="Ações" style="white-space:nowrap">
           <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>
-          ${!pago?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
-          ${pago?`<button class="action-btn" title="Desfazer" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
+          ${!fullyPaid?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
+          ${hasPg?`<button class="action-btn" title="Desfazer" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
           ${hasGrupo?`<button class="action-btn parcs" title="Parcelamento" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
           <button class="action-btn del" title="Excluir" onclick="APP.deleteConta('${c.id}')">✕</button>
         </td></tr>`;
@@ -111,7 +116,8 @@ Object.assign(APP, {
     const id   = document.getElementById('pgContaId').value;
     const c    = CACHE.contas.find(x=>x.id===id);
     const pago = parseMoney(document.getElementById('pgValorPago').value);
-    const prev = c ? c.vPagar : 0;
+    const respSel = document.getElementById('pgRespSelecionado')?.value||'';
+    const prev = c ? (c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos' ? c.vPagar/2 : c.vPagar) : 0;
     const diff = pago - prev;
     const el   = document.getElementById('pgDiff');
     if(!pago || Math.abs(diff) < 0.01){ el.style.display='none'; return; }
@@ -127,28 +133,87 @@ Object.assign(APP, {
 
   marcarPago(id){
     const c=CACHE.contas.find(x=>x.id===id); if(!c)return;
+    const isShared=c.resp==='Leo & Pri';
     document.getElementById('pgContaId').value          = id;
     document.getElementById('pgContaNome').textContent  = c.conta;
     document.getElementById('pgContaData').textContent  = fmtDate(c.data);
     document.getElementById('pgContaParc').textContent  = c.parcela||'';
-    document.getElementById('pgValorPrevisto').textContent = fmt(c.vPagar);
-    setMoneyValue(document.getElementById('pgValorPago'),c.vPagar);
+    document.getElementById('pgRespSelecionado').value  = '';
     document.getElementById('pgDiff').style.display     = 'none';
+
+    const respGroup=document.getElementById('pgRespGroup');
+    const jaPagouEl=document.getElementById('pgRespJaPagou');
+    jaPagouEl.style.display='none';
+
+    if(isShared){
+      respGroup.style.display='block';
+      document.querySelectorAll('.pg-resp-btn').forEach(b=>{
+        b.classList.remove('btn-primary');b.classList.add('btn-secondary');
+        b.disabled=false;
+        b.textContent=b.dataset.resp==='ambos'?'Ambos de uma vez':b.dataset.resp;
+      });
+      const pgLeo=c.pagamentos?.Leo;
+      const pgPri=c.pagamentos?.Pri;
+      const infos=[];
+      if(pgLeo){
+        const btnLeo=document.querySelector('.pg-resp-btn[data-resp="Leo"]');
+        btnLeo.disabled=true;btnLeo.textContent='Leo ✓';
+        infos.push(`Leo já pagou ${fmt(pgLeo.valor)} em ${fmtDate(pgLeo.paidAt)}`);
+      }
+      if(pgPri){
+        const btnPri=document.querySelector('.pg-resp-btn[data-resp="Pri"]');
+        btnPri.disabled=true;btnPri.textContent='Pri ✓';
+        infos.push(`Pri já pagou ${fmt(pgPri.valor)} em ${fmtDate(pgPri.paidAt)}`);
+      }
+      if(infos.length){jaPagouEl.style.display='block';jaPagouEl.textContent=infos.join(' · ');}
+      const respDefault=!pgLeo?'Leo':(!pgPri?'Pri':'ambos');
+      this.selecionarRespPagamento(respDefault);
+    } else {
+      respGroup.style.display='none';
+      document.getElementById('pgValorPrevisto').textContent=fmt(c.vPagar);
+      setMoneyValue(document.getElementById('pgValorPago'),c.vPagar);
+    }
+
     document.getElementById('ovPagamento').classList.add('open');
     bindAllMoneyInputs(document.getElementById('ovPagamento'));
     setTimeout(()=>{ const el=document.getElementById('pgValorPago'); el.focus(); el.select(); },150);
   },
 
+  selecionarRespPagamento(resp){
+    document.getElementById('pgRespSelecionado').value=resp;
+    document.querySelectorAll('.pg-resp-btn').forEach(b=>{
+      if(b.disabled) return;
+      if(b.dataset.resp===resp){b.classList.remove('btn-secondary');b.classList.add('btn-primary');}
+      else{b.classList.remove('btn-primary');b.classList.add('btn-secondary');}
+    });
+    const id=document.getElementById('pgContaId').value;
+    const c=CACHE.contas.find(x=>x.id===id);if(!c)return;
+    const val=resp==='ambos'?c.vPagar:(c.vPagar/2);
+    document.getElementById('pgValorPrevisto').textContent=fmt(val)+(resp!=='ambos'?' (metade)':'');
+    setMoneyValue(document.getElementById('pgValorPago'),val);
+    document.getElementById('pgDiff').style.display='none';
+  },
+
   async confirmarPagamento(){
-    const btn  = document.querySelector('#ovPagamento .btn-primary');
+    const btn  = document.querySelector('#ovPagamento .modal-footer .btn-primary');
     if(btn) btn.classList.add('loading');
     try{
       const id    = document.getElementById('pgContaId').value;
       const valor = parseMoney(document.getElementById('pgValorPago').value);
       if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
-      await FS.pagarConta(id, STATE.usuario, valor);
-      APP.closeModal('ovPagamento');
-      this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
+      const c=CACHE.contas.find(x=>x.id===id);
+      const respSel=document.getElementById('pgRespSelecionado').value;
+      if(c&&c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos'){
+        await FS.pagarContaIndividual(id, respSel, STATE.usuario, valor);
+        APP.closeModal('ovPagamento');
+        this.toast(`Pagamento de ${fmt(valor)} (${respSel}) registrado ✅`,'success');
+      } else {
+        await FS.pagarConta(id, STATE.usuario, valor);
+        APP.closeModal('ovPagamento');
+        this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
+      }
+    }catch(e){
+      this.toast(e.message||'Erro ao registrar pagamento','error');
     }finally{
       if(btn) btn.classList.remove('loading');
     }

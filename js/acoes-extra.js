@@ -5,6 +5,29 @@ Object.assign(APP, {
   async desfazerPagamento(id){
     const c = CACHE.contas.find(x=>x.id===id);
     if(!c) return;
+    if(c.resp==='Leo & Pri'&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)){
+      const pgLeo=c.pagamentos.Leo;
+      const pgPri=c.pagamentos.Pri;
+      if(pgLeo&&pgPri){
+        const escolha=prompt(`Ambos pagaram.\nDigite quem deseja desfazer:\n• "Leo" (${fmt(pgLeo.valor)})\n• "Pri" (${fmt(pgPri.valor)})\n• "ambos" para desfazer tudo`);
+        if(!escolha) return;
+        const resp=escolha.trim();
+        if(resp.toLowerCase()==='ambos'){
+          await FS.desfazerPagamentoIndividual(id,'Leo');
+          await FS.desfazerPagamentoIndividual(id,'Pri');
+          this.toast('Pagamentos de Leo e Pri desfeitos','success');
+        } else if(resp==='Leo'||resp==='Pri'){
+          await FS.desfazerPagamentoIndividual(id,resp);
+          this.toast(`Pagamento de ${resp} desfeito`,'success');
+        } else { this.toast('Opção inválida','error'); }
+      } else {
+        const resp=pgLeo?'Leo':'Pri';
+        if(!confirm(`Desfazer pagamento de ${resp} (${fmt(c.pagamentos[resp].valor)}) em "${c.conta}"?`)) return;
+        await FS.desfazerPagamentoIndividual(id,resp);
+        this.toast(`Pagamento de ${resp} desfeito`,'success');
+      }
+      return;
+    }
     if(!confirm(`Desfazer pagamento de "${c.conta}"?\n\nA conta voltará ao status pendente.`)) return;
     const vOriginal = c.vPago || c.vPagar;
     await FS.desfazerPagamento(id, vOriginal);
