@@ -32,7 +32,12 @@ Object.assign(APP, {
       });
     }
 
-    if(search)  data = data.filter(c=>c.conta.toLowerCase().includes(search));
+    if(search)  data = data.filter(c=>{
+      const cat=CACHE.resolveCat(c.catId||c.cat)||'';
+      const forma=CACHE.resolveForma(c.formaId||c.forma)||'';
+      return [c.conta,c.nota,c.resp,cat,forma,c.parcela,c.data,c.updatedBy,c.createdBy,c.paidBy]
+        .some(v=>v&&String(v).toLowerCase().includes(search));
+    });
     if(resp)    data = data.filter(c=>c.resp===resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
