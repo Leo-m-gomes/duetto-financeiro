@@ -205,6 +205,16 @@
           <span>📋 <span id="pgContaParc"></span></span>
         </div>
       </div>
+      <div id="pgRespGroup" style="display:none;margin-bottom:14px">
+        <label style="font-size:11.5px;font-weight:600;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;display:block;margin-bottom:6px">Pagar como</label>
+        <div style="display:flex;gap:8px" id="pgRespBtns">
+          <button type="button" class="btn btn-sm pg-resp-btn" data-resp="Leo" onclick="APP.selecionarRespPagamento('Leo')" style="flex:1">Leo</button>
+          <button type="button" class="btn btn-sm pg-resp-btn" data-resp="Pri" onclick="APP.selecionarRespPagamento('Pri')" style="flex:1">Pri</button>
+          <button type="button" class="btn btn-sm pg-resp-btn" data-resp="ambos" onclick="APP.selecionarRespPagamento('ambos')" style="flex:1">Ambos de uma vez</button>
+        </div>
+        <div id="pgRespJaPagou" style="display:none;margin-top:8px;padding:8px 12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);font-size:11.5px;color:var(--green)"></div>
+      </div>
+      <input type="hidden" id="pgRespSelecionado" value="">
       <div class="form-grid">
         <div class="fg full">
           <label>Valor Previsto</label>
