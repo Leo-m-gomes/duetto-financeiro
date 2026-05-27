@@ -301,7 +301,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=>{ STATE.periodo=null; self._atualizarPeriodoBadge('relatorio',null); self.renderRelatorio(); };
     });
-    ['relCat','relForma','relResp'].forEach(id=>{
+    ['relCat','relForma','relResp','relStatus'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.onchange = ()=> self.renderRelatorio();
     });
