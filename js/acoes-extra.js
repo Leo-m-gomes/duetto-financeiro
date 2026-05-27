@@ -48,18 +48,38 @@ Object.assign(APP, {
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
+    const status  = document.getElementById('relStatus')?.value||'';
     const p       = STATE.periodo;
+    const todosAnos  = anoVal==='todos';
+    const todosMeses = mesVal==='todos';
 
     let data = CACHE.contas;
     if(p){
       data = data.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; });
     } else {
-      if(anoVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
-      if(mesVal!=='todos') data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
+      if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
+      if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
     }
+
+    let mergeRef=null;
+    if(p) mergeRef={y:p.ano,m:p.mesIni};
+    else if(!todosAnos&&!todosMeses) mergeRef={y:parseInt(anoVal),m:parseInt(mesVal)};
+    if(mergeRef){
+      const ids=new Set(data.map(c=>c.id));
+      CACHE.getOverdue().forEach(c=>{
+        if(ids.has(c.id))return;
+        const d=new Date(c.data+'T12:00');
+        if(d.getFullYear()<mergeRef.y||(d.getFullYear()===mergeRef.y&&d.getMonth()<mergeRef.m))data.push(c);
+      });
+    }
+
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(resp) data = filtrarPorResp(data, resp);
+    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
+    if(status==='pago')          data=data.filter(c=>_quitada(c));
+    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
     data = this._aplicarSort(data,'sortRel');
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
