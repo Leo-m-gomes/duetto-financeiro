@@ -10,6 +10,7 @@ Object.assign(APP, {
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
+    const status  = document.getElementById('relStatus')?.value||'';
     this._aplicarTemaResp(resp);
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
@@ -29,6 +30,10 @@ Object.assign(APP, {
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(resp) data = filtrarPorResp(data, resp);
+    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
+    if(status==='pago')          data=data.filter(c=>_quitada(c));
+    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
 
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
     const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
@@ -76,6 +81,7 @@ Object.assign(APP, {
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
+    const status  = document.getElementById('relStatus')?.value||'';
     const p       = STATE.periodo;
     const todosAnos  = anoVal==='todos';
     const todosMeses = mesVal==='todos';
@@ -90,6 +96,10 @@ Object.assign(APP, {
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(resp) data = filtrarPorResp(data, resp);
+    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
+    if(status==='pago')          data=data.filter(c=>_quitada(c));
+    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
 
     const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
     const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
