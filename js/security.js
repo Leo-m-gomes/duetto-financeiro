@@ -113,6 +113,17 @@ fbAuth.onAuthStateChanged(async user => {
   if (window.FIN_STATE) {
     FIN_STATE.usuario = usuario;
   }
+  // Registrar acesso (toda abertura do sistema, não apenas login)
+  try {
+    fbDb.collection('logs_acesso').add({
+      usuario,
+      email:     user.email,
+      timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+      tipo:      'login',
+      userAgent: navigator.userAgent
+    });
+  } catch (e) { console.warn('Log acesso error:', e); }
+
   document.dispatchEvent(new CustomEvent('duetto:auth-ready', {
     detail: { usuario, email: SEC.getEmail() }
   }));

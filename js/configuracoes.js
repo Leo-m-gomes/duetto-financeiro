@@ -20,6 +20,7 @@ Object.assign(APP, {
     document.querySelectorAll('.cfg-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
     document.querySelectorAll('.cfg-panel').forEach(p=>p.classList.toggle('active', p.id===`cfgPanel-${tab}`));
     if(tab==='log') this.cfgCarregarLog();
+    if(tab==='acesso') this.cfgCarregarLogAcesso();
     if(tab==='lixeira') this.lixeiraCarregar();
   },
 
@@ -305,6 +306,94 @@ Object.assign(APP, {
         <td style="max-width:280px;white-space:normal;font-size:11.5px;color:var(--t3)">${r.detalhes||'—'}</td>
         <td><span class="audit-chip">${r.usuario||'—'}</span></td>
         <td style="font-weight:600;color:${valCor};white-space:nowrap">${val}</td>
+      </tr>`;
+    }).join('');
+  },
+
+  // ── LOG DE ACESSO ──
+  cfgLimparFiltrosLogAcesso(){
+    ['logAcessoDataIni','logAcessoDataFim','logAcessoResp'].forEach(id=>{
+      const el=document.getElementById(id); if(el) el.value='';
+    });
+    this.cfgCarregarLogAcesso();
+  },
+
+  async cfgCarregarLogAcesso(){
+    const tbody   = document.getElementById('cfgLogAcessoBody');
+    const counter = document.getElementById('logAcessoContador');
+    if(!tbody) return;
+    tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--t4)">⏳ Carregando...</td></tr>`;
+
+    const dataIni  = document.getElementById('logAcessoDataIni')?.value  || '';
+    const dataFim  = document.getElementById('logAcessoDataFim')?.value  || '';
+    const respFilt = document.getElementById('logAcessoResp')?.value     || '';
+
+    const temPeriodo = dataIni || dataFim;
+    const snap = await fbDb.collection('logs_acesso')
+      .orderBy('timestamp','desc')
+      .limit(temPeriodo ? 10000 : 50)
+      .get()
+      .catch(()=>null);
+
+    if(!snap){
+      tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:20px;color:var(--red)">
+        ⚠️ Erro ao carregar. Verifique se o índice existe no Firestore:<br>
+        <code style="font-size:11px;background:var(--bg);padding:2px 8px;border-radius:4px;margin-top:6px;display:inline-block">
+          Coleção: logs_acesso · Campo: timestamp · Ordem: Descending
+        </code>
+      </td></tr>`;
+      return;
+    }
+
+    let registros = snap.docs.map(d=>({_id:d.id,...d.data()}));
+
+    if(respFilt){
+      registros = registros.filter(r=>r.usuario===respFilt);
+    }
+    if(dataIni){
+      const ini = new Date(dataIni+'T00:00:00');
+      registros = registros.filter(r=>{
+        const t = r.timestamp?.toDate?.();
+        return t && t >= ini;
+      });
+    }
+    if(dataFim){
+      const fim = new Date(dataFim+'T23:59:59');
+      registros = registros.filter(r=>{
+        const t = r.timestamp?.toDate?.();
+        return t && t <= fim;
+      });
+    }
+
+    const total = registros.length;
+    if(!temPeriodo) registros = registros.slice(0,50);
+
+    const mostrando = registros.length;
+    if(counter){
+      if(temPeriodo){
+        counter.textContent = `${mostrando} acesso${mostrando!==1?'s':''} no período`;
+      } else {
+        counter.textContent = `Últimos ${mostrando} acesso${mostrando!==1?'s':''}${total>50?' (de '+total+')':''}`;
+      }
+    }
+
+    if(!registros.length){
+      tbody.innerHTML=`<tr><td colspan="4" style="text-align:center;padding:28px;color:var(--t4)">Nenhum registro de acesso encontrado</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = registros.map(r=>{
+      const ts = r.timestamp?.toDate?.();
+      const dt = ts ? ts.toLocaleDateString('pt-BR') : '—';
+      const hr = ts ? ts.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+      const ua = r.userAgent || '—';
+      const disp = /Mobile|Android|iPhone|iPad/i.test(ua) ? '📱 Mobile' : '💻 Desktop';
+
+      return`<tr>
+        <td style="font-size:11px;color:var(--t4);white-space:nowrap">${dt}<br><span style="color:var(--t4)">${hr}</span></td>
+        <td><span class="audit-chip">${r.usuario||'—'}</span></td>
+        <td style="font-size:12px;color:var(--t3)">${r.email||'—'}</td>
+        <td style="font-size:11.5px;color:var(--t3)">${disp}</td>
       </tr>`;
     }).join('');
   },
