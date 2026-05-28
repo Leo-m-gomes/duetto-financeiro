@@ -164,17 +164,16 @@ const APP = {
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
-        ['btnAtualizarTabelas','btnNovoSalario','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
+        ['btnGerenciarSalarios','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
           const btn = document.getElementById(id); if(btn) btn.style.display='none';
         });
         const btnNova = document.getElementById('btnNovaConta');
         if(btnNova) btnNova.style.display = ['contas'].includes(page) ? 'flex' : 'none';
         if(page==='contas'){ const b=document.getElementById('btnGerarRec'); if(b) b.style.display='flex'; }
-        if(page==='salario'){
-          const b1=document.getElementById('btnNovoSalario'); if(b1) b1.style.display='flex';
-          const b2=document.getElementById('btnAtualizarTabelas'); if(b2) b2.style.display='flex';
+        if(page==='receitas'){
+          const b=document.getElementById('btnNovaReceita'); if(b) b.style.display='flex';
+          const bg=document.getElementById('btnGerenciarSalarios'); if(bg) bg.style.display='flex';
         }
-        if(page==='receitas'){ const b=document.getElementById('btnNovaReceita'); if(b) b.style.display='flex'; }
         if(page==='contas'){ const b=document.getElementById('btnCSVContas'); if(b) b.style.display='flex'; }
         const sb = document.getElementById('sidebar'); if(sb) sb.classList.remove('open');
         const ov = document.getElementById('sidebarOverlay');
@@ -199,9 +198,8 @@ const APP = {
   topBtns(){
     const safeBind = (id, handler) => { const el=document.getElementById(id); if(el) el.addEventListener('click', handler); };
     safeBind('btnNovaConta',()=>this.openConta());
-    safeBind('btnNovoSalario',()=>this.openSalario());
     safeBind('btnNovaReceita',()=>this.openReceita());
-    safeBind('btnAtualizarTabelas',()=>this.openTabelas());
+    safeBind('btnGerenciarSalarios',()=>this.openSalariosModal());
     safeBind('btnCSVContas',()=>this.exportCSVContas());
   },
 
@@ -337,7 +335,7 @@ const APP = {
           this.renderContas();
         },
         receitas:  ()=>this.renderReceitas(),
-        salario:   ()=>this.renderSalario(),
+
         relatorio: ()=>this.renderRelatorio(),
         upload:    ()=>this.upRenderHistorico(),
         backup:    ()=>this.renderBackup(),
