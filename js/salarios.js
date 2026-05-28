@@ -11,11 +11,16 @@ Object.assign(APP, {
       return`<div class="sal-card"><div class="sal-card-head"><h4>👤 ${s.nome} ${s.pessoa?`<span style="font-size:11px;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;font-family:var(--font-b);font-weight:600">${s.pessoa}</span>`:''}</h4><div style="display:flex;gap:5px"><button class="action-btn edit" onclick="APP.openSalario('${s.id}')" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);color:#fff">✏</button><button class="action-btn del" onclick="APP.deletePessoa('${s.id}')" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)">✕</button></div></div><div class="sal-card-body"><div class="sal-row"><span>Nº Dependentes</span><span>${atual.deps}</span></div><div class="sal-row"><span>Salário Bruto</span><span>${fmt(atual.salario)}</span></div>${atual.bonificacao?`<div class="sal-row"><span>Bonificação</span><span>${fmt(atual.bonificacao)}</span></div>`:''}<div class="sal-row ded"><span>(-) INSS</span><span>${fmt(atual.inss)}</span></div><div class="sal-row ded"><span>(-) IR</span><span>${fmt(atual.ir)}</span></div><div class="sal-row total"><span>Salário Líquido</span><span>${fmt(atual.liquido)}</span></div></div>${hist.length>0?`<div class="sal-hist"><div class="sal-hist-toggle" onclick="this.nextElementSibling.classList.toggle('open')">📅 Histórico (${hist.length}) ▾</div><div class="sal-hist-body">${histRows}</div></div>`:''}</div>`;
     }).join('')||'<div style="color:var(--t4);padding:20px">Nenhuma pessoa cadastrada. Clique em "Novo Salário" para começar.</div>';
 
-    const tab=CACHE.tabelas||DEFAULT_TABELAS;
-    document.getElementById('vigenciaIR').textContent=`Vigência: ${tab.vigencia||'—'}`;
-    document.getElementById('vigenciaINSS').textContent=`Vigência: ${tab.vigencia||'—'}`;
-    document.getElementById('tblIR').innerHTML=`<thead><tr><th>De</th><th>Até</th><th>Alíquota</th><th>Ded.</th></tr></thead><tbody>${tab.ir.map(r=>`<tr><td>${fmt(r.de)}</td><td>${r.ate?fmt(r.ate):'+'}</td><td>${(r.al*100).toFixed(1)}%</td><td>${fmt(r.ded)}</td></tr>`).join('')}<tr style="border-top:2px solid var(--palm-lt)"><td colspan="2" style="color:var(--t4)">Por Dependente</td><td colspan="2" style="color:var(--yellow);font-weight:600">${fmt(tab.dedDep)}</td></tr></tbody>`;
-    document.getElementById('tblINSS').innerHTML=`<thead><tr><th>De</th><th>Até</th><th>Alíquota</th><th>Ded.</th></tr></thead><tbody>${tab.inss.map(r=>`<tr><td>${fmt(r.de)}</td><td>${fmt(r.ate)}</td><td>${(r.al*100).toFixed(1)}%</td><td>${fmt(r.ded)}</td></tr>`).join('')}<tr style="border-top:2px solid var(--palm-lt)"><td colspan="2" style="color:var(--t4)">Teto INSS</td><td colspan="2" style="color:var(--yellow);font-weight:600">${fmt(tab.tetoINSS)}</td></tr></tbody>`;
+  },
+
+  openSalariosModal(){
+    this.renderSalario();
+    document.getElementById('ovSalarios').classList.add('open');
+  },
+
+  closeSalariosModal(){
+    APP.closeModal('ovSalarios');
+    if(STATE.page === 'receitas') APP.renderReceitas();
   },
 
   openSalario(pessoaId=null){
@@ -80,6 +85,7 @@ Object.assign(APP, {
       this.toast(`${nome} cadastrado!`,'success');
     }
     APP.closeModal('ovSalario');
+    this.renderSalario();
     document.getElementById('sNome').disabled=false;STATE.editSalPessoa=null;
   },
 
@@ -90,12 +96,14 @@ Object.assign(APP, {
     const hist=s.historico.filter(h=>h.mesInicio!==mes);
     await FS.saveSalario(pessoaId,{...s,historico:hist});
     this.toast('Registro removido','success');
+    this.renderSalario();
   },
 
   async deletePessoa(id){
     const s=CACHE.salarios.find(x=>x.id===id);
     if(!s||!confirm(`Excluir ${s.nome}?`))return;
     await FS.deleteSalario(id);this.toast('Excluído','success');
+    this.renderSalario();
   },
 
   // ── TABELAS FISCAIS ──
