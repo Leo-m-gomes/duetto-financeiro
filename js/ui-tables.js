@@ -3,7 +3,7 @@
 Object.assign(APP, {
 
   sortTable(tabela, col) {
-    const key = tabela === 'contas' ? 'sortContas' : 'sortRel';
+    const key = tabela === 'contas' ? 'sortContas' : (tabela === 'receitas' ? 'sortReceitas' : 'sortRel');
     if (STATE[key].col === col) {
       STATE[key].dir *= -1;
     } else {
@@ -17,7 +17,8 @@ Object.assign(APP, {
     if (icone) icone.classList.add(STATE[key].dir === 1 ? 'asc' : 'desc');
 
     if (tabela === 'contas') this.renderContas();
-    else                     this.renderRelatorio();
+    else if (tabela === 'receitas') this.renderReceitas();
+    else this.renderRelatorio();
   },
 
   _aplicarSort(data, key) {
@@ -26,13 +27,13 @@ Object.assign(APP, {
     return [...data].sort((a, b) => {
       let va, vb;
       const col = s.col;
-      if (col === 'conta' || col === 'resp' || col === 'parcela') {
+      if (col === 'conta' || col === 'resp' || col === 'parcela' || col === 'desc' || col === 'tipo') {
         va = String(a[col] || '').toLowerCase();
         vb = String(b[col] || '').toLowerCase();
       } else if (col === 'data') {
         va = a.data || '';
         vb = b.data || '';
-      } else if (col === 'vPagar' || col === 'vPago') {
+      } else if (col === 'vPagar' || col === 'vPago' || col === 'valor' || col === 'mes') {
         va = Number(a[col] || 0);
         vb = Number(b[col] || 0);
       } else if (col === 'forma') {
