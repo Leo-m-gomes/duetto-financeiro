@@ -279,6 +279,9 @@ const APP = {
     mkAno('filtroAnoContas');
     mkMes('filtroMesContas');
 
+    // ── Mês Receitas ──
+    mkMes('filtroMesReceitas');
+
     // ── Ano + Mês Relatório ──
     mkAno('relAno');
     mkMes('relMes');
@@ -296,6 +299,10 @@ const APP = {
         if(id==='filtroAnoContas'||id==='filtroMesContas'){ STATE.periodoContas=null; self._atualizarPeriodoBadge('contas',null); }
         STATE.pg=1; self.renderContas();
       };
+    });
+    ['searchReceitas','filtroMesReceitas','filtroRespReceitas','filtroTipoReceitas'].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el) el.oninput = ()=>{ STATE.pgReceitas=1; self.renderReceitas(); };
     });
     ['relAno','relMes'].forEach(id=>{
       const el=document.getElementById(id);
