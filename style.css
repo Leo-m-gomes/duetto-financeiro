@@ -417,7 +417,7 @@
   #topbarBtns .btn span{display:none}
   #topbarBtns .btn svg{display:block}
   #topbarBtns .btn{padding:7px 9px;min-width:unset}
-  #btnAtualizarTabelas,#btnCSVContas,#btnNovoSalario,#btnNovaReceita,#btnGerarRec{display:none!important}
+  #btnGerenciarSalarios,#btnCSVContas,#btnNovaReceita,#btnGerarRec{display:none!important}
 
   /* ════ FILTROS recolhíveis ════ */
   .mob-filter-toggle{display:flex}
@@ -1094,7 +1094,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
    Padroniza o rítmo vertical entre seções nas demais telas. */
 #page-contas .page-inner,
 #page-receitas .page-inner,
-#page-salario .page-inner,
 #page-relatorio .page-inner,
 #page-upload .page-inner,
 #page-config .page-inner {
@@ -1105,7 +1104,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 /* Remove margin-bottom redundante dentro dessas páginas */
 #page-contas .page-inner > *,
 #page-receitas .page-inner > *,
-#page-salario .page-inner > *,
 #page-relatorio .page-inner > *,
 #page-upload .page-inner > *,
 #page-config .page-inner > * {
@@ -1122,7 +1120,9 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 .privacy-mode .rel-kpi .val,
 .privacy-mode .total-pill .val,
 .privacy-mode .ai-totals strong,
-.privacy-mode .barra-pagamento-info strong {
+.privacy-mode .barra-pagamento-info strong,
+.privacy-mode .sal-card-body .sal-row span:last-child,
+.privacy-mode #calcContent {
   filter: blur(7px);
   user-select: none;
   transition: filter 0.25s ease;
@@ -1146,7 +1146,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   .dash-page-inner,
   #page-contas .page-inner,
   #page-receitas .page-inner,
-  #page-salario .page-inner,
   #page-relatorio .page-inner,
   #page-upload .page-inner,
   #page-config .page-inner {
