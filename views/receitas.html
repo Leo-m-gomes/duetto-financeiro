@@ -1,33 +1,62 @@
 <!--
 ═══════════════════════════════════════════════════════════════════════════
-  DUETTO FINANCEIRO, view receitas.html
+  DUETTO FINANCEIRO, view receitas.html (Redesign v2 — padrão Contas)
 ═══════════════════════════════════════════════════════════════════════════
-  Fragmento HTML carregado dinamicamente pelo router.js no container
-  #appMain. Sem <html>, <head>, <body>, <script>.
+  Layout tabular com filtros, totalizadores, tabela paginada com
+  ordenação e gráfico. Substitui a versão matricial 12 colunas.
 
-  Conteúdo: extração LITERAL das linhas 257-267 do index.html legado.
+  IDs: searchReceitas, filtroMesReceitas, filtroRespReceitas,
+       filtroTipoReceitas, totalReceitas, totalSalarios, totalOutras,
+       receitasInfo, tblReceitas, tbodyReceitas, pgReceitas, canvasReceitas.
 
-  IDs preservados (consultados por APP.renderReceitas em app.js):
-    recFiltroResp, recFiltroTipo, tblRecSalarios, tblRecOutras,
-    recEditStatus, btnToggleEditRec, canvasReceitas.
-
-  Classes preservadas: page, page-inner, filter-select, rec-section,
-  rec-header, table-wrap, rec-table, chart-container.
-
-  EDIÇÃO INLINE: a tabela tblRecOutras tem inputs editáveis quando
-  APP.toggleEditReceitas() é acionado. Conforme decisão da Fase 1.1,
-  esta edição inline é mantida (não migrada para sub-modal nesta versão).
+  Classes preservadas: page, page-inner, filters-bar, filter-group,
+  filter-input, filter-select, totals-bar, total-pill, section-card,
+  table-wrap, data-table, th-sort, sort-icon, table-pagination,
+  chart-container.
 ═══════════════════════════════════════════════════════════════════════════
 -->
 
-  <div class="page" id="page-receitas">
-    <div class="page-inner">
-      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-        <select class="filter-select" id="recFiltroResp" onchange="APP.renderReceitas()"><option value="">Todos</option><option>Leo</option><option>Pri</option></select>
-        <select class="filter-select" id="recFiltroTipo" onchange="APP.renderReceitas()"><option value="">Salários + Outras Receitas</option><option value="salarios">Somente Salários</option><option value="outras">Somente Outras Receitas</option></select>
+<div class="page" id="page-receitas">
+  <div class="page-inner">
+    <!-- FILTROS -->
+    <div class="filters-bar">
+      <div class="filter-group">
+        <input type="text" class="filter-input" id="searchReceitas" placeholder="🔍 Buscar receita...">
+        <select class="filter-select" id="filtroMesReceitas"></select>
+        <select class="filter-select" id="filtroRespReceitas"><option value="">Todos</option><option>Leo</option><option>Pri</option></select>
+        <select class="filter-select" id="filtroTipoReceitas"><option value="">Todas as receitas</option><option value="salario">Salários</option><option value="outra">Outras Receitas</option></select>
       </div>
-      <div class="rec-section"><div class="rec-header"><h3>💼 Salários por Mês</h3><span style="font-size:11px;color:var(--t4)">Calculado pelo histórico salarial</span></div><div class="table-wrap"><table class="rec-table" id="tblRecSalarios"></table></div></div>
-      <div class="rec-section"><div class="rec-header"><h3>📊 Outras Receitas</h3><div style="display:flex;gap:7px;align-items:center"><span id="recEditStatus" style="font-size:11px;color:var(--t4)">Somente leitura</span><button class="btn btn-secondary btn-sm" id="btnToggleEditRec" onclick="APP.toggleEditReceitas()">✏️ Editar</button></div></div><div class="table-wrap"><table class="rec-table" id="tblRecOutras"></table></div></div>
-      <div class="rec-section"><div class="rec-header"><h3>📈 Resumo Anual</h3></div><div style="padding:16px"><div class="chart-container"><canvas id="canvasReceitas"></canvas></div></div></div>
+    </div>
+
+    <!-- TOTALIZADORES -->
+    <div class="totals-bar">
+      <div class="total-pill blue"><label>Total Receitas</label><div class="val" id="totalReceitas">R$ 0</div></div>
+      <div class="total-pill green"><label>Salários</label><div class="val" id="totalSalarios">R$ 0</div></div>
+      <div class="total-pill orange"><label>Outras Receitas</label><div class="val" id="totalOutras">R$ 0</div></div>
+    </div>
+
+    <span style="font-size:11.5px;color:var(--t4);display:block;margin-bottom:8px" id="receitasInfo"></span>
+
+    <!-- TABELA -->
+    <div class="section-card">
+      <div class="table-wrap"><table class="data-table" id="tblReceitas"><thead><tr>
+        <th class="th-sort" onclick="APP.sortTable('receitas','tipo')">Tipo<span class="sort-icon" data-col="tipo"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('receitas','desc')">Descrição<span class="sort-icon" data-col="desc"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('receitas','resp')">Responsável<span class="sort-icon" data-col="resp"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('receitas','mes')">Mês<span class="sort-icon" data-col="mes"></span></th>
+        <th class="th-sort" onclick="APP.sortTable('receitas','valor')" style="text-align:right">Valor<span class="sort-icon" data-col="valor"></span></th>
+        <th>Por</th>
+        <th>Ações</th>
+      </tr></thead><tbody id="tbodyReceitas"></tbody></table></div>
+      <div class="table-pagination" id="pgReceitas"></div>
+    </div>
+
+    <!-- GRÁFICO -->
+    <div class="section-card" style="margin-top:16px">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+        <h3 style="font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--t1)">📈 Resumo Anual</h3>
+      </div>
+      <div style="padding:16px"><div class="chart-container"><canvas id="canvasReceitas"></canvas></div></div>
     </div>
   </div>
+</div>
