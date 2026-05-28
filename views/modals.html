@@ -15,11 +15,12 @@
   de screenApp está corretamente balanceado contra o open na linha 77.
   Apenas a fronteira do nosso fragmento precisa pular essa linha.
 
-  IDs dos 14 modais (em ordem de aparição):
+  IDs dos 15 modais (em ordem de aparição):
     ovConta        Cadastro/edição de conta
     ovParcelas     Edição manual de parcelas
     ovSalarios     Gerenciar salários (lista de cards)
     ovSalario      Cadastro/edição de salário
+    ovCalculoDetalhe Cálculo detalhado IR/INSS (passo a passo)
     ovReceita      Cadastro/edição de receita
     ovTabelas      Edição das tabelas IR/INSS
     ovGerenciar    Gerenciar categorias e formas de pagamento
@@ -132,6 +133,22 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovSalario">Cancelar</button><button class="btn btn-primary" id="btnSalvarSal">Salvar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: CÁLCULO DETALHADO IR/INSS -->
+<div class="modal-overlay" id="ovCalculoDetalhe">
+  <div class="modal modal-md">
+    <div class="modal-header">
+      <h2 id="titleCalcDetalhe">Cálculo Detalhado</h2>
+      <button class="modal-close" data-close="ovCalculoDetalhe">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:20px">
+      <div id="calcContent"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovCalculoDetalhe">Fechar</button>
+    </div>
   </div>
 </div>
 
