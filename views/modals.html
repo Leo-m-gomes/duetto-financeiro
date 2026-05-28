@@ -15,9 +15,10 @@
   de screenApp está corretamente balanceado contra o open na linha 77.
   Apenas a fronteira do nosso fragmento precisa pular essa linha.
 
-  IDs dos 13 modais (em ordem de aparição):
+  IDs dos 14 modais (em ordem de aparição):
     ovConta        Cadastro/edição de conta
     ovParcelas     Edição manual de parcelas
+    ovSalarios     Gerenciar salários (lista de cards)
     ovSalario      Cadastro/edição de salário
     ovReceita      Cadastro/edição de receita
     ovTabelas      Edição das tabelas IR/INSS
@@ -89,6 +90,26 @@
       <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelas">Fechar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: GERENCIAR SALÁRIOS -->
+<div class="modal-overlay" id="ovSalarios">
+  <div class="modal modal-lg">
+    <div class="modal-header">
+      <h2>👥 Gerenciar Salários</h2>
+      <button class="modal-close" onclick="APP.closeSalariosModal()">&times;</button>
+    </div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
+        <button class="btn btn-primary btn-sm" onclick="APP.openSalario()"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Novo Salário</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openTabelas()">🔄 Tabelas IR/INSS</button>
+      </div>
+      <div class="sal-cards" id="salCards"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="APP.closeSalariosModal()">Fechar</button>
+    </div>
   </div>
 </div>
 
