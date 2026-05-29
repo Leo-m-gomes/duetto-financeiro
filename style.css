@@ -351,7 +351,7 @@
 .dark .up-zone             { background:var(--surface2); border-color:var(--border2); }
 /* .dark .parcs-table → tables.css (DUP-005) */
 .dark .rel-kpi             { background:var(--surface); border-color:var(--border); }
-.dark .overdue-alert       { background:rgba(255,159,10,.1); border-color:rgba(255,159,10,.3); }
+.dark .overdue-alert       { background:rgba(255,159,10,.1); border-color:rgba(255,159,10,.3); color:var(--orange); }
 .dark .badge.bg-cat        { background:rgba(255,255,255,.08); color:var(--t2); }
 .dark .audit-chip          { background:var(--surface2); color:var(--t3); border-color:var(--border); }
 .dark .cfg-tabs            { background:var(--surface); border-color:var(--border); }
@@ -365,6 +365,31 @@
 .dark input[type=date],
 .dark select               { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
 .dark ::placeholder        { color:var(--t4); }
+/* ── Dark: formulários focus state ── */
+.dark .fg input:focus,
+.dark .fg select:focus,
+.dark .fg textarea:focus   { background:var(--surface); }
+/* ── Dark: form-note (aviso amarelo) ── */
+.dark .form-note           { background:rgba(255,214,10,.1); border-color:rgba(255,214,10,.25); color:var(--yellow); }
+/* ── Dark: total-pill labels e bordas por cor ── */
+.dark .total-pill.blue label  { color:var(--blue); }
+.dark .total-pill.blue        { border-color:rgba(10,132,255,.25); }
+.dark .total-pill.orange      { border-color:rgba(255,159,10,.25); }
+.dark .total-pill.green       { border-color:rgba(50,215,75,.25); }
+/* ── Dark: insight chips ── */
+.dark .insight-up          { background:rgba(255,69,58,.1); border-color:rgba(255,69,58,.25); }
+.dark .insight-down        { background:rgba(50,215,75,.1); border-color:rgba(50,215,75,.25); }
+.dark .insight-neu         { background:rgba(10,132,255,.1); border-color:rgba(10,132,255,.25); }
+.dark .insight-warn        { background:rgba(255,159,10,.1); border-color:rgba(255,159,10,.25); }
+/* ── Dark: badge recorrente ── */
+.dark .badge-rec           { background:rgba(167,139,250,.12); color:#a78bfa; border-color:rgba(167,139,250,.25); }
+/* ── Dark: btn-danger e btn-warning ── */
+.dark .btn-danger          { background:rgba(255,69,58,.12); color:var(--red); border-color:rgba(255,69,58,.25); }
+.dark .btn-warning         { background:rgba(255,159,10,.1); color:var(--orange); border-color:rgba(255,159,10,.25); }
+.dark .btn-warning:hover   { background:rgba(255,159,10,.18); }
+/* ── Dark: role badges (config) ── */
+.dark .role-user           { background:rgba(10,132,255,.12); color:var(--blue); border-color:rgba(10,132,255,.25); }
+.dark .role-admin          { background:var(--palm-lt); color:var(--palm); border-color:rgba(50,215,75,.25); }
 /* .dark mob-card → tables.css (DUP-005) */
 
 /* th-sort, sort-icon → tables.css (DUP-005) */
