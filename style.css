@@ -859,6 +859,12 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 }
 
 /* ── Dark mode: ajustes do tema Leo ── */
+.dark.theme-leo {
+  --palm:    #32d74b;
+  --palm-lt: rgba(50,215,75,.12);
+  --palm-border: rgba(50,215,75,.25);
+  --palm-grad:   rgba(50,215,75,.15);
+}
 .dark.theme-leo .kpi-card.kpi-hero {
   background: linear-gradient(135deg, rgba(50,215,75,.10) 0%, rgba(50,215,75,.05) 100%);
 }
