@@ -118,6 +118,16 @@ const APP = {
       :'<polyline points="6 9 12 15 18 9"/>';
   },
 
+  toggleFiltrosReceitas(){
+    const fg=document.getElementById('filterGroupReceitas');
+    const icon=document.getElementById('iconFiltrosReceitas');
+    if(!fg) return;
+    const open=fg.classList.toggle('mob-filters-open');
+    if(icon) icon.innerHTML=open
+      ?'<polyline points="18 15 12 9 6 15"/>'
+      :'<polyline points="6 9 12 15 18 9"/>';
+  },
+
   toggleDashFiltros(){
     const body=document.getElementById('dashFiltersBody');
     const icon=document.getElementById('iconDashFiltros');
