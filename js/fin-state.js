@@ -43,7 +43,16 @@ const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d
 const today   = () => new Date().toISOString().split('T')[0];
 const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));
 const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
-const vPendente = c => Math.max(0, (c.vPagar||0) - (c.vPago||0));
+const vPendente = c => {
+  if(c._split) return c.vPago > 0 ? 0 : (c.vPagar||0);
+  if(c.resp === 'Leo & Pri' && c.pagamentos){
+    const ambos = !!c.pagamentos.Leo && !!c.pagamentos.Pri;
+    if(ambos) return 0;
+    const parcial = (c.pagamentos.Leo?.valor||0) + (c.pagamentos.Pri?.valor||0);
+    return Math.max(0, (c.vPagar||0) - parcial);
+  }
+  return c.vPago > 0 ? 0 : (c.vPagar||0);
+};
 
 /**
  * DUP-004: helper centralizado para filtrar contas por responsável

@@ -53,7 +53,8 @@ Object.assign(APP, {
     const mesLabel = todosMeses ? 'Ano completo' : MESES_F[mes];
     const periodoLabel = `${anoLabel} · ${mesLabel}`;
 
-    const atrasadas=CACHE.getOverdue();
+    const atrasadasAll=CACHE.getOverdue();
+    const atrasadas=resp ? atrasadasAll.filter(c=>c.resp===resp||c.resp==='Leo & Pri') : atrasadasAll;
     const banner=document.getElementById('dashInfoBanner');
     if(atrasadas.length>0){banner.style.display='flex';banner.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso!</strong> Clique para ver → ${atrasadas.slice(0,2).map(c=>c.conta).join(', ')}${atrasadas.length>2?'...':''}`;}
     else banner.style.display='none';
@@ -128,6 +129,7 @@ Object.assign(APP, {
     const em3  = new Date(hoje); em3.setDate(hoje.getDate()+3);
     const proximas = CACHE.contas.filter(c=>{
       if(c.vPago > 0) return false;
+      if(resp && c.resp !== resp && c.resp !== 'Leo & Pri') return false;
       const d = new Date(c.data+'T12:00'); d.setHours(0,0,0,0);
       return d >= hoje && d <= em3;
     });
@@ -135,7 +137,7 @@ Object.assign(APP, {
 
     // 5. Contas recorrentes sem preenchimento no mês atual
     if(mes !== null && ano !== null){
-      const recorrentes = CACHE.contas.filter(c=>c.recorrente);
+      const recorrentes = CACHE.contas.filter(c=>c.recorrente && (!resp || c.resp===resp || c.resp==='Leo & Pri'));
       const comMes = new Set(
         CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase()+'|'+c.resp)
       );
