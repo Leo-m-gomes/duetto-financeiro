@@ -34,9 +34,9 @@
 
   <div class="page" id="page-upload">
     <div class="page-inner">
-      <div id="upAlertErr" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b"></div>
-      <div id="upAlertOk"  class="overdue-alert" style="display:none;background:var(--green-lt);border-color:#bbf7d0;border-left-color:var(--green);color:#166534;cursor:default"></div>
-      <div id="upAlertAv"  class="overdue-alert" style="display:none;background:var(--yellow-lt);border-color:#fde68a;border-left-color:var(--yellow);color:#92400e;cursor:default"></div>
+      <div id="upAlertErr" class="overdue-alert alert-err" style="display:none"></div>
+      <div id="upAlertOk"  class="overdue-alert alert-ok" style="display:none;cursor:default"></div>
+      <div id="upAlertAv"  class="overdue-alert alert-av" style="display:none;cursor:default"></div>
       <div class="up-grid">
         <div class="section-card">
           <div class="section-header">
@@ -53,7 +53,7 @@
               <strong style="color:var(--palm);font-size:12.5px">Aceita: .xlsx gerado pelo sistema</strong>
             </div>
             <input type="file" id="upFileInput" accept=".xlsx,.xls" style="position:absolute;width:0;height:0;opacity:0;pointer-events:none" onchange="APP.upHandleFile(this.files[0])">
-            <div id="upFileInfo" style="display:none;margin-top:12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#166534">
+            <div id="upFileInfo" class="callout callout-success" style="display:none;margin-top:12px;padding:10px 14px;border-left-width:1px">
               <strong>📄 <span id="upFileName"></span></strong><br>
               <span id="upFileDetail"></span><br>
               <span style="font-family:monospace;font-size:10px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 6px;color:var(--t4)" id="upFileId"></span>
@@ -79,7 +79,7 @@
           </div>
           <div style="padding:16px">
             <div id="upStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
-            <div id="upAlertVal" class="overdue-alert" style="display:none;background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b;cursor:default"></div>
+            <div id="upAlertVal" class="overdue-alert alert-err" style="display:none;cursor:default"></div>
             <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
               <button class="btn btn-primary btn-sm" onclick="APP.upConfirmar()" id="upBtnConfirmar">✅ Confirmar Cadastro em Massa</button>
               <button class="btn btn-danger btn-sm" onclick="APP.upCancelar()">✕ Cancelar</button>

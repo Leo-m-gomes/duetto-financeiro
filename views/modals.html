@@ -47,7 +47,7 @@
 <div class="modal-overlay" id="ovConta">
   <div class="modal">
     <div class="modal-header"><h2 id="titleConta">Nova Conta</h2><button class="modal-close" data-close="ovConta">&times;</button></div>
-    <div style="display:flex;align-items:center;gap:8px;padding:10px 20px;background:#f8fbf9;border-bottom:1px solid var(--border);flex-wrap:wrap">
+    <div class="modal-manage-bar" style="display:flex;align-items:center;gap:8px;padding:10px 20px;flex-wrap:wrap">
       <span style="font-size:10.5px;font-weight:600;color:var(--t4);letter-spacing:.5px;text-transform:uppercase">Gerenciar:</span>
       <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('cat')" style="font-size:11.5px">+ Categorias</button>
       <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('forma')" style="font-size:11.5px">+ Formas de Pagamento</button>
@@ -179,7 +179,7 @@
           </select>
         </div>
       </div>
-      <div style="background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);border-radius:var(--r-sm);padding:10px 14px;font-size:12px;color:#92400e;margin-top:8px">
+      <div class="callout callout-warn" style="padding:10px 14px;font-size:12px;margin-top:8px">
         💡 <span id="rPeriodoInfo">O valor será aplicado em todos os meses.</span>
       </div>
     </div>
@@ -236,7 +236,7 @@
     </div>
     <div class="modal-body">
       <input type="hidden" id="pgContaId">
-      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:12px 16px;margin-bottom:18px">
+      <div style="background:var(--palm-lt);border:1px solid var(--palm-border);border-radius:var(--r-sm);padding:12px 16px;margin-bottom:18px">
         <div style="font-weight:700;font-size:14px;color:var(--t1);margin-bottom:6px" id="pgContaNome"></div>
         <div style="display:flex;gap:16px;font-size:12px;color:var(--t3)">
           <span>📅 <span id="pgContaData"></span></span>
@@ -250,7 +250,7 @@
           <button type="button" class="btn btn-sm pg-resp-btn" data-resp="Pri" onclick="APP.selecionarRespPagamento('Pri')" style="flex:1">Pri</button>
           <button type="button" class="btn btn-sm pg-resp-btn" data-resp="ambos" onclick="APP.selecionarRespPagamento('ambos')" style="flex:1">Ambos de uma vez</button>
         </div>
-        <div id="pgRespJaPagou" style="display:none;margin-top:8px;padding:8px 12px;background:var(--green-lt);border:1px solid #bbf7d0;border-radius:var(--r-sm);font-size:11.5px;color:var(--green)"></div>
+        <div id="pgRespJaPagou" style="display:none;margin-top:8px;padding:8px 12px;background:var(--green-lt);border:1px solid var(--green-border,#bbf7d0);border-radius:var(--r-sm);font-size:11.5px;color:var(--green)"></div>
       </div>
       <input type="hidden" id="pgRespSelecionado" value="">
       <div class="form-grid">
@@ -303,7 +303,7 @@
   <div class="modal modal-md">
     <div class="modal-header"><h2>⬇ Baixar Planilha Modelo</h2><button class="modal-close" data-close="ovModelo">&times;</button></div>
     <div class="modal-body">
-      <div style="background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);border-radius:var(--r-sm);padding:10px 14px;font-size:12.5px;color:#1e40af;margin-bottom:16px">
+      <div class="callout callout-info" style="padding:10px 14px;margin-bottom:16px">
         🔐 Cada planilha recebe um <strong>ID exclusivo</strong> em aba oculta. O sistema valida pelo ID — não pelo nome — bloqueando reimportação mesmo que o arquivo seja renomeado.
       </div>
       <div class="form-grid">
@@ -317,7 +317,7 @@
         </div>
       </div>
       <div style="font-size:11px;font-weight:700;color:var(--t4);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">Nome do arquivo</div>
-      <div style="background:var(--palm-lt);border:1px solid #c6e8d4;border-radius:var(--r-sm);padding:10px 14px;font-family:monospace;font-size:13px;font-weight:700;color:var(--palm);text-align:center;word-break:break-all" id="upNomePreview">— preencha todos os campos —</div>
+      <div style="background:var(--palm-lt);border:1px solid var(--palm-border);border-radius:var(--r-sm);padding:10px 14px;font-family:monospace;font-size:13px;font-weight:700;color:var(--palm);text-align:center;word-break:break-all" id="upNomePreview">— preencha todos os campos —</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close="ovModelo">Cancelar</button>
@@ -347,7 +347,7 @@
   <div class="modal" style="width:420px">
     <div class="modal-header"><h2>📅 Filtro por Período</h2><button class="modal-close" data-close="ovPeriodo">&times;</button></div>
     <div class="modal-body">
-      <div class="alert alert-info show" style="font-size:12.5px;margin-bottom:16px;padding:10px 14px">
+      <div class="callout callout-info" style="margin-bottom:16px;padding:10px 14px">
         Define um intervalo de meses dentro de um único ano. Os filtros de Ano e Mês acima serão ignorados enquanto o período estiver ativo.
       </div>
       <div class="fg" style="margin-bottom:20px"><label>Ano *</label>
