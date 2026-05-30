@@ -328,6 +328,31 @@
 .dark .data-table td       { border-color:var(--border); color:var(--t1); }
 .dark .data-table tbody tr:hover td { background:rgba(255,255,255,.04); }
 
+/* ── Dark: rec-table (Receitas) ── */
+.dark .rec-table th        { background:var(--surface2); color:var(--t3); border-color:var(--border); }
+.dark .rec-table td        { border-color:var(--border); color:var(--t1); }
+.dark .rec-table td:first-child { color:var(--t1); }
+.dark .rec-table tfoot td  { background:var(--surface2); color:var(--palm); border-color:var(--border); }
+.dark .rec-table tfoot td:first-child { color:var(--t1); }
+.dark .rec-table tbody tr:hover td { background:rgba(255,255,255,.04); }
+.dark .cell-input          { color:var(--t1); }
+.dark .cell-input:focus    { background:var(--surface); border-color:var(--palm); box-shadow:0 0 0 2px rgba(50,215,75,.15); }
+
+/* ── Dark: parcs-table (Parcelas) ── */
+.dark .parcs-table th      { background:var(--surface2); color:var(--t3); border-color:var(--border); }
+.dark .parcs-table td      { border-color:var(--border); color:var(--t1); }
+.dark .parcs-table tbody tr:hover td { background:rgba(255,255,255,.04); }
+.dark .parcs-table input[type="text"],
+.dark .parcs-table input[type="date"],
+.dark .parcs-table input[type="number"] { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
+.dark .parcs-table input:focus { border-color:var(--palm); }
+
+/* ── Dark: ui-table-sticky ── */
+.dark .ui-table-sticky thead th { background:var(--surface2); }
+
+/* ── Dark: zebra-striping ── */
+.dark .ui-table-zebra tbody tr:nth-child(even) td { background:rgba(255,255,255,.02); }
+
 @media (max-width: 640px) {
   /* Dark: gradiente do header do mob-card adaptado */
   .dark .data-table tr.mob-card td[data-label="Descrição"] {
