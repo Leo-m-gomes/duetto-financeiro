@@ -439,6 +439,9 @@
 }
 .mob-filter-toggle svg:last-child{margin-left:auto;transition:.2s}
 
+/* ── Botões de ação que só aparecem no mobile (dentro do filter-group) ── */
+.mob-action-btn{display:none!important}
+
 /* ── Filtros: visíveis por padrão no desktop ── */
 .filter-group{ display:flex; }
 @media(max-width:640px){
@@ -456,6 +459,7 @@
 
   /* ════ FILTROS recolhíveis ════ */
   .mob-filter-toggle{display:flex}
+  .mob-action-btn{display:flex!important;width:100%;justify-content:center;padding:10px 14px;font-size:13.5px}
   .filter-select,.filter-input{width:100%;font-size:14px;padding:11px 14px}
   .filters-bar .btn-secondary,.filters-bar .btn-sm{width:100%;justify-content:center;padding:10px 14px;font-size:13.5px}
 
