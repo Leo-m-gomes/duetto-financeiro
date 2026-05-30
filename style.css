@@ -326,6 +326,14 @@
 .dark .sb-nav .nav-item.active{ background:rgba(50,215,75,.18); color:var(--palm); }
 .dark .topbar              { background:rgba(28,28,30,.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-color:var(--border); }
 .dark .kpi-card            { background:var(--surface); border-color:var(--border); }
+.dark .kpi-card.kpi-hero   {
+  background:linear-gradient(135deg,rgba(50,215,75,.10) 0%,rgba(50,215,75,.05) 100%);
+  border-color:rgba(50,215,75,.20);
+  box-shadow:0 2px 8px rgba(0,0,0,.3), 0 0 0 1px rgba(50,215,75,.12);
+}
+.dark .kpi-card.kpi-hero:hover {
+  box-shadow:0 6px 20px rgba(0,0,0,.4), 0 0 0 1px rgba(50,215,75,.18);
+}
 .dark .kpi-label           { color:var(--t3); }
 .dark .kpi-value           { color:var(--t1); }
 .dark .section-card        { background:var(--surface); border-color:var(--border); }
@@ -390,6 +398,8 @@
 /* ── Dark: role badges (config) ── */
 .dark .role-user           { background:rgba(10,132,255,.12); color:var(--blue); border-color:rgba(10,132,255,.25); }
 .dark .role-admin          { background:var(--palm-lt); color:var(--palm); border-color:rgba(50,215,75,.25); }
+/* ── Dark: badge-admin ── */
+.dark .badge-admin         { background:rgba(255,159,10,.12); color:var(--orange); border-color:rgba(255,159,10,.25); }
 /* .dark mob-card → tables.css (DUP-005) */
 
 /* th-sort, sort-icon → tables.css (DUP-005) */
@@ -844,6 +854,11 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   background: linear-gradient(135deg, #e8f5ee 0%, var(--palm-grad) 100%);
 }
 
+/* ── Dark mode: ajustes do tema Leo ── */
+.dark.theme-leo .kpi-card.kpi-hero {
+  background: linear-gradient(135deg, rgba(50,215,75,.10) 0%, rgba(50,215,75,.05) 100%);
+}
+
 /* ── Dark mode: ajustes do tema Pri ── */
 .dark.theme-pri {
   --palm:    #e879f9;
@@ -1181,3 +1196,43 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 /* ══════════════════════════════════════════════════════
    FIM DO BLOCO DE MELHORIAS v1.1
    ══════════════════════════════════════════════════════ */
+
+/* ══════════════════════════════════════════════════════
+   CALLOUT / ALERT SYSTEM (dark-mode safe)
+   Substitui inline styles hardcoded nos HTMLs.
+   Uso: <div class="callout callout-warn" style="padding:…">
+   ══════════════════════════════════════════════════════ */
+.callout{border-radius:var(--r-sm);font-size:12.5px;line-height:1.6}
+.callout-info{background:var(--blue-lt);border:1px solid #bfdbfe;border-left:3px solid var(--blue);color:#1e40af}
+.callout-warn{background:var(--yellow-lt);border:1px solid #fde68a;border-left:3px solid var(--yellow);color:#92400e}
+.callout-success{background:var(--green-lt);border:1px solid #bbf7d0;border-left:3px solid var(--green);color:#166534}
+.callout-error{background:var(--red-lt);border:1px solid #fecaca;border-left:3px solid var(--red);color:#991b1b}
+
+/* Dark mode: todas as variantes */
+.dark .callout-info{background:rgba(10,132,255,.1);border-color:rgba(10,132,255,.25);color:var(--blue)}
+.dark .callout-info{border-left-color:var(--blue)}
+.dark .callout-warn{background:rgba(255,214,10,.1);border-color:rgba(255,214,10,.25);color:var(--yellow)}
+.dark .callout-warn{border-left-color:var(--yellow)}
+.dark .callout-success{background:rgba(50,215,75,.1);border-color:rgba(50,215,75,.25);color:var(--green)}
+.dark .callout-success{border-left-color:var(--green)}
+.dark .callout-error{background:rgba(255,69,58,.1);border-color:rgba(255,69,58,.25);color:var(--red)}
+.dark .callout-error{border-left-color:var(--red)}
+
+/* ── Alert inline (config, modals) — sem classe, herdam font ── */
+.alert-box{border-radius:var(--r-sm);font-size:12.5px;line-height:1.5}
+.alert-box-info{background:var(--blue-lt);border:1px solid #bfdbfe;color:#1e40af}
+.dark .alert-box-info{background:rgba(10,132,255,.08);border-color:rgba(10,132,255,.2);color:var(--blue)}
+.alert-box-warn{background:var(--yellow-lt);border:1px solid #fde68a;color:#92400e}
+.dark .alert-box-warn{background:rgba(255,214,10,.08);border-color:rgba(255,214,10,.2);color:var(--yellow)}
+
+/* ── Upload alert variants (override inline colors) ── */
+.overdue-alert.alert-err{background:var(--red-lt);border-color:#fecaca;border-left-color:var(--red);color:#991b1b}
+.overdue-alert.alert-ok{background:var(--green-lt);border-color:#bbf7d0;border-left-color:var(--green);color:#166534}
+.overdue-alert.alert-av{background:var(--yellow-lt);border-color:#fde68a;border-left-color:var(--yellow);color:#92400e}
+.dark .overdue-alert.alert-err{background:rgba(255,69,58,.1);border-color:rgba(255,69,58,.3);color:var(--red)}
+.dark .overdue-alert.alert-ok{background:rgba(50,215,75,.1);border-color:rgba(50,215,75,.3);color:var(--green)}
+.dark .overdue-alert.alert-av{background:rgba(255,214,10,.1);border-color:rgba(255,214,10,.3);color:var(--yellow)}
+
+/* ── Modal manage bar (ovConta header) ── */
+.modal-manage-bar{background:var(--bg);border-bottom:1px solid var(--border)}
+.dark .modal-manage-bar{background:var(--surface2)}
