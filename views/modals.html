@@ -260,7 +260,7 @@
         </div>
         <div class="fg full">
           <label>Valor Pago (R$) *</label>
-          <input type="text" inputmode="numeric" id="pgValorPago" class="money-input" placeholder="0,00" oninput="APP.atualizarDiffPagamento()">
+          <input type="text" inputmode="numeric" id="pgValorPago" class="money-input" placeholder="0,00" oninput="setTimeout(()=>APP.atualizarDiffPagamento(),0)">
           <div id="pgDiff" style="display:none;margin-top:5px"></div>
         </div>
         <div class="form-note" style="grid-column:1/-1">
