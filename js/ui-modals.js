@@ -2,13 +2,6 @@
 
 Object.assign(APP, {
 
-  /**
-   * Fecha um modal com animacao de saida (M10).
-   * Aplica .closing por 180ms (duracao da animacao CSS), depois
-   * remove .open e .closing, restaurando o estado inicial.
-   * Seguro: se o modal ja estiver fechado, nao faz nada.
-   * @param {string} id - ID do elemento .modal-overlay (ex: 'ovConta')
-   */
   closeModal(id) {
     const ov = document.getElementById(id);
     if (!ov || !ov.classList.contains('open')) return;
@@ -18,13 +11,6 @@ Object.assign(APP, {
     }, 180);
   },
 
-  /**
-   * Inicializa o listener de scroll da topbar (M06).
-   * Adiciona/remove a classe .scrolled conforme o conteudo rola,
-   * acionando a sombra de "flutuacao" via CSS. Usa rAF throttle
-   * para evitar layout thrashing.
-   * Idempotente: pode ser chamada multiplas vezes sem efeito colateral.
-   */
   initTopbarScroll() {
     if (this._topbarScrollInit) return;
     this._topbarScrollInit = true;
@@ -48,6 +34,58 @@ Object.assign(APP, {
         ticking = true;
         requestAnimationFrame(() => {
           topbar.classList.toggle('scrolled', mainEl.scrollTop > 8);
+          ticking = false;
+        });
+      }, { passive: true });
+    }
+  },
+
+  initMobileNavScroll() {
+    if (this._mobileNavScrollInit) return;
+    this._mobileNavScrollInit = true;
+
+    const nav = document.getElementById('bottomNav');
+    if (!nav) return;
+
+    let lastY = 0;
+    let ticking = false;
+
+    const onScroll = () => {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        if (window.innerWidth > 768) {
+          nav.classList.remove('bnav-hidden');
+          ticking = false;
+          return;
+        }
+        const y = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if (y > lastY && y > 60) {
+          nav.classList.add('bnav-hidden');
+        } else {
+          nav.classList.remove('bnav-hidden');
+        }
+        lastY = y;
+        ticking = false;
+      });
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    const mainEl = document.querySelector('.main');
+    if (mainEl) {
+      mainEl.addEventListener('scroll', () => {
+        if (ticking) return;
+        ticking = true;
+        requestAnimationFrame(() => {
+          if (window.innerWidth > 768) { ticking = false; return; }
+          const y = mainEl.scrollTop;
+          if (y > lastY && y > 60) {
+            nav.classList.add('bnav-hidden');
+          } else {
+            nav.classList.remove('bnav-hidden');
+          }
+          lastY = y;
           ticking = false;
         });
       }, { passive: true });
