@@ -85,12 +85,32 @@
         <button class="btn btn-warning btn-sm" onclick="APP.parcsPayEarly()">⚡ Antecipado</button>
         <button class="btn btn-danger btn-sm" onclick="APP.parcsDeleteAll()">🗑 Excluir todas</button>
         <span style="flex:1"></span>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('forma')">💳 Forma de Pgto</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('cat')">🏷 Categoria</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsApplyDesc()">Aplicar descrição a todas</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsSaveAll()">💾 Salvar</button>
       </div>
       <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelas">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovParcsEditField">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h2 id="titleParcsEdit">Alterar Forma de Pagamento</h2><button class="modal-close" data-close="ovParcsEditField">&times;</button></div>
+    <div class="modal-body" style="padding:20px">
+      <div class="fg">
+        <label style="font-size:13px;font-weight:600;color:var(--t2);display:block;margin-bottom:8px">Selecione a nova opção para todas as parcelas:</label>
+        <select id="selectParcsEdit" style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font-b);font-size:13px;outline:none;background:var(--bg);color:var(--t1)">
+          <option value="">Selecione...</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovParcsEditField">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.parcsApplyField()">✅ Aplicar a todas</button>
+    </div>
   </div>
 </div>
 

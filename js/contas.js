@@ -243,7 +243,7 @@ Object.assign(APP, {
         <td><input type="text" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" id="parc_val_${c.id}" class="money-input" style="width:100px"></td>
         <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?'<span class="badge bg-atr">Atrasado</span>':'<span class="badge bg-pend">Pendente</span>'}</td>
         <td>${c.paidBy||c.updatedBy||c.createdBy||'—'}</td>
-        <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div></td>
+        <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div><input type="hidden" id="parc_formaId_${c.id}" value="${c.formaId||c.forma||''}"><input type="hidden" id="parc_catId_${c.id}" value="${c.catId||c.cat||''}"></td>
       </tr>`;
     }).join('');
     document.getElementById('ovParcelas').classList.add('open');
@@ -295,6 +295,27 @@ Object.assign(APP, {
     parcs.forEach(c=>{const el=document.getElementById(`parc_desc_${c.id}`);if(el)el.value=newDesc;});
     this.toast('Descrição aplicada — clique em Salvar','info');
   },
+  parcsOpenEditField(tipo){
+    const modal=document.getElementById('ovParcsEditField');
+    const sel=document.getElementById('selectParcsEdit');
+    const isCat=tipo==='cat';
+    modal.dataset.field=isCat?'catId':'formaId';
+    document.getElementById('titleParcsEdit').textContent=isCat?'Alterar Categoria':'Alterar Forma de Pagamento';
+    sel.innerHTML='<option value="">Selecione...</option>';
+    (isCat?CACHE.getAllCats():CACHE.getAllFormas()).forEach(x=>{sel.appendChild(new Option(x.nome,x.id));});
+    modal.classList.add('open');
+  },
+  parcsApplyField(){
+    const modal=document.getElementById('ovParcsEditField');
+    const field=modal.dataset.field;
+    const val=document.getElementById('selectParcsEdit').value;
+    if(!val){this.toast('Selecione uma opção','error');return;}
+    const parcs=CACHE.getByGrupo(STATE.parcGrupo);
+    parcs.forEach(c=>{const el=document.getElementById(`parc_${field}_${c.id}`);if(el)el.value=val;});
+    const nome=field==='catId'?CACHE.getCatNome(val):CACHE.getFormaNome(val);
+    modal.classList.remove('open');
+    this.toast(`${field==='catId'?'Categoria':'Forma de pagamento'} alterada para "${nome}" em todas — clique em Salvar`,'success');
+  },
   async parcsSaveAll(){
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
     await Promise.all(parcs.map(c=>{
@@ -303,7 +324,9 @@ Object.assign(APP, {
       const data=document.getElementById(`parc_data_${c.id}`)?.value;
       const val =document.getElementById(`parc_val_${c.id}`)?.value;
       const parc=document.getElementById(`parc_parc_${c.id}`)?.value;
-      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,updatedBy:STATE.usuario});
+      const formaId=document.getElementById(`parc_formaId_${c.id}`)?.value||c.formaId||'';
+      const catId=document.getElementById(`parc_catId_${c.id}`)?.value||c.catId||'';
+      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,formaId,catId,updatedBy:STATE.usuario});
     }));
     this.toast('Alterações salvas','success');
     APP.closeModal('ovParcelas');
