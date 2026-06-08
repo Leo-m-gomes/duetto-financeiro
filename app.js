@@ -2,10 +2,6 @@
 // DUETTO FINANCEIRO — Firebase Integration
 // ============================================================
 "use strict";
-// Modo estrito ativado em v3.1+. Detecta erros silenciosos como variáveis
-// não declaradas (foi assim que descobrimos o bug do "p" em renderRelatorio).
-// Em caso de erro novo após este deploy, abrir DevTools (F12) > Console
-// para ver a linha exata do problema.
 
 // ── CORE: fin-state.js, fin-cache.js, fin-db.js ──
 // Helpers, constantes, STATE, CACHE, FS, setupListeners e seedIfEmpty
@@ -20,7 +16,6 @@ function show(screenId){
   const screens = ['screenLoading','screenLogin','screenDenied','screenApp'];
   const loadingEl = document.getElementById('screenLoading');
   const isLoadingActive = loadingEl && loadingEl.style.display !== 'none' && loadingEl.style.display !== '';
-  // M11: fade-out do loading apenas quando saindo do screenLoading para outra tela
   if (isLoadingActive && screenId !== 'screenLoading' && loadingEl) {
     loadingEl.classList.add('fade-out');
     setTimeout(() => {
@@ -29,10 +24,9 @@ function show(screenId){
         const el = document.getElementById(id);
         if (el) el.style.display = (id === screenId ? 'flex' : 'none');
       });
-    }, 400); // duração do fade definida no CSS (transition: opacity .4s)
+    }, 400);
     return;
   }
-  // Comportamento padrão: troca instantânea
   screens.forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = (id === screenId ? 'flex' : 'none');
@@ -70,8 +64,14 @@ const APP = {
       if(navCfg) navCfg.style.display='flex';
       const navUp=document.getElementById('navUpload');
       if(navUp) navUp.style.display='flex';
+      // Espelha visibilidade nos itens da bottom nav mobile
+      const navCfgMob=document.getElementById('navConfigMob');
+      if(navCfgMob) navCfgMob.style.display='flex';
+      const navUpMob=document.getElementById('navUploadMob');
+      if(navUpMob) navUpMob.style.display='flex';
     }
     this.initTopbarScroll();
+    this.initMobileNavScroll();
     if(isShellMode && window.ROUTER){
       await ROUTER.navigate('dashboard');
     } else {
@@ -83,11 +83,9 @@ const APP = {
   toggleSidebar(){
     const isMobile = window.innerWidth <= 768;
     if(isMobile){
-      // Mobile: usa open/close com overlay — nunca collapsed
       this.closeSidebarMobile();
       return;
     }
-    // Desktop: comportamento de recolher/expandir original
     const sb=document.getElementById('sidebar');
     const icon=document.getElementById('sbCollapseIcon');
     const collapsed=sb.classList.toggle('collapsed');
@@ -101,7 +99,6 @@ const APP = {
     const sb      = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebarOverlay');
     sb.classList.remove('open');
-    // M07-sidebar: remove .visible primeiro (fade-out), depois oculta
     if(overlay) {
       overlay.classList.remove('visible');
       setTimeout(() => { overlay.style.display = 'none'; }, 300);
@@ -152,12 +149,10 @@ const APP = {
     const isMobile = window.innerWidth <= 768;
     const sb   = document.getElementById('sidebar');
     const icon = document.getElementById('sbCollapseIcon');
-    // No mobile: garante que não há classe 'collapsed' que cria vão
     if(isMobile){
       sb.classList.remove('collapsed');
       return;
     }
-    // Desktop: restaura estado salvo
     if(localStorage.getItem('dt_sb_collapsed')==='1'){
       sb.classList.add('collapsed');
       if(icon) icon.innerHTML='<polyline points="9 18 15 12 9 6"/>';
@@ -246,20 +241,14 @@ const APP = {
     const anoAtual = new Date().getFullYear();
     const mesAtual = new Date().getMonth();
 
-    // Helper para popular select de ano (já existia, mantido).
     const mkAno = (id) => {
       const s=document.getElementById(id); if(!s)return;
-      // Idempotência: se já populou, não duplica.
       if(s.options.length > 0) return;
       s.appendChild(new Option('Todos os anos','todos'));
       for(let a=2019;a<=2035;a++) s.appendChild(new Option(a,a));
       s.value = String(anoAtual);
     };
 
-    // ── Helper NOVO: popular select de mês com tolerância a null ──
-    // Uniformiza o padrão dos 3 selects de mês (Dash, Contas, Relatório).
-    // Idempotente: re-execuções não duplicam opções (importante quando
-    // selects() é chamado uma vez no boot e novamente após cada view load).
     const mkMes = (id) => {
       const s=document.getElementById(id); if(!s)return;
       if(s.options.length > 0) return;
@@ -268,7 +257,6 @@ const APP = {
       s.value = String(mesAtual);
     };
 
-    // Filtros cat/forma — idempotente: só popula se vazio (além do placeholder).
     const mkCatForma = (ids, items, valFn, labelFn) => {
       ids.forEach(id => {
         const s = document.getElementById(id); if(!s) return;
@@ -279,18 +267,11 @@ const APP = {
     mkCatForma(['filtroCatContas','relCat'], CACHE.getAllCats(), c=>c.nome, c=>c.nome);
     mkCatForma(['filtroFormaContas','relForma'], CACHE.getAllFormas(), f=>f.id, f=>f.nome);
 
-    // ── Ano + Mês Dashboard ──
     mkAno('filtroAnoDash');
     mkMes('filtroMesDash');
-
-    // ── Ano + Mês Contas ──
     mkAno('filtroAnoContas');
     mkMes('filtroMesContas');
-
-    // ── Mês Receitas ──
     mkMes('filtroMesReceitas');
-
-    // ── Ano + Mês Relatório ──
     mkAno('relAno');
     mkMes('relMes');
   },
@@ -331,8 +312,6 @@ const APP = {
     const el=document.getElementById(`page-${p}`);
     if(el)el.classList.add('active');
 
-    // Re-popular selects e re-instalar filtros APÓS a view estar no DOM.
-    // Ambas são idempotentes: não duplicam opções nem handlers.
     if(typeof this.selects === 'function') this.selects();
     if(typeof this.filtros === 'function') this.filtros();
 
@@ -345,7 +324,6 @@ const APP = {
           this.renderContas();
         },
         receitas:  ()=>this.renderReceitas(),
-
         relatorio: ()=>this.renderRelatorio(),
         upload:    ()=>this.upRenderHistorico(),
         backup:    ()=>this.renderBackup(),
@@ -356,8 +334,6 @@ const APP = {
     }
   },
 
-  // ── Tema visual por responsável ──
-  // Aplica/remove classe no <html> — apenas variáveis CSS, zero impacto em layout
   _aplicarTemaResp(resp){
     const root = document.documentElement;
     root.classList.remove('theme-pri','theme-leo');
@@ -389,4 +365,3 @@ const APP = {
 // ── Módulos Lote 2 extraídos para /js: dashboard, contas, receitas, salarios, relatorios, gerenciar ──
 // ── Módulos Lote 1 (UI): ui-toast, ui-modals, ui-tables, ui-charts, ui-period ──
 // ── Módulos Lote 3 (Features): upload, backup, configuracoes, lixeira, recorrentes, pagamento-massa, pareto, acoes-extra ──
-
