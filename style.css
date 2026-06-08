@@ -215,16 +215,16 @@
 
 /* ── SIDEBAR COLLAPSED (desktop) ── */
 
+/* ── BOTTOM NAV (base — oculta em desktop) ── */
+.bottom-nav{display:none}
+
 /* ── RESPONSIVE ── */
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
 @media(max-width:768px){
   .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
-  /* No mobile: main sempre ocupa tela toda — sem margem da sidebar */
   .main{margin-left:0 !important}
-  .menu-toggle{display:flex}
-  /* Esconde botão de recolher/expandir — só faz sentido no desktop */
+  .menu-toggle{display:none !important}
   #sbCollapseBtn{display:none !important}
-  /* Overlay escuro atrás da sidebar quando aberta no mobile */
   .sidebar-overlay{display:block}
   .kpi-grid{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
@@ -235,6 +235,75 @@
   .charts-row{grid-template-columns:1fr}
   .modal-xl{width:100%}
   .up-grid{grid-template-columns:1fr}
+  #appMain{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+
+  /* ── BOTTOM NAV FLUTUANTE ── */
+  .bottom-nav{
+    display:flex;
+    position:fixed;
+    left:12px;
+    right:12px;
+    bottom:calc(12px + env(safe-area-inset-bottom));
+    align-items:center;
+    justify-content:space-around;
+    padding:8px 10px;
+    border-radius:9999px;
+    z-index:var(--ui-z-sidebar);
+    background:color-mix(in srgb, var(--surface) 82%, transparent);
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    border:1px solid color-mix(in srgb, var(--border) 70%, transparent);
+    box-shadow:0 8px 32px rgba(0,0,0,.12), 0 2px 8px rgba(0,0,0,.08);
+    transition:transform .3s cubic-bezier(.4,0,.2,1);
+    will-change:transform;
+  }
+  .bottom-nav.bnav-hidden{
+    transform:translateY(calc(100% + 20px));
+  }
+  .bottom-nav .nav-item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    gap:3px;
+    padding:6px 10px;
+    border-radius:9999px;
+    color:var(--t3);
+    font-size:9px;
+    font-weight:600;
+    letter-spacing:.2px;
+    text-decoration:none;
+    border:none;
+    background:transparent;
+    transition:color var(--transition),background var(--transition),transform .1s;
+  }
+  .bottom-nav .nav-item svg{
+    width:20px;height:20px;stroke:currentColor;fill:none;
+    stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+    transition:transform .15s;
+  }
+  .bottom-nav .nav-item:hover{
+    color:var(--palm);
+    background:color-mix(in srgb, var(--palm) 10%, transparent);
+    transform:none;
+  }
+  .bottom-nav .nav-item.active{
+    color:var(--palm);
+    background:color-mix(in srgb, var(--palm) 14%, transparent);
+    font-weight:700;
+    box-shadow:none;
+  }
+  .bottom-nav .nav-item.active::before{display:none}
+  .bottom-nav .nav-item:hover svg{transform:scale(1.1)}
+}
+
+/* ── Dark mode: bottom nav ── */
+.dark .bottom-nav{
+  background:color-mix(in srgb, var(--surface) 80%, transparent);
+  border-color:color-mix(in srgb, var(--border) 60%, transparent);
+  box-shadow:0 8px 32px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.2);
+}
+.dark .bottom-nav .nav-item.active{
+  background:color-mix(in srgb, var(--palm) 18%, transparent);
 }
 @media(max-width:480px){
   .kpi-grid{grid-template-columns:1fr}
