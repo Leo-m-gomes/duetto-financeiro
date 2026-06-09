@@ -169,17 +169,7 @@ const APP = {
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
         document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
-        ['btnGerenciarSalarios','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
-          const btn = document.getElementById(id); if(btn) btn.style.display='none';
-        });
-        const btnNova = document.getElementById('btnNovaConta');
-        if(btnNova) btnNova.style.display = ['contas'].includes(page) ? 'flex' : 'none';
-        if(page==='contas'){ const b=document.getElementById('btnGerarRec'); if(b) b.style.display='flex'; }
-        if(page==='receitas'){
-          const b=document.getElementById('btnNovaReceita'); if(b) b.style.display='flex';
-          const bg=document.getElementById('btnGerenciarSalarios'); if(bg) bg.style.display='flex';
-        }
-        if(page==='contas'){ const b=document.getElementById('btnCSVContas'); if(b) b.style.display='flex'; }
+        this.updateTopbarBtns(page);
         const sb = document.getElementById('sidebar'); if(sb) sb.classList.remove('open');
         const ov = document.getElementById('sidebarOverlay');
         if(ov){ ov.classList.remove('visible'); setTimeout(()=>{ov.style.display='none';},300); }
@@ -199,6 +189,18 @@ const APP = {
   },
 
   goPage(p){ const el=document.querySelector(`.nav-item[data-page="${p}"]`); if(el) el.click(); },
+
+  // Visibilidade dos botões contextuais da topbar por página.
+  // Centralizado para rodar tanto no clique da nav quanto no renderPage
+  // (load inicial e re-render), evitando botão na tela errada.
+  updateTopbarBtns(page){
+    ['btnNovaConta','btnGerenciarSalarios','btnNovaReceita','btnCSVContas','btnGerarRec'].forEach(id=>{
+      const btn=document.getElementById(id); if(btn) btn.style.display='none';
+    });
+    const show=id=>{ const b=document.getElementById(id); if(b) b.style.display='flex'; };
+    if(page==='contas'){ show('btnNovaConta'); show('btnGerarRec'); show('btnCSVContas'); }
+    if(page==='receitas'){ show('btnNovaReceita'); show('btnGerenciarSalarios'); }
+  },
 
   topBtns(){
     const safeBind = (id, handler) => { const el=document.getElementById(id); if(el) el.addEventListener('click', handler); };
@@ -308,6 +310,7 @@ const APP = {
   renderPage(p){
     if((p==='backup'||p==='config'||p==='upload') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
     STATE.page=p;
+    this.updateTopbarBtns(p);
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
     const el=document.getElementById(`page-${p}`);
     if(el)el.classList.add('active');
