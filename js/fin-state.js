@@ -94,7 +94,7 @@ const STATE = {
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
   periodo:null, periodoDash:null, periodoContas:null, periodoTela:null,
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
-  sortContas:  {col:null, dir:1},
+  sortContas:  {col:'data', dir:1},
   sortReceitas:{col:null, dir:1},
   sortRel:     {col:null, dir:1},
   pgReceitas:1, editReceitaId:null,

@@ -21,6 +21,18 @@ Object.assign(APP, {
     else this.renderRelatorio();
   },
 
+  // Força a ordenação padrão da tabela de contas por data de vencimento (asc)
+  // e reflete o estado no ícone da coluna. Usado ao abrir a tela e ao filtrar,
+  // garantindo que a listagem esteja sempre ordenada por vencimento.
+  _ordenarContasPorVencimento() {
+    STATE.sortContas = { col: 'data', dir: 1 };
+    const tbl = document.getElementById('tblContas');
+    if (!tbl) return;
+    tbl.querySelectorAll('.sort-icon').forEach(el => el.classList.remove('asc', 'desc'));
+    const ic = tbl.querySelector('.sort-icon[data-col="data"]');
+    if (ic) ic.classList.add('asc');
+  },
+
   _aplicarSort(data, key) {
     const s = STATE[key];
     if (!s.col) return data;

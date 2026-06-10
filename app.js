@@ -288,6 +288,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{
         if(id==='filtroAnoContas'||id==='filtroMesContas'){ STATE.periodoContas=null; self._atualizarPeriodoBadge('contas',null); }
+        self._ordenarContasPorVencimento();
         STATE.pg=1; self.renderContas();
       };
     });
@@ -324,6 +325,7 @@ const APP = {
         contas:    ()=>{
           const fs = document.getElementById('filtroStatus');
           if(fs && fs.value === '') fs.value = 'pendente';
+          this._ordenarContasPorVencimento();
           this.renderContas();
         },
         receitas:  ()=>this.renderReceitas(),
