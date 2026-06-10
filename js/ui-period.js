@@ -28,7 +28,7 @@ Object.assign(APP, {
     APP.closeModal('ovPeriodo');
     this._atualizarPeriodoBadge(t, p);
     if (t === 'dashboard')      this.renderDashboard();
-    else if (t === 'contas')  { STATE.pg = 1; this.renderContas(); }
+    else if (t === 'contas')  { this._ordenarContasPorVencimento(); STATE.pg = 1; this.renderContas(); }
     else                        this.renderRelatorio();
   },
 
@@ -40,7 +40,7 @@ Object.assign(APP, {
     APP.closeModal('ovPeriodo');
     this._atualizarPeriodoBadge(t, null);
     if (t === 'dashboard')      this.renderDashboard();
-    else if (t === 'contas')  { STATE.pg = 1; this.renderContas(); }
+    else if (t === 'contas')  { this._ordenarContasPorVencimento(); STATE.pg = 1; this.renderContas(); }
     else                        this.renderRelatorio();
   },
 
