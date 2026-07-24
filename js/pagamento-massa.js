@@ -54,23 +54,54 @@ Object.assign(APP, {
     const selecionadas = this._getSelecionadas();
     if(!selecionadas.length){ this.toast('Selecione ao menos uma conta','error'); return; }
 
+    // Modo de baixa das contas compartilhadas (Leo & Pri), congelado na abertura:
+    //   filtro 'Leo'/'Pri'        → baixa apenas da parte do responsável filtrado
+    //   filtro vazio/'Leo & Pri'  → baixa integral (as duas partes)
+    const filtro = document.getElementById('filtroRespContas')?.value || '';
+    const respParte = (filtro==='Leo'||filtro==='Pri') ? filtro : '';
+
+    let temCompartilhada = false;
+
     // Monta tabela do modal com valores editáveis
     const tbody = document.getElementById('tbodyPagMassa');
     tbody.innerHTML = selecionadas.map(s=>{
       const c = CACHE.contas.find(x=>x.id===s.id);
       if(!c) return '';
       const catNome = CACHE.resolveCat(c.catId||c.cat);
+      const isShared = c.resp==='Leo & Pri';
+      // rowResp define a gravação: 'Leo'/'Pri' → pagarContaIndividual; '' → baixa integral
+      let rowResp = '';
+      if(isShared){
+        temCompartilhada = true;
+        if(respParte) rowResp = respParte;
+        else if(!!c.pagamentos?.Leo !== !!c.pagamentos?.Pri) rowResp = c.pagamentos?.Leo ? 'Pri' : 'Leo';
+      }
+      const badge = isShared
+        ? `<div style="font-size:10px;margin-top:2px;color:var(--t4)">${rowResp?`baixa da parte de <strong>${rowResp}</strong>`:'baixa integral (Leo e Pri)'}</div>`
+        : '';
       return`<tr>
         <td style="max-width:200px;white-space:normal;font-weight:600">${c.conta}${c.parcela?`<br><span style="font-size:10px;color:var(--t4)">${c.parcela}</span>`:''}</td>
-        <td>${c.resp}</td>
+        <td>${c.resp}${badge}</td>
         <td><span class="badge bg-cat">${catNome}</span></td>
         <td style="color:var(--t4)">${fmt(s.val)}</td>
-        <td><input type="text" inputmode="numeric" class="pag-massa-val money-input" data-id="${c.id}"
+        <td><input type="text" inputmode="numeric" class="pag-massa-val money-input" data-id="${c.id}" data-pagresp="${rowResp}"
           value="${maskMoney(floatToCentsStr(s.val))}"
           oninput="APP.recalcularTotalMassa()"
           style="width:110px;padding:5px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:13px;text-align:right;background:var(--bg);color:var(--t1)"></td>
       </tr>`;
     }).join('');
+
+    const aviso = document.getElementById('pagMassaAviso');
+    if(aviso){
+      if(temCompartilhada){
+        aviso.style.display='block';
+        aviso.textContent = respParte
+          ? `Filtro "${respParte}" ativo: contas compartilhadas (Leo & Pri) terão baixa apenas da parte de ${respParte}.`
+          : 'Sem filtro de responsável: contas compartilhadas (Leo & Pri) serão quitadas integralmente (as duas partes).';
+      } else {
+        aviso.style.display='none';
+      }
+    }
 
     this.recalcularTotalMassa();
     document.getElementById('ovPagMassa').classList.add('open');
@@ -107,7 +138,10 @@ Object.assign(APP, {
     let ok = 0, erros = 0;
     for(const el of inputs){
       try{
-        await FS.pagarConta(el.dataset.id, STATE.usuario, parseMoney(el.value));
+        const valor   = parseMoney(el.value);
+        const pagresp = el.dataset.pagresp || '';
+        if(pagresp) await FS.pagarContaIndividual(el.dataset.id, pagresp, STATE.usuario, valor);
+        else        await this._pagarContaAuto(el.dataset.id, valor);
         ok++;
         btn.textContent = `⏳ Pagando ${ok} de ${n}...`;
       } catch(e){ erros++; }

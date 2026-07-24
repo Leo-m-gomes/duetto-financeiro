@@ -104,6 +104,14 @@ const FS = {
     const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     const nome  = snap?.exists ? snap.data().conta : '—';
     const parc  = snap?.exists ? snap.data().parcela : '';
+    // Blindagem: conta compartilhada com pagamento parcial não pode ser
+    // quitada por sobrescrita — a parte faltante deve ir por pagarContaIndividual.
+    if(snap?.exists){
+      const d = snap.data();
+      if(d.resp==='Leo & Pri' && d.pagamentos && (!!d.pagamentos.Leo !== !!d.pagamentos.Pri)){
+        throw new Error('Conta compartilhada com pagamento parcial — registre a parte faltante pelo pagamento individual');
+      }
+    }
     await fbDb.collection('contas').doc(id).update({
       vPago:  valorPago,
       paidBy: quem,

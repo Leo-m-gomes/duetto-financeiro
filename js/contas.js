@@ -79,7 +79,7 @@ Object.assign(APP, {
       const pgBadge=isShared&&!c._split&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
         ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
-        <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${ef}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
+        <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
         <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${splitBadge}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${c.resp}</td>
@@ -227,6 +227,17 @@ Object.assign(APP, {
     await FS.deleteConta(id);this.toast('Conta excluída','success');
   },
 
+  // Baixa integral segura: em conta "Leo & Pri" com uma parte já paga
+  // individualmente, completa a parte faltante em vez de sobrescrever vPago.
+  async _pagarContaAuto(id, valor){
+    const c=CACHE.contas.find(x=>x.id===id);
+    if(c&&c.resp==='Leo & Pri'&&c.pagamentos){
+      const temLeo=!!c.pagamentos.Leo, temPri=!!c.pagamentos.Pri;
+      if(temLeo!==temPri) return FS.pagarContaIndividual(id, temLeo?'Pri':'Leo', STATE.usuario, valor);
+    }
+    return FS.pagarConta(id, STATE.usuario, valor);
+  },
+
   // ── PARCELAS ──
   openParcelas(grupo){
     STATE.parcGrupo=grupo;
@@ -254,7 +265,7 @@ Object.assign(APP, {
     const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!(c.vPago>0));
     if(!parcs.length){this.toast('Todas já estão pagas','info');return;}
     if(!confirm(`Marcar ${parcs.length} parcela(s) como pagas?`))return;
-    await Promise.all(parcs.map(c=>FS.pagarConta(c.id,STATE.usuario,c.vPagar)));
+    await Promise.all(parcs.map(c=>this._pagarContaAuto(c.id,c.vPagar)));
     this.toast(`${parcs.length} parcela(s) pagas`,'success');
     APP.closeModal('ovParcelas');
   },
@@ -266,7 +277,7 @@ Object.assign(APP, {
     const total=parseMoney(val);const perParc=Math.round(total/parcs.length*100)/100;
     await Promise.all(parcs.map((c,i)=>{
       const v = i===parcs.length-1 ? Math.round((total-perParc*(parcs.length-1))*100)/100 : perParc;
-      return FS.pagarConta(c.id,STATE.usuario,v);
+      return this._pagarContaAuto(c.id,v);
     }));
     this.toast('Pagamento antecipado registrado','success');
     APP.closeModal('ovParcelas');
@@ -274,7 +285,7 @@ Object.assign(APP, {
   async parcsPayOne(id){
     if(!confirm('Pagar esta parcela?'))return;
     const c=CACHE.contas.find(x=>x.id===id);
-    await FS.pagarConta(id,STATE.usuario,c?c.vPagar:0);this.toast('Parcela paga','success');
+    await this._pagarContaAuto(id,c?c.vPagar:0);this.toast('Parcela paga','success');
     this.openParcelas(STATE.parcGrupo);
   },
   async parcsDeleteOne(id){
