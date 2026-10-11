@@ -427,6 +427,11 @@
 .dark .modal-header,
 .dark .modal-footer        { border-color:var(--border); background:var(--surface); }
 .dark .modal-body          { background:var(--surface); }
+/* No escuro header/footer/body têm fundo opaco e, como .modal não recorta
+   (overflow visível, para não cortar popovers), pintavam por cima dos cantos
+   arredondados. O 1º e o último filho herdam o raio do modal (menos a borda). */
+.modal > :first-child { border-top-left-radius:calc(var(--r) - 1px); border-top-right-radius:calc(var(--r) - 1px); }
+.modal > :last-child  { border-bottom-left-radius:calc(var(--r) - 1px); border-bottom-right-radius:calc(var(--r) - 1px); }
 .dark .fg input,
 .dark .fg select,
 .dark .fg textarea         { background:var(--surface2); color:var(--t1); border-color:var(--border2); }
