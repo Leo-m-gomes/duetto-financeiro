@@ -1333,3 +1333,20 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 /* ── Modal manage bar (ovConta header) ── */
 .modal-manage-bar{background:var(--bg);border-bottom:1px solid var(--border)}
 .dark .modal-manage-bar{background:var(--surface2)}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   BOTÕES EM PÍLULA (padrão global)
+   Centralizado aqui (style.css é a última folha carregada) para não espalhar
+   raios por cada componente. Botões só com ícone (largura = altura) viram
+   círculos, que é a forma "pílula" de um quadrado.
+   !important: vários componentes definem raio próprio em tables.css,
+   notes.css e media queries; este é um padrão visual deliberado e global.
+   ═══════════════════════════════════════════════════════════════════════ */
+button,
+input[type=button], input[type=submit], input[type=reset],
+.btn, .action-btn, .pg-btn, .modal-close, .sb-collapse-btn, .btn-google,
+.cfg-tab, .resp-chip, .pg-resp-btn, .mob-filter-toggle, .mob-action-btn,
+.menu-toggle, .dash-filter-toggle, .rel-busca-clear,
+.nt-btn, .nt-modal-close, .nt-icon-btn, .nt-periodo-btn, .nt-analytics-toggle, .nt-search-clear{
+  border-radius:var(--ui-radius-pill) !important;
+}
