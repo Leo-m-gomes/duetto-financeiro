@@ -87,10 +87,9 @@ Object.assign(APP, {
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(resp) data = filtrarPorResp(data, resp);
-    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
-    if(status==='pago')          data=data.filter(c=>_quitada(c));
-    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
-    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
+    if(status==='pago')          data=data.filter(c=>isQuitada(c));
+    else if(status==='pendente') data=data.filter(c=>!isQuitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!isQuitada(c)&&c.data<today());
 
     if(busca){
       const termos=this._normBusca(busca).split(/\s+/).filter(Boolean);

@@ -41,17 +41,30 @@ const fmt     = v => { if(v==null||isNaN(v)) return '—'; const cfg = typeof MO
 const fmtN    = v => { if(v==null||isNaN(v)) return '—'; const loc = typeof MONEY_CFG!=='undefined'?MONEY_CFG.locale:'pt-BR'; return Number(v).toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d.toLocaleDateString('pt-BR'); };
 const today   = () => new Date().toISOString().split('T')[0];
-const isOverdue = c => !!(c.data < today() && !(c.vPago > 0));
+/**
+ * Conta "Leo & Pri" (não dividida ÷2) com pagamento individual de ao menos
+ * uma das partes. Nesse caso vPago guarda só a soma parcial, então vPago>0
+ * NÃO significa quitada.
+ */
+const temPgIndividual = c => c.resp === 'Leo & Pri' && !c._split && !!(c.pagamentos?.Leo || c.pagamentos?.Pri);
+
+/**
+ * Fonte única da regra "conta quitada":
+ *   • compartilhada com pagamento individual: só quando Leo E Pri pagaram;
+ *   • demais casos (inclui a metade ÷2 de um responsável): vPago > 0.
+ */
+const isQuitada = c => temPgIndividual(c) ? (!!c.pagamentos.Leo && !!c.pagamentos.Pri) : c.vPago > 0;
+
+// Atrasada = vencida e não quitada. Compartilhada com só uma parte paga continua atrasada.
+const isOverdue = c => !!(c.data < today() && !isQuitada(c));
 const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
 const vPendente = c => {
-  if(c._split) return c.vPago > 0 ? 0 : (c.vPagar||0);
-  if(c.resp === 'Leo & Pri' && c.pagamentos){
-    const ambos = !!c.pagamentos.Leo && !!c.pagamentos.Pri;
-    if(ambos) return 0;
+  if(isQuitada(c)) return 0;
+  if(temPgIndividual(c)){
     const parcial = (c.pagamentos.Leo?.valor||0) + (c.pagamentos.Pri?.valor||0);
     return Math.max(0, (c.vPagar||0) - parcial);
   }
-  return c.vPago > 0 ? 0 : (c.vPagar||0);
+  return c.vPagar||0;
 };
 
 /**
@@ -108,6 +121,7 @@ window.fmtN     = fmtN;
 window.fmtDate  = fmtDate;
 window.today    = today;
 window.isOverdue = isOverdue;
+window.isQuitada = isQuitada;
 window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
 window.filtrarPorResp = filtrarPorResp;

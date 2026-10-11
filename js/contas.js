@@ -43,10 +43,9 @@ Object.assign(APP, {
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(recFiltro==='sim') data = data.filter(c=>c.recorrente);
     else if(recFiltro==='nao') data = data.filter(c=>!c.recorrente);
-    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
-    if(status==='pago')          data=data.filter(c=>_quitada(c));
-    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
-    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
+    if(status==='pago')          data=data.filter(c=>isQuitada(c));
+    else if(status==='pendente') data=data.filter(c=>!isQuitada(c));
+    else if(status==='atrasado') data=data.filter(c=>!isQuitada(c)&&c.data<today());
 
     document.getElementById('totalGeral').textContent    = fmt(data.reduce((s,c)=>s+vEfetivo(c),0));
     document.getElementById('totalPago').textContent     = fmt(data.reduce((s,c)=>s+(c.vPago||0),0));
@@ -69,9 +68,9 @@ Object.assign(APP, {
 
     document.getElementById('tbodyContas').innerHTML=paged.map((c,i)=>{
       const isShared=c.resp==='Leo & Pri';
-      const fullyPaid=c._split?c.vPago>0:(isShared&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
+      const fullyPaid=isQuitada(c);
       const hasPg=c.vPago>0;
-      const atr=!fullyPaid&&(c._split?c.data<today():isOverdue(c)); const ef=vEfetivo(c); const pend=fullyPaid?0:vPendente(c);
+      const atr=isOverdue(c); const ef=vEfetivo(c); const pend=vPendente(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
@@ -245,14 +244,14 @@ Object.assign(APP, {
     document.getElementById('titleParcelas').textContent=`Parcelamento: ${parcs[0].conta}`;
     const respOpts=['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}">${r}</option>`).join('');
     document.getElementById('tbodyParcelas').innerHTML=parcs.map(c=>{
-      const pago=c.vPago>0;const atr=isOverdue(c);
+      const pago=isQuitada(c);const parcial=!pago&&c.vPago>0;const atr=isOverdue(c);
       return`<tr style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td><input type="text" value="${c.parcela||''}" id="parc_parc_${c.id}" style="width:80px"></td>
         <td><input type="text" value="${c.conta}" id="parc_desc_${c.id}"></td>
         <td><select id="parc_resp_${c.id}" style="min-width:90px">${['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}"${c.resp===r?' selected':''}>${r}</option>`).join('')}</select></td>
         <td><input type="date" value="${c.data}" id="parc_data_${c.id}"></td>
         <td><input type="text" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" id="parc_val_${c.id}" class="money-input" style="width:100px"></td>
-        <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?'<span class="badge bg-atr">Atrasado</span>':'<span class="badge bg-pend">Pendente</span>'}</td>
+        <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?`<span class="badge bg-atr">Atrasado${parcial?' (parcial)':''}</span>`:`<span class="badge bg-pend">Pendente${parcial?' (parcial)':''}</span>`}</td>
         <td>${c.paidBy||c.updatedBy||c.createdBy||'—'}</td>
         <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div><input type="hidden" id="parc_formaId_${c.id}" value="${c.formaId||c.forma||''}"><input type="hidden" id="parc_catId_${c.id}" value="${c.catId||c.cat||''}"></td>
       </tr>`;
@@ -262,15 +261,15 @@ Object.assign(APP, {
   },
 
   async parcsPayAll(){
-    const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!(c.vPago>0));
+    const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!isQuitada(c));
     if(!parcs.length){this.toast('Todas já estão pagas','info');return;}
     if(!confirm(`Marcar ${parcs.length} parcela(s) como pagas?`))return;
-    await Promise.all(parcs.map(c=>this._pagarContaAuto(c.id,c.vPagar)));
+    await Promise.all(parcs.map(c=>this._pagarContaAuto(c.id,vPendente(c))));
     this.toast(`${parcs.length} parcela(s) pagas`,'success');
     APP.closeModal('ovParcelas');
   },
   async parcsPayEarly(){
-    const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!(c.vPago>0));
+    const parcs=CACHE.getByGrupo(STATE.parcGrupo).filter(c=>!isQuitada(c));
     if(!parcs.length){this.toast('Nenhuma pendente','info');return;}
     const val=prompt(`Valor do pagamento antecipado (${parcs.length} parcelas):`);if(!val)return;
     const nota=prompt('Observação:')||'Pagamento antecipado';
@@ -285,7 +284,7 @@ Object.assign(APP, {
   async parcsPayOne(id){
     if(!confirm('Pagar esta parcela?'))return;
     const c=CACHE.contas.find(x=>x.id===id);
-    await this._pagarContaAuto(id,c?c.vPagar:0);this.toast('Parcela paga','success');
+    await this._pagarContaAuto(id,c?vPendente(c):0);this.toast('Parcela paga','success');
     this.openParcelas(STATE.parcGrupo);
   },
   async parcsDeleteOne(id){
