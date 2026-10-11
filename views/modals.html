@@ -59,6 +59,7 @@
         <div class="fg"><label>Forma de Pagamento *</label><select id="fForma"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Categoria *</label><select id="fCat"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
+        <div class="fg"><label>Data da Compra <span style="font-weight:400;color:var(--t4)">(cartão, opcional)</span></label><input type="date" id="fDataCompra" title="Dia da compra na fatura; ajuda a identificar lançamentos repetidos"></div>
         <div class="fg"><label>Valor da Parcela (R$) *</label><input type="text" inputmode="numeric" id="fVP" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" inputmode="numeric" min="1" value="1"></div>
         <div class="fg"><label>Valor Total (auto)</label><input type="text" id="fVT" readonly placeholder="—"></div>
@@ -127,6 +128,21 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close="ovParcsNota">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.parcsApplyNota()">✅ Aplicar a todas</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: POSSÍVEIS DUPLICATAS (js/duplicatas.js, DUP.confirmar) -->
+<div class="modal-overlay" id="ovDuplicatas">
+  <div class="modal modal-xl">
+    <div class="modal-header"><h2 id="dupTitulo">Possível conta repetida</h2><button class="modal-close" data-dup-close>&times;</button></div>
+    <div class="modal-body" style="padding:16px 20px">
+      <div style="font-size:12.5px;color:var(--t3);margin-bottom:12px">Encontramos contas já cadastradas com dados parecidos. Confira e decida se é realmente uma duplicata.</div>
+      <div id="dupCorpo"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" id="dupBtnNao">É duplicata, não cadastrar</button>
+      <button class="btn btn-primary" id="dupBtnSim">Não é duplicata, cadastrar</button>
     </div>
   </div>
 </div>
@@ -434,7 +450,7 @@
         </div>
         <div class="fg" style="margin:0">
           <label>Gerar para o ano</label>
-          <select id="recAnoDestino" style="padding:8px 12px"></select>
+          <select id="recAnoDestino" style="padding:8px 12px" onchange="APP.recCarregarLista()"></select>
         </div>
         <button class="btn btn-ghost btn-sm" onclick="APP.recSelecionarTodos()">Selecionar todas</button>
         <button class="btn btn-ghost btn-sm" onclick="APP.recDeselecionarTodos()">Limpar seleção</button>

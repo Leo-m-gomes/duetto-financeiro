@@ -394,6 +394,7 @@ Object.assign(APP, {
       if(c){
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
         document.getElementById('fResp').value=c.resp;document.getElementById('fData').value=c.data;
+        const fDc=document.getElementById('fDataCompra');if(fDc)fDc.value=c.dataCompra||'';
         setMoneyValue(document.getElementById('fVP'),c.vPagar);document.getElementById('fParc').value=c.parcela||'';
         const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=!!c.recorrente;
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
@@ -405,7 +406,7 @@ Object.assign(APP, {
   },
 
   clearConta(){
-    ['fDesc','fNota','fResp','fForma','fCat','fData','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    ['fDesc','fNota','fResp','fForma','fCat','fData','fDataCompra','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
   },
@@ -417,13 +418,15 @@ Object.assign(APP, {
     try{
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
-    const c={conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
+    const dataCompra=document.getElementById('fDataCompra')?.value||null;
+    const c={dataCompra,conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
     if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
     if(!c.resp){this.toast('Selecione o responsável','error');return;}
     if(!catId){this.toast('Selecione a categoria','error');return;}
     if(!formaId){this.toast('Selecione a forma de pagamento','error');return;}
     if(!c.data){this.toast('Informe a data','error');return;}
     if(!c.vPagar){this.toast('Informe o valor','error');return;}
+    if(c.dataCompra&&c.dataCompra>c.data){this.toast('Data da compra não pode ser posterior ao vencimento','error');return;}
 
     if(STATE.editContaId){
       const {createdBy, ...editData} = c;
@@ -433,6 +436,21 @@ Object.assign(APP, {
       const qt=parseInt(document.getElementById('fQP').value)||1;
       const grupo=`grp-${Date.now()}`;
       const novaConta = {...c, vPago:null};
+
+      // Detecção de duplicatas: comunica e deixa o usuário decidir
+      const candidatos = qt>1
+        ? Array.from({length:qt},(_,i)=>({...novaConta,data:addMeses(c.data,i),parcela:`${i+1} de ${qt}`}))
+        : [{...novaConta,parcela:novaConta.parcela||'1 de 1'}];
+      const itensDup = candidatos.map(cand=>({candidato:cand, achados:DUP.buscar(cand)})).filter(i=>i.achados.length);
+      if(itensDup.length){
+        const ok = await DUP.confirmar({
+          titulo: `Possível conta repetida (${itensDup.length} de ${candidatos.length} lançamento${candidatos.length>1?'s':''})`,
+          itens: itensDup,
+          btnSim: qt>1?'Não é duplicata, cadastrar todas':'Não é duplicata, cadastrar',
+        });
+        if(!ok){ this.toast('Cadastro cancelado: revise a conta','info'); return; }
+      }
+
       if(qt>1){
         const proms=[];
         for(let i=0;i<qt;i++){proms.push(FS.addConta({...novaConta,data:addMeses(c.data,i),parcela:`${i+1} de ${qt}`,grupo}));}

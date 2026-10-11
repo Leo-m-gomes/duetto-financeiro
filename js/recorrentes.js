@@ -2,6 +2,29 @@
 
 Object.assign(APP, {
 
+  // ── DETECÇÃO DE DUPLICATAS (regras centralizadas em js/duplicatas.js) ──
+  _recCandidato(el){
+    const base = JSON.parse(el.querySelector('.rec-chk').dataset.conta.replace(/&apos;/g,"'"));
+    return {...base, data:el.querySelector('.rec-data')?.value||'', vPagar:parseMoney(el.querySelector('.rec-val')?.value)};
+  },
+
+  /**
+   * Atualiza o aviso do item. Ao virar "provável" o item é desmarcado (uma
+   * única vez); o usuário pode marcá-lo de novo se não for duplicata.
+   */
+  _recValidarItem(el){
+    const achados = DUP.buscar(this._recCandidato(el));
+    const nivel   = DUP.nivel(achados)||'';
+    const aviso   = el.querySelector('.rec-aviso');
+    const chk     = el.querySelector('.rec-chk');
+    if(nivel==='provavel' && el.dataset.nivel!=='provavel'){ chk.checked=false; el.classList.remove('selected'); }
+    el.dataset.nivel = nivel;
+    aviso.textContent = DUP.resumo(achados);
+    aviso.style.color = nivel==='provavel' ? 'var(--orange)' : 'var(--t3)';
+    aviso.style.display = nivel ? 'block' : 'none';
+    return achados;
+  },
+
   openRecorrentes(){
     // Popular selects de ano
     const anos = [...new Set(CACHE.contas.map(c=>new Date(c.data+'T12:00').getFullYear()))].sort((a,b)=>b-a);
@@ -30,10 +53,12 @@ Object.assign(APP, {
       return c.recorrente && d.getFullYear()===anoOrigem;
     });
 
-    // Agrupar por nome — pegar a mais recente de cada nome
+    // Agrupar por descrição + responsável + forma (mesma chave da detecção de
+    // duplicatas) e pegar a mais recente. Agrupar só pelo nome fundia contas
+    // homônimas de cartões diferentes, e uma delas sumia da geração.
     const mapa = {};
     recorrentes.forEach(c=>{
-      const key = c.conta.toLowerCase().trim();
+      const key = DUP.chave(c);
       if(!mapa[key] || c.data > mapa[key].data) mapa[key] = c;
     });
     const unicas = Object.values(mapa).sort((a,b)=>a.conta.localeCompare(b.conta));
@@ -51,19 +76,27 @@ Object.assign(APP, {
       // Calcular data sugerida: mesmo dia/mês no ano destino
       const dOrig = new Date(c.data+'T12:00');
       const dSug  = `${document.getElementById('recAnoDestino').value}-${String(dOrig.getMonth()+1).padStart(2,'0')}-${String(dOrig.getDate()).padStart(2,'0')}`;
-      return`<div class="rec-sel-item" onclick="APP.recToggleItem(this)">
+      return`<div class="rec-sel-item selected" onclick="APP.recToggleItem(this)">
         <input type="checkbox" class="rec-chk" data-id="${c.id}" data-conta='${JSON.stringify({conta:c.conta,resp:c.resp,formaId:c.formaId||'',catId:c.catId||'',nota:c.nota||'',parcela:'1 de 1',recorrente:true}).replace(/'/g,"&apos;")}' checked>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px;color:var(--t1)">${c.conta} <span class="badge-rec">🔁 REC</span></div>
-          <div style="font-size:11px;color:var(--t4);margin-top:2px">${c.resp} · ${catNome}</div>
+          <div style="font-size:11px;color:var(--t4);margin-top:2px">${c.resp} · ${CACHE.resolveForma(c.formaId||c.forma)} · ${catNome}</div>
+          <div class="rec-aviso" style="display:none;font-size:11px;margin-top:4px;font-weight:600"></div>
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
-          <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
-          <input type="text" inputmode="numeric" class="rec-val money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
+          <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" onchange="APP._recValidarItem(this.closest('.rec-sel-item'))" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
+          <input type="text" inputmode="numeric" class="rec-val money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" onclick="event.stopPropagation()" onchange="APP._recValidarItem(this.closest('.rec-sel-item'))" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
         </div>
       </div>`;
     }).join('');
     bindAllMoneyInputs(lista);
+
+    const itens = [...lista.querySelectorAll('.rec-sel-item')];
+    itens.forEach(el=>this._recValidarItem(el));
+    const prov = itens.filter(el=>el.dataset.nivel==='provavel').length;
+    const poss = itens.filter(el=>el.dataset.nivel==='possivel').length;
+    if(info && prov) info.textContent += ` ${prov} provável(is) duplicata(s) desmarcada(s).`;
+    if(info && poss) info.textContent += ` ${poss} com aviso para conferir.`;
   },
 
   recToggleItem(el){
@@ -87,19 +120,31 @@ Object.assign(APP, {
 
     const anoDestino = parseInt(document.getElementById('recAnoDestino').value);
 
-    if(!confirm(`Gerar ${selecionados.length} conta${selecionados.length>1?'s':''} para ${anoDestino}?`)) return;
+    // Revalida no momento do clique (o CACHE pode ter mudado) e comunica as
+    // prováveis duplicatas que o usuário marcou: ele decide se gera ou não.
+    const dupItens = selecionados
+      .map(el=>({el, achados:DUP.buscar(this._recCandidato(el))}))
+      .filter(x=>DUP.nivel(x.achados)==='provavel');
+    if(dupItens.length){
+      const ok = await DUP.confirmar({
+        titulo:`${dupItens.length} conta(s) marcada(s) parecem já existir em ${anoDestino}`,
+        itens: dupItens.map(x=>({candidato:this._recCandidato(x.el), achados:x.achados})),
+        btnSim:'Não são duplicatas, gerar',
+      });
+      if(!ok) return;
+    } else if(!confirm(`Gerar ${selecionados.length} conta${selecionados.length>1?'s':''} para ${anoDestino}?`)) return;
+    const confirmadas = new Set(dupItens.map(x=>x.el));
 
-    let geradas = 0, erros = 0;
+    let geradas = 0, erros = 0, ignoradas = 0;
     for(const el of selecionados){
       try{
-        const chk   = el.querySelector('.rec-chk');
-        const base  = JSON.parse(chk.dataset.conta.replace(/&apos;/g,"'"));
-        const data  = el.querySelector('.rec-data')?.value;
-        const valor = parseMoney(el.querySelector('.rec-val')?.value);
-        if(!data || !valor){ erros++; continue; }
+        const cand = this._recCandidato(el);
+        if(!cand.data || !cand.vPagar){ erros++; continue; }
+        // Duplo clique: o que virou "provável" após a confirmação foi criado
+        // por outra execução e é ignorado
+        if(!confirmadas.has(el) && DUP.nivel(DUP.buscar(cand))==='provavel'){ ignoradas++; continue; }
         await FS.addConta({
-          ...base,
-          data, vPagar:valor, vPago:null,
+          ...cand, vPago:null,
           grupo:`grp-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
           createdBy:STATE.usuario,
         });
@@ -109,7 +154,7 @@ Object.assign(APP, {
     }
 
     APP.closeModal('ovRecorrentes');
-    if(erros) this.toast(`${geradas} gerada${geradas!==1?'s':''}, ${erros} com erro`,'info');
+    if(erros||ignoradas) this.toast(`${geradas} gerada${geradas!==1?'s':''}${ignoradas?`, ${ignoradas} já existia${ignoradas>1?'m':''}`:''}${erros?`, ${erros} com erro`:''}`,'info');
     else      this.toast(`${geradas} conta${geradas!==1?'s':''} gerada${geradas!==1?'s':''} para ${anoDestino} ✅`,'success');
   },
 });
