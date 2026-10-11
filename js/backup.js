@@ -40,33 +40,63 @@ Object.assign(APP, {
       </div>`).join('');
   },
 
+  /**
+   * Coleções incluídas no backup. Para incluir uma coleção nova no sistema,
+   * basta acrescentá-la aqui (JSON) e, se quiser aba própria, em backupExcel.
+   */
+  _BK_COLECOES: [
+    'contas','salarios','outras_receitas','categorias','formas','cartoes','importacoes',
+    'config',                         // tabelas IR/INSS, usuários e demais configurações
+    'notes','notes_trash',            // Notas e lixeira de Notas
+    'lixeira',                        // lixeira de Contas
+    'logs','notes_log','activity_log','logs_acesso',  // históricos de auditoria
+  ],
+
+  /**
+   * Converte valores do Firestore em JSON puro e reversível:
+   * Timestamp → {__tipo:'timestamp', iso, seconds, nanoseconds}. Recursivo.
+   */
+  _bkSerializar(v){
+    if(v==null || typeof v!=='object') return v;
+    if(typeof v.toDate==='function' && 'seconds' in v){
+      return {__tipo:'timestamp', iso:v.toDate().toISOString(), seconds:v.seconds, nanoseconds:v.nanoseconds};
+    }
+    if(Array.isArray(v)) return v.map(x=>this._bkSerializar(x));
+    const o={}; Object.keys(v).forEach(k=>{ o[k]=this._bkSerializar(v[k]); }); return o;
+  },
+
   async _coletarDados(){
     this.toast('Coletando dados do banco...','info');
-    // Buscar coleções diretamente do Firestore para garantir dados frescos
-    const [contas,salarios,outras,cats,formas,cartoes,importacoes] = await Promise.all([
-      fbDb.collection('contas').get(),
-      fbDb.collection('salarios').get(),
-      fbDb.collection('outras_receitas').get(),
-      fbDb.collection('categorias').get(),
-      fbDb.collection('formas').get(),
-      fbDb.collection('cartoes').get(),
-      fbDb.collection('importacoes').get(),
-    ]);
-    const doc2obj = snap => snap.docs.map(d=>({_id:d.id,...d.data()}));
+    // allSettled: uma coleção sem permissão/indisponível não derruba o backup
+    // inteiro; a falha fica registrada em meta.falhas e é avisada ao usuário.
+    const nomes = this._BK_COLECOES;
+    const res = await Promise.allSettled(nomes.map(n=>fbDb.collection(n).get()));
+    const dados = {}, contagem = {}, falhas = {};
+    res.forEach((r,i)=>{
+      const nome = nomes[i];
+      if(r.status==='fulfilled'){
+        dados[nome] = r.value.docs.map(d=>({_id:d.id, ...this._bkSerializar(d.data())}));
+        contagem[nome] = dados[nome].length;
+      } else {
+        dados[nome] = [];
+        falhas[nome] = r.reason?.message || String(r.reason);
+      }
+    });
+    if(Object.keys(falhas).length){
+      this.toast(`Backup parcial: falha ao ler ${Object.keys(falhas).join(', ')}`,'error');
+    }
     return {
       meta:{
         geradoEm:    new Date().toISOString(),
         geradoPor:   STATE.usuario,
-        totalContas: contas.size,
-        sistema:     'Duetto Financeiro v1.0',
+        versao:      2,
+        sistema:     'Duetto Financeiro',
+        colecoes:    nomes,
+        contagem,
+        falhas,
+        totalContas: contagem.contas||0,
       },
-      contas:       doc2obj(contas),
-      salarios:     doc2obj(salarios),
-      outras_receitas: doc2obj(outras),
-      categorias:   doc2obj(cats),
-      formas:       doc2obj(formas),
-      cartoes:      doc2obj(cartoes),
-      importacoes:  doc2obj(importacoes),
+      ...dados,
     };
   },
 
@@ -76,9 +106,26 @@ Object.assign(APP, {
     return `Duetto_Backup_${dt}.${ext}`;
   },
 
+  /** Célula Excel: objetos viram JSON, timestamps viram ISO; respeita limite de 32.767 caracteres. */
+  _bkCelula(v){
+    if(v==null) return '';
+    if(typeof v==='object') v = v.__tipo==='timestamp' ? v.iso : JSON.stringify(v);
+    if(typeof v==='string' && v.length>32000) v = v.slice(0,32000)+'… [truncado; ver JSON]';
+    return v;
+  },
+
+  /** Aba com colunas = união das chaves dos documentos (para coleções de estrutura variável). */
+  _bkAbaGenerica(wb,nomeAba,docs){
+    const cols=[]; docs.forEach(d=>Object.keys(d).forEach(k=>{ if(!cols.includes(k)) cols.push(k); }));
+    if(!cols.length) cols.push('(vazio)');
+    const ws=XLSX.utils.aoa_to_sheet([cols,...docs.map(d=>cols.map(k=>this._bkCelula(d[k])))]);
+    ws['!cols']=cols.map(k=>({wch:k==='_id'?24:18}));
+    XLSX.utils.book_append_sheet(wb,ws,nomeAba.slice(0,31));
+  },
+
   _registrarLog(tipo,arquivo,dados){
     const d=new Date();
-    const total=Object.values(dados).reduce((s,v)=>s+(Array.isArray(v)?v.length:0),0);
+    const total=Object.values(dados.meta?.contagem||{}).reduce((s,v)=>s+v,0);
     this._backupLog.unshift({
       tipo,arquivo,
       data:d.toLocaleDateString('pt-BR'),
@@ -116,60 +163,67 @@ Object.assign(APP, {
       const dados = await this._coletarDados();
       const wb    = XLSX.utils.book_new();
 
-      // Aba: Contas
-      const hdContas=['ID','Descrição','Responsável','Categoria ID','Forma ID','Data','A Pagar','Pago','Parcela','Grupo','Nota','Criado por','Atualizado por','Pago por','Data Pgto'];
-      const rwContas=dados.contas.map(c=>[c._id,c.conta,c.resp,c.catId||'',c.formaId||'',c.data,c.vPagar,c.vPago||'',c.parcela||'',c.grupo||'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'']);
-      const wsContas=XLSX.utils.aoa_to_sheet([hdContas,...rwContas]);
-      wsContas['!cols']=[{wch:24},{wch:36},{wch:12},{wch:20},{wch:20},{wch:12},{wch:12},{wch:12},{wch:14},{wch:28},{wch:28},{wch:12},{wch:12},{wch:12},{wch:12}];
-      wsContas['!views']=[{state:'frozen',xSplit:0,ySplit:1,topLeftCell:'A2'}];
-      XLSX.utils.book_append_sheet(wb,wsContas,'Contas');
+      const addAba=(nomeAba,cab,linhas,larg)=>{
+        const ws=XLSX.utils.aoa_to_sheet([cab,...linhas.map(r=>r.map(v=>this._bkCelula(v)))]);
+        ws['!cols']=(larg||cab.map(()=>18)).map(w=>({wch:w}));
+        XLSX.utils.book_append_sheet(wb,ws,nomeAba.slice(0,31));
+      };
+      const cat=id=>CACHE.resolveCat(id), forma=id=>CACHE.resolveForma(id);
 
-      // Aba: Categorias
-      const wsCats=XLSX.utils.aoa_to_sheet([['ID','Nome'],...dados.categorias.map(c=>[c._id,c.nome])]);
-      wsCats['!cols']=[{wch:24},{wch:28}];
-      XLSX.utils.book_append_sheet(wb,wsCats,'Categorias');
+      // Contas (com nomes resolvidos além dos IDs)
+      addAba('Contas',
+        ['ID','Descrição','Responsável','Categoria','Categoria ID','Forma','Forma ID','Vencimento','Data Compra','A Pagar','Pago','Pgto Leo','Pgto Pri','Parcela','Grupo','Recorrente','Nota','Criado por','Atualizado por','Pago por','Data Pgto','Origem'],
+        dados.contas.map(c=>[c._id,c.conta,c.resp,cat(c.catId||c.cat),c.catId||c.cat||'',forma(c.formaId||c.forma),c.formaId||c.forma||'',c.data,c.dataCompra||'',c.vPagar,c.vPago??'',c.pagamentos?.Leo?.valor??'',c.pagamentos?.Pri?.valor??'',c.parcela||'',c.grupo||'',c.recorrente?'Sim':'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'',c.origem||'']),
+        [24,36,12,18,22,20,22,12,12,12,12,10,10,10,26,10,30,12,12,12,12,12]);
 
-      // Aba: Formas
-      const wsFormas=XLSX.utils.aoa_to_sheet([['ID','Nome'],...dados.formas.map(f=>[f._id,f.nome])]);
-      wsFormas['!cols']=[{wch:24},{wch:28}];
-      XLSX.utils.book_append_sheet(wb,wsFormas,'Formas de Pagamento');
+      // Salários: uma linha por período do histórico (antes só nome/pessoa)
+      addAba('Salários',
+        ['ID','Nome','Pessoa','A partir de (mês)','Dependentes','Salário Bruto','Bonificação','INSS','IR','Líquido','Atualizado por','Atualizado em'],
+        dados.salarios.flatMap(s=>(s.historico&&s.historico.length?s.historico:[{}]).map(h=>
+          [s._id,s.nome,s.pessoa,h.mesInicio!=null?MESES_F[h.mesInicio]:'',h.deps??'',h.salario??'',h.bonificacao??'',h.inss??'',h.ir??'',h.liquido??'',h.updatedBy||'',h.updatedAt||''])),
+        [24,24,10,16,12,14,12,12,12,14,14,14]);
 
-      // Aba: Salários
-      const hdSal=['ID','Nome','Pessoa'];
-      const rwSal=dados.salarios.map(s=>[s._id,s.nome,s.pessoa]);
-      const wsSal=XLSX.utils.aoa_to_sheet([hdSal,...rwSal]);
-      wsSal['!cols']=[{wch:24},{wch:24},{wch:10}];
-      XLSX.utils.book_append_sheet(wb,wsSal,'Salários');
+      addAba('Outras Receitas',
+        ['ID','Descrição','Responsável',...MESES],
+        dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,...(r.valores||Array(12).fill(0))]),
+        [24,32,12,...Array(12).fill(10)]);
 
-      // Aba: Outras Receitas
-      const hdOut=['ID','Descrição','Responsável','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
-      const rwOut=dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,...(r.valores||Array(12).fill(0))]);
-      const wsOut=XLSX.utils.aoa_to_sheet([hdOut,...rwOut]);
-      wsOut['!cols']=[{wch:24},{wch:32},{wch:12},...Array(12).fill({wch:10})];
-      XLSX.utils.book_append_sheet(wb,wsOut,'Outras Receitas');
+      addAba('Categorias',['ID','Nome'],dados.categorias.map(c=>[c._id,c.nome]),[24,28]);
+      addAba('Formas de Pagamento',['ID','Nome'],dados.formas.map(f=>[f._id,f.nome]),[24,28]);
+      addAba('Cartões',['ID','Nome','Bandeira','Criado por'],dados.cartoes.map(c=>[c._id,c.nome,c.bandeira||'',c.createdBy||'']),[24,28,16,14]);
 
-      // Aba: Cartões
-      const wsCrt=XLSX.utils.aoa_to_sheet([['ID','Nome','Bandeira','Criado por'],...dados.cartoes.map(c=>[c._id,c.nome,c.bandeira||'',c.createdBy||''])]);
-      wsCrt['!cols']=[{wch:24},{wch:28},{wch:16},{wch:14}];
-      XLSX.utils.book_append_sheet(wb,wsCrt,'Cartões');
+      // Tabelas IR/INSS
+      const tab=dados.config.find(d=>d._id==='tabelas')||{};
+      addAba('Tabelas IR-INSS',
+        ['Tabela','De','Até','Alíquota','Dedução'],
+        [...(tab.ir||[]).map(f=>['IR',f.de,f.ate??'acima',f.al,f.ded]),
+         ...(tab.inss||[]).map(f=>['INSS',f.de,f.ate??'acima',f.al,f.ded??'']),
+         ['Dedução por dependente',tab.dedDep??'','','',''],['Teto INSS',tab.tetoINSS??'','','',''],['Vigência',tab.vigencia??'','','','']],
+        [22,12,12,10,12]);
 
-      // Aba: Histórico Importações
-      const hdImp=['ID','Nome Planilha','Planilha ID','Qtd Contas','Qtd Docs','Importado por','Data','Hora'];
-      const rwImp=dados.importacoes.map(i=>[i._id,i.nome||'',i.planilhaId||'',i.qtdContas||0,i.qtdDocs||0,i.importadoPor||'',i.data||'',i.hora||'']);
-      const wsImp=XLSX.utils.aoa_to_sheet([hdImp,...rwImp]);
-      wsImp['!cols']=[{wch:24},{wch:32},{wch:32},{wch:12},{wch:12},{wch:14},{wch:14},{wch:12}];
-      XLSX.utils.book_append_sheet(wb,wsImp,'Importações');
+      // Notas: uma linha por nota + aba de itens
+      addAba('Notas',
+        ['ID','Título','Tipo','Status','Prazo','Responsável','Autor','Descrição','Qtd Itens','Criada em','Atualizada em'],
+        dados.notes.map(n=>[n._id,n.titulo,n.tipo,n.status,n.prazo||'',n.responsavel||'',n.autor||'',n.descricao||'',(n.itens||[]).length,n.criadaEm||'',n.atualizadaEm||'']),
+        [24,32,10,12,12,12,10,40,10,22,22]);
+      this._bkAbaGenerica(wb,'Notas - Itens',dados.notes.flatMap(n=>(n.itens||[]).map((it,i)=>({notaId:n._id, notaTitulo:n.titulo, itemOrdem:i+1, ...(typeof it==='object'?it:{texto:it})}))));
 
-      // Aba: Meta
-      const wsMeta=XLSX.utils.aoa_to_sheet([
-        ['Campo','Valor'],
-        ['Gerado em',dados.meta.geradoEm],
-        ['Gerado por',dados.meta.geradoPor],
-        ['Total de contas',dados.meta.totalContas],
-        ['Sistema',dados.meta.sistema],
-      ]);
-      wsMeta['!cols']=[{wch:18},{wch:40}];
-      XLSX.utils.book_append_sheet(wb,wsMeta,'Meta');
+      // Lixeiras, importações, configurações e históricos (estrutura variável)
+      this._bkAbaGenerica(wb,'Lixeira Contas',dados.lixeira);
+      this._bkAbaGenerica(wb,'Lixeira Notas',dados.notes_trash);
+      this._bkAbaGenerica(wb,'Importações',dados.importacoes);
+      this._bkAbaGenerica(wb,'Config',dados.config);
+      this._bkAbaGenerica(wb,'Histórico Contas',dados.logs);
+      this._bkAbaGenerica(wb,'Histórico Notas',dados.notes_log);
+      this._bkAbaGenerica(wb,'Histórico Atividades',dados.activity_log);
+      this._bkAbaGenerica(wb,'Acessos',dados.logs_acesso);
+
+      // Meta
+      addAba('Meta',['Campo','Valor'],[
+        ['Gerado em',dados.meta.geradoEm],['Gerado por',dados.meta.geradoPor],['Versão do backup',dados.meta.versao],['Sistema',dados.meta.sistema],
+        ...Object.entries(dados.meta.contagem).map(([k,v])=>[`Registros: ${k}`,v]),
+        ...Object.entries(dados.meta.falhas).map(([k,v])=>[`FALHA: ${k}`,v]),
+      ],[28,40]);
 
       const nome=this._nomeArquivo('xlsx');
       XLSX.writeFile(wb,nome);
