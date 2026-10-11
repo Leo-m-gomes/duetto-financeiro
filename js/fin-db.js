@@ -48,7 +48,7 @@ const FS = {
     const antes = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     await fbDb.collection('contas').doc(id).update({...data, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
 
-    const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota'};
+    const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota',dataCompra:'Data da compra'};
     let alteracoes = [];
     if(antes && antes.exists){
       const ant = antes.data();

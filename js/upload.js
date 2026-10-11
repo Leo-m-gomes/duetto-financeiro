@@ -134,14 +134,17 @@ Object.assign(APP, {
     const formas= CACHE.getAllFormas().map(f=>f.nome);
 
     const wb  = XLSX.utils.book_new();
-    const cab = ['Status','Descrição','Responsável','Forma de Pagamento','Categoria','Data Vencimento','Valor Parcela','Total Parcelas','Parcela Atual','Nota'];
+    // "Data Compra" é opcional: dia da compra na fatura do cartão. Usada para
+    // identificar lançamentos repetidos (mesma compra importada duas vezes).
+    const cab = ['Status','Descrição','Responsável','Forma de Pagamento','Categoria','Data Vencimento','Data Compra','Valor Parcela','Total Parcelas','Parcela Atual','Nota'];
     const ex  = [
-      ['Nova','Exemplo: Mensalidade Academia','Leo','PIX','Saúde','10/07/2026',150,1,1,''],
-      ['Nova','Exemplo: Parcela Carro','Leo & Pri','Automático','Carro','15/07/2026',850,48,12,'Da 12ª à 48ª parcela'],
-      ['Existente','Conta já cadastrada','Leo','PIX','Casa','04/07/2026',350,12,7,'Será ignorada'],
+      ['Nova','Exemplo: Mensalidade Academia','Leo','PIX','Saúde','10/07/2026','',150,1,1,''],
+      ['Nova','Exemplo: Compra no cartão','Leo','Cartão Nubank','Roupa','10/07/2026','22/06/2026',120,3,1,'Data Compra opcional'],
+      ['Nova','Exemplo: Parcela Carro','Leo & Pri','Automático','Carro','15/07/2026','',850,48,12,'Da 12ª à 48ª parcela'],
+      ['Existente','Conta já cadastrada','Leo','PIX','Casa','04/07/2026','',350,12,7,'Será ignorada'],
     ];
     const ws = XLSX.utils.aoa_to_sheet([cab,...ex]);
-    ws['!cols']=[{wch:12.8},{wch:34.8},{wch:14.8},{wch:24.8},{wch:20.8},{wch:16.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:30.8}];
+    ws['!cols']=[{wch:12.8},{wch:34.8},{wch:14.8},{wch:24.8},{wch:20.8},{wch:16.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:30.8}];
     ws['!views']=[{state:'frozen',xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft'}];
     ws['!dataValidation']=[
       {sqref:'A2:A5000',type:'list',formula1:'"Nova,Existente"',showErrorMessage:true,errorTitle:'Inválido',error:'Use: Nova ou Existente'},
@@ -213,7 +216,9 @@ Object.assign(APP, {
     const hdr=rows[0].map(h=>String(h).trim().toLowerCase());
     const col=n=>hdr.findIndex(h=>h.includes(n));
     const iSt=col('status'),iDe=col('descri'),iRe=col('respons'),iFor=col('forma'),
-          iCat=col('categ'),iDt=col('data'),iVl=col('valor'),iTP=col('total'),
+          iCat=col('categ'),iVl=col('valor'),iTP=col('total'),
+          iDc=col('compra'),
+          iDt=(i=>i>=0?i:hdr.findIndex(h=>h.includes('data')&&!h.includes('compra')))(col('venc')),
           iPA=hdr.findIndex(h=>h.includes('parcela')&&h.includes('atual')),
           iNo=col('nota');
 
@@ -242,24 +247,13 @@ Object.assign(APP, {
       if(st.toLowerCase()==='existente'){ ign.push(lin); return; }
       if(st.toLowerCase()!=='nova'){ errosLeitura.push(`Linha ${lin}: Status "${st}" inválido — use Nova ou Existente`); return; }
 
-      let data='';
-      const rd=row[iDt];
-      if(rd instanceof Date){
-        data=rd.toISOString().split('T')[0];
-      } else if(typeof rd==='string'){
-        const s=rd.trim();
-        if(s.includes('/')){
-          const pts=s.split('/');
-          if(pts.length===3){ const[d,m,a]=pts; data=`${a.padStart(4,'20')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
-        } else if(s.includes('-') && s.length>=8){
-          data=s;
-        }
-      } else if(typeof rd==='number' && rd>0){
-        try{ const p=XLSX.SSF.parse_date_code(rd); data=`${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`; }catch(e){}
-      }
+      const data=this._upParseData(row[iDt]);
+      const rawDc=iDc>=0?row[iDc]:'';
+      const dataCompra=this._upParseData(rawDc);
 
-      const rawVal=String(row[iVl]||'').replace(/[R$\s]/g,'').replace(',','.');
-      const vPagar=parseFloat(rawVal)||0;
+      // parseMoney trata "1.500,00" (antes virava 1,5) e números puros
+      const rawVal=String(row[iVl]??'').replace(/[R$\s]/g,'');
+      const vPagar=typeof row[iVl]==='number'?row[iVl]:parseMoney(rawVal);
 
       const rawTP=String(row[iTP>=0?iTP:col('total')]||'').trim();
       const rawPA=String(row[iPA>=0?iPA:col('parc')]||'').trim();
@@ -272,6 +266,7 @@ Object.assign(APP, {
         forma:String(row[iFor]||'').trim(),
         cat:String(row[iCat]||'').trim(),
         data,vPagar,
+        dataCompra:dataCompra||null, rawDc:String(rawDc||'').trim(),
         totParc: isNaN(totParc) ? 0 : totParc,
         parcAtual: isNaN(parcAtual) ? 0 : parcAtual,
         rawTP,rawPA,
@@ -299,6 +294,8 @@ Object.assign(APP, {
         const d=new Date(c.data+'T12:00');
         if(isNaN(d.getTime())) ev.push(`Linha ${c.linha}: Data inválida`);
       }
+      if(c.rawDc&&!c.dataCompra) ev.push(`Linha ${c.linha}: Data Compra "${c.rawDc}" inválida; use dd/mm/aaaa ou deixe vazia`);
+      if(c.dataCompra&&c.data&&c.dataCompra>c.data) ev.push(`Linha ${c.linha}: Data Compra posterior ao vencimento`);
       if(!c.vPagar||c.vPagar<=0){
         const dica=String(c.rawVal||'');
         ev.push(`Linha ${c.linha}: Valor inválido${dica?` ("${dica}")` :''} — use número no formato 1500.00 ou 1500,00`);
@@ -344,6 +341,7 @@ Object.assign(APP, {
     });
 
     this._upGrupos=grupos;
+    this._upDetectarDuplicatas();
     const td=grupos.reduce((s,g)=>s+g.parcs.length,0);
     document.getElementById('upBtnConfirmar').disabled=false;
     document.getElementById('upAlertVal').style.display='none';
@@ -351,6 +349,26 @@ Object.assign(APP, {
     this._upRenderPreview(grupos);
     this._upShowAlert('upAlertAv',
       `✅ Validação concluída — <strong>${novas.length} conta(s)</strong> prontas, gerando <strong>${td} documento(s)</strong> no banco.`);
+  },
+
+  // ── DUPLICATAS ──
+  // Compara cada parcela a gerar com o banco e com as demais linhas do próprio
+  // arquivo. Não bloqueia: marca a linha e o usuário decide (excluir ou manter).
+  _upCandidato(p){
+    return {conta:p.conta, resp:p.resp, forma:p.forma, data:p.dataF, dataCompra:p.dataCompra||null, vPagar:p.vPagar, parcela:p.parcela};
+  },
+  _upDetectarDuplicatas(){
+    const grupos=this._upGrupos;
+    grupos.forEach((g,gi)=>{
+      const doArquivo=grupos.flatMap((o,oi)=>oi===gi?[]:o.parcs.map(p=>({...this._upCandidato(p), id:`arquivo-${o.base.linha}`, _linha:o.base.linha})));
+      const achados=[];
+      g.parcs.forEach(p=>{
+        const cand=this._upCandidato(p);
+        DUP.buscar(cand).forEach(a=>achados.push({...a, parcela:p.parcela}));
+        DUP.buscar(cand,{base:doArquivo}).forEach(a=>achados.push({...a, parcela:p.parcela, motivo:`${a.motivo} (linha ${a.conta._linha} desta planilha)`}));
+      });
+      g.dup=achados;
+    });
   },
 
   // ── PREVIEW ──
@@ -368,7 +386,7 @@ Object.assign(APP, {
     const formas=CACHE.getAllFormas().map(f=>f.nome);
     const resps=['Leo','Pri','Leo & Pri'];
     document.getElementById('upTbodyPreview').innerHTML=!grupos.length
-      ?'<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--t4)">Nenhuma conta para exibir</td></tr>'
+      ?'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t4)">Nenhuma conta para exibir</td></tr>'
       :grupos.map((g,i)=>{const c=g.base;const tp=g.parcs.length>1;
         return`<tr>
           <td style="color:var(--t4);font-size:11px">${i+1}</td>
@@ -382,15 +400,18 @@ Object.assign(APP, {
             ?`<span class="badge bg-cat" style="cursor:pointer" onclick="APP._upVerParcelas(${i})" title="Ver todas as parcelas">${g.parcs.length} × 🔍</span>`
             :`<span class="audit-chip">1 de 1</span>`}</td>
           <td><input type="text" value="${esc(c.nota)}" oninput="APP._upUpdCampo(${i},'nota',this.value)" style="min-width:90px"></td>
+          <td>${g.dup&&g.dup.length?`<div class="up-dup ${DUP.nivel(g.dup)}" title="${esc(g.dup.map(a=>`${a.parcela}: ${a.motivo}; existente ${fmtDate(a.conta.data)} ${fmt(a.conta.vPagar)}`).join('\n'))}">${esc(DUP.resumo(g.dup))}</div>`:'<span style="color:var(--t4);font-size:11px">—</span>'}</td>
           <td><button class="action-btn del" onclick="APP._upDelGrupo(${i})">✕</button></td>
         </tr>`;
       }).join('');
     bindAllMoneyInputs(document.getElementById('upTbodyPreview'));
   },
 
-  _upUpdCampo(i,k,v){ this._upGrupos[i].base[k]=v; this._upGrupos[i].parcs.forEach(p=>p[k]=v); },
+  _upUpdCampo(i,k,v){ this._upGrupos[i].base[k]=v; this._upGrupos[i].parcs.forEach(p=>p[k]=v); if(['resp','forma'].includes(k)) this._upReavaliar(); },
   _upUpdValor(i,v){ const n=parseMoney(v); this._upGrupos[i].base.vPagar=n; this._upGrupos[i].parcs.forEach(p=>p.vPagar=n); },
-  _upDelGrupo(i){ this._upGrupos.splice(i,1); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
+  // Re-render só em selects (inputs de texto perderiam o foco a cada tecla)
+  _upReavaliar(){ this._upDetectarDuplicatas(); this._upRenderPreview(this._upGrupos); },
+  _upDelGrupo(i){ this._upGrupos.splice(i,1); this._upDetectarDuplicatas(); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
 
   _upVerParcelas(i){
     const g=this._upGrupos[i];
@@ -405,6 +426,20 @@ Object.assign(APP, {
   async upConfirmar(){
     const grupos=this._upGrupos;
     if(!grupos.length) return this.toast('Nenhuma conta para cadastrar','error');
+    // Reavalia (descrição/valor podem ter sido editados) e comunica
+    this._upDetectarDuplicatas();
+    const comDup=grupos.filter(g=>g.dup&&g.dup.length);
+    if(comDup.length){
+      const ok=await DUP.confirmar({
+        titulo:`${comDup.length} linha(s) da planilha parecem já cadastradas`,
+        itens:comDup.map(g=>({candidato:this._upCandidato(g.parcs[0]), achados:g.dup})),
+        btnSim:'Não são duplicatas, cadastrar todas',
+      });
+      if(!ok){
+        this._upRenderPreview(grupos);
+        return this.toast('Remova as linhas repetidas (✕) e confirme novamente','info');
+      }
+    }
     const btn=document.getElementById('upBtnConfirmar');
     btn.disabled=true; btn.textContent='⏳ Cadastrando...';
 
@@ -421,7 +456,7 @@ Object.assign(APP, {
             catId: CACHE.getAllCats().find(c=>c.nome===p.cat)?.id||p.cat,
             formaId: CACHE.getAllFormas().find(f=>f.nome===p.forma)?.id||p.forma,
             data:p.dataF, vPagar:p.vPagar, vPago:null,
-            parcela:p.parcela, grupo:p.gid, nota:p.nota||'',
+            parcela:p.parcela, grupo:p.gid, nota:p.nota||'', dataCompra:p.dataCompra||null,
             createdBy:STATE.usuario,
             createdAt:firebase.firestore.FieldValue.serverTimestamp(),
             origem:'importacao', planilhaId:this._upPlanId,
@@ -455,6 +490,26 @@ Object.assign(APP, {
 
     btn.textContent='✅ Confirmar Cadastro em Massa';
     btn.disabled=false;
+  },
+
+  /** Converte célula de data (Date, texto dd/mm/aaaa, ISO ou serial Excel) em YYYY-MM-DD. */
+  _upParseData(rd){
+    let data='';
+    if(rd instanceof Date){
+      data=rd.toISOString().split('T')[0];
+    } else if(typeof rd==='string'){
+      const s=rd.trim();
+      if(s.includes('/')){
+        const pts=s.split('/');
+        if(pts.length===3){ const[d,m,a]=pts; data=`${a.padStart(4,'20')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      } else if(s.includes('-') && s.length>=8){
+        data=s;
+      }
+    } else if(typeof rd==='number' && rd>0){
+      try{ const p=XLSX.SSF.parse_date_code(rd); data=`${p.y}-${String(p.m).padStart(2,'0')}-${String(p.d).padStart(2,'0')}`; }catch(e){}
+    }
+    if(data&&isNaN(new Date(data+'T12:00').getTime())) return '';
+    return data;
   },
 
   upCancelar(){

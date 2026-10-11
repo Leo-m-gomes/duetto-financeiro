@@ -2,58 +2,27 @@
 
 Object.assign(APP, {
 
-  // ── DETECÇÃO DE DUPLICATAS ──
-  // Identidade de uma conta recorrente: descrição normalizada + responsável +
-  // forma de pagamento. A forma entra na chave porque contas de cartões
-  // diferentes podem ter o mesmo nome e o mesmo vencimento (ex.: "Netflix"
-  // no Itaú e no Nubank) e NÃO são duplicatas entre si.
-  _recNorm(s){
-    return String(s||'').toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'').replace(/\s+/g,' ').trim();
-  },
-  _recChave(c){
-    return [this._recNorm(c.conta), c.resp||'', this._recNorm(CACHE.resolveForma(c.formaId||c.forma))].join('|');
+  // ── DETECÇÃO DE DUPLICATAS (regras centralizadas em js/duplicatas.js) ──
+  _recCandidato(el){
+    const base = JSON.parse(el.querySelector('.rec-chk').dataset.conta.replace(/&apos;/g,"'"));
+    return {...base, data:el.querySelector('.rec-data')?.value||'', vPagar:parseMoney(el.querySelector('.rec-val')?.value)};
   },
 
   /**
-   * Procura no banco contas com a mesma chave (descrição + responsável + forma).
-   * @param {object} base   dados da recorrente (conta, resp, formaId)
-   * @param {string} data   vencimento proposto YYYY-MM-DD
-   * @returns {{exata:object|null, mesmoMes:object[]}}
-   *   exata    : mesma chave E mesmo vencimento, considerada duplicata
-   *   mesmoMes : mesma chave no mesmo mês com outro dia (apenas aviso)
+   * Atualiza o aviso do item. Ao virar "provável" o item é desmarcado (uma
+   * única vez); o usuário pode marcá-lo de novo se não for duplicata.
    */
-  _recBuscarExistentes(base, data){
-    if(!data) return {exata:null, mesmoMes:[]};
-    const chave = this._recChave(base);
-    const mes   = data.slice(0,7);
-    const iguais = CACHE.contas.filter(c=>c.data&&c.data.slice(0,7)===mes&&this._recChave(c)===chave);
-    return {
-      exata:    iguais.find(c=>c.data===data)||null,
-      mesmoMes: iguais.filter(c=>c.data!==data),
-    };
-  },
-
-  /** Atualiza aviso e checkbox de um item conforme a data proposta. */
-  _recValidarItem(el, preservarSelecao){
-    const chk  = el.querySelector('.rec-chk');
-    const base = JSON.parse(chk.dataset.conta.replace(/&apos;/g,"'"));
-    const data = el.querySelector('.rec-data')?.value;
-    const {exata, mesmoMes} = this._recBuscarExistentes(base, data);
-    const aviso = el.querySelector('.rec-aviso');
-    el.dataset.duplicada = exata ? '1' : '';
-    if(exata){
-      aviso.innerHTML = `⚠️ Já existe em ${fmtDate(exata.data)} (${fmt(exata.vPagar)}); desmarcada para não duplicar`;
-      aviso.style.color = 'var(--orange)';
-      aviso.style.display = 'block';
-      if(!preservarSelecao){ chk.checked=false; el.classList.remove('selected'); }
-    } else if(mesmoMes.length){
-      aviso.innerHTML = `ℹ️ Já há lançamento neste mês em ${mesmoMes.map(c=>fmtDate(c.data)).join(', ')}; confira antes de gerar`;
-      aviso.style.color = 'var(--t3)';
-      aviso.style.display = 'block';
-    } else {
-      aviso.innerHTML = '';
-      aviso.style.display = 'none';
-    }
+  _recValidarItem(el){
+    const achados = DUP.buscar(this._recCandidato(el));
+    const nivel   = DUP.nivel(achados)||'';
+    const aviso   = el.querySelector('.rec-aviso');
+    const chk     = el.querySelector('.rec-chk');
+    if(nivel==='provavel' && el.dataset.nivel!=='provavel'){ chk.checked=false; el.classList.remove('selected'); }
+    el.dataset.nivel = nivel;
+    aviso.textContent = DUP.resumo(achados);
+    aviso.style.color = nivel==='provavel' ? 'var(--orange)' : 'var(--t3)';
+    aviso.style.display = nivel ? 'block' : 'none';
+    return achados;
   },
 
   openRecorrentes(){
@@ -89,7 +58,7 @@ Object.assign(APP, {
     // homônimas de cartões diferentes, e uma delas sumia da geração.
     const mapa = {};
     recorrentes.forEach(c=>{
-      const key = this._recChave(c);
+      const key = DUP.chave(c);
       if(!mapa[key] || c.data > mapa[key].data) mapa[key] = c;
     });
     const unicas = Object.values(mapa).sort((a,b)=>a.conta.localeCompare(b.conta));
@@ -116,7 +85,7 @@ Object.assign(APP, {
         </div>
         <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end;flex-shrink:0">
           <input type="date" class="rec-data" value="${dSug}" onclick="event.stopPropagation()" onchange="APP._recValidarItem(this.closest('.rec-sel-item'))" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;background:var(--bg)">
-          <input type="text" inputmode="numeric" class="rec-val money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" onclick="event.stopPropagation()" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
+          <input type="text" inputmode="numeric" class="rec-val money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" onclick="event.stopPropagation()" onchange="APP._recValidarItem(this.closest('.rec-sel-item'))" style="padding:4px 8px;border:1px solid var(--border);border-radius:var(--r-sm);font-size:12px;width:100px;text-align:right;background:var(--bg)">
         </div>
       </div>`;
     }).join('');
@@ -124,8 +93,10 @@ Object.assign(APP, {
 
     const itens = [...lista.querySelectorAll('.rec-sel-item')];
     itens.forEach(el=>this._recValidarItem(el));
-    const dups = itens.filter(el=>el.dataset.duplicada).length;
-    if(info && dups) info.textContent += ` ${dups} já existe${dups>1?'m':''} no destino com o mesmo vencimento e ${dups>1?'foram desmarcadas':'foi desmarcada'}.`;
+    const prov = itens.filter(el=>el.dataset.nivel==='provavel').length;
+    const poss = itens.filter(el=>el.dataset.nivel==='possivel').length;
+    if(info && prov) info.textContent += ` ${prov} provável(is) duplicata(s) desmarcada(s).`;
+    if(info && poss) info.textContent += ` ${poss} com aviso para conferir.`;
   },
 
   recToggleItem(el){
@@ -149,27 +120,31 @@ Object.assign(APP, {
 
     const anoDestino = parseInt(document.getElementById('recAnoDestino').value);
 
-    // Revalida no momento do clique (o CACHE pode ter mudado desde a abertura)
-    selecionados.forEach(el=>this._recValidarItem(el, true));
-    const dups = selecionados.filter(el=>el.dataset.duplicada);
-    if(dups.length){
-      const nomes = dups.slice(0,5).map(el=>'• '+JSON.parse(el.querySelector('.rec-chk').dataset.conta.replace(/&apos;/g,"'")).conta).join('\n');
-      if(!confirm(`${dups.length} conta(s) selecionada(s) já existem com o mesmo vencimento:\n${nomes}${dups.length>5?'\n…':''}\n\nGerar mesmo assim (ficarão duplicadas)?`)) return;
+    // Revalida no momento do clique (o CACHE pode ter mudado) e comunica as
+    // prováveis duplicatas que o usuário marcou: ele decide se gera ou não.
+    const dupItens = selecionados
+      .map(el=>({el, achados:DUP.buscar(this._recCandidato(el))}))
+      .filter(x=>DUP.nivel(x.achados)==='provavel');
+    if(dupItens.length){
+      const ok = await DUP.confirmar({
+        titulo:`${dupItens.length} conta(s) marcada(s) parecem já existir em ${anoDestino}`,
+        itens: dupItens.map(x=>({candidato:this._recCandidato(x.el), achados:x.achados})),
+        btnSim:'Não são duplicatas, gerar',
+      });
+      if(!ok) return;
     } else if(!confirm(`Gerar ${selecionados.length} conta${selecionados.length>1?'s':''} para ${anoDestino}?`)) return;
+    const confirmadas = new Set(dupItens.map(x=>x.el));
 
     let geradas = 0, erros = 0, ignoradas = 0;
     for(const el of selecionados){
       try{
-        const chk   = el.querySelector('.rec-chk');
-        const base  = JSON.parse(chk.dataset.conta.replace(/&apos;/g,"'"));
-        const data  = el.querySelector('.rec-data')?.value;
-        const valor = parseMoney(el.querySelector('.rec-val')?.value);
-        if(!data || !valor){ erros++; continue; }
-        // Proteção contra duplo clique: a 1ª geração entra no CACHE via onSnapshot
-        if(!el.dataset.duplicada && this._recBuscarExistentes(base, data).exata){ ignoradas++; continue; }
+        const cand = this._recCandidato(el);
+        if(!cand.data || !cand.vPagar){ erros++; continue; }
+        // Duplo clique: o que virou "provável" após a confirmação foi criado
+        // por outra execução e é ignorado
+        if(!confirmadas.has(el) && DUP.nivel(DUP.buscar(cand))==='provavel'){ ignoradas++; continue; }
         await FS.addConta({
-          ...base,
-          data, vPagar:valor, vPago:null,
+          ...cand, vPago:null,
           grupo:`grp-${Date.now()}-${Math.random().toString(36).slice(2,6)}`,
           createdBy:STATE.usuario,
         });
