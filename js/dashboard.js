@@ -47,7 +47,7 @@ Object.assign(APP, {
 
     const totP    = contas.reduce((s,c)=>s+vEfetivo(c),0);
     const totPend = contas.reduce((s,c)=>s+vPendente(c),0);
-    const pendList= contas.filter(c=>!(c.vPago>0));
+    const pendList= contas.filter(c=>!isQuitada(c));
     const saldo   = recMes-totP;
     const anoLabel = todosAnos ? 'Todos os anos' : String(anoVal);
     const mesLabel = todosMeses ? 'Ano completo' : MESES_F[mes];
@@ -128,7 +128,7 @@ Object.assign(APP, {
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const em3  = new Date(hoje); em3.setDate(hoje.getDate()+3);
     const proximas = CACHE.contas.filter(c=>{
-      if(c.vPago > 0) return false;
+      if(isQuitada(c)) return false;
       if(resp && c.resp !== resp && c.resp !== 'Leo & Pri') return false;
       const d = new Date(c.data+'T12:00'); d.setHours(0,0,0,0);
       return d >= hoje && d <= em3;
