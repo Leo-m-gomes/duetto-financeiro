@@ -304,6 +304,21 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=> self.renderRelatorio();
     });
+    // Busca do relatório: debounce para não re-renderizar tabela + Pareto a cada tecla
+    const relBusca = document.getElementById('relBusca');
+    if(relBusca){
+      relBusca.oninput = ()=>{
+        clearTimeout(self._relBuscaTimer);
+        self._relBuscaTimer = setTimeout(()=> self.renderRelatorio(), 200);
+      };
+      relBusca.onkeydown = e=>{ if(e.key==='Escape' && relBusca.value){ relBusca.value=''; self.renderRelatorio(); } };
+    }
+    const relBuscaLimpar = document.getElementById('relBuscaLimpar');
+    if(relBuscaLimpar) relBuscaLimpar.onclick = ()=>{
+      if(relBusca){ relBusca.value=''; relBusca.focus(); }
+      clearTimeout(self._relBuscaTimer);
+      self.renderRelatorio();
+    };
     const btnCSV = document.getElementById('btnCSV');
     if(btnCSV) btnCSV.onclick = ()=> self.exportCSV();
   },

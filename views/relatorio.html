@@ -14,7 +14,7 @@
     • Botões de exportação (PDF, CSV)
 
   IDs preservados (lista parcial, consultados por APP.renderRelatorio):
-    relFiltroAno, relFiltroMes, relFiltroResp, relCat, relForma,
+    relBusca, relBuscaLimpar, relFiltroAno, relFiltroMes, relFiltroResp, relCat, relForma,
     btnRelPDF, btnRelCSV, periodoBadge, canvasParetoRel, paretoTableRel,
     canvasHistorico, canvasComparativo, tblPorCategoria, tblPorForma,
     relInfoTotais, relInfoCount.
@@ -35,6 +35,10 @@
         </button>
         <div class="rel-filters-body" id="relFiltersBody">
           <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <div class="rel-busca-wrap">
+              <input type="text" class="filter-input rel-busca-input" id="relBusca" placeholder="🔍 Buscar descrição, nota, valor..." autocomplete="off" aria-label="Buscar no relatório">
+              <button type="button" class="rel-busca-clear" id="relBuscaLimpar" title="Limpar busca" aria-label="Limpar busca" style="display:none">✕</button>
+            </div>
             <select class="filter-select" id="relAno"></select>
             <select class="filter-select" id="relMes"></select>
             <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
