@@ -29,8 +29,7 @@ Object.assign(APP, {
       return;
     }
     if(!confirm(`Desfazer pagamento de "${c.conta}"?\n\nA conta voltará ao status pendente.`)) return;
-    const vOriginal = c.vPago || c.vPagar;
-    await FS.desfazerPagamento(id, vOriginal);
+    await FS.desfazerPagamento(id);
     this.toast(`Pagamento desfeito: ${c.conta}`,'success');
   },
 

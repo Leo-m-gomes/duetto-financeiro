@@ -124,7 +124,7 @@ function ntUid(){
  * @returns {string}
  */
 function ntToday(){
-  return new Date().toISOString().slice(0,10);
+  return isoLocal(new Date()); // local, não UTC (ver fin-state.js)
 }
 
 /**
