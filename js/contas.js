@@ -253,9 +253,11 @@ Object.assign(APP, {
         <td><input type="text" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" id="parc_val_${c.id}" class="money-input" style="width:100px"></td>
         <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?`<span class="badge bg-atr">Atrasado${parcial?' (parcial)':''}</span>`:`<span class="badge bg-pend">Pendente${parcial?' (parcial)':''}</span>`}</td>
         <td>${c.paidBy||c.updatedBy||c.createdBy||'—'}</td>
-        <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div><input type="hidden" id="parc_formaId_${c.id}" value="${c.formaId||c.forma||''}"><input type="hidden" id="parc_catId_${c.id}" value="${c.catId||c.cat||''}"></td>
+        <td><div style="display:flex;gap:6px;align-items:center;white-space:nowrap">${!pago?`<button class="btn btn-sm" style="background:var(--green-lt);color:var(--green);border:1px solid #bbf7d0;padding:5px 10px" onclick="APP.parcsPayOne('${c.id}')">✓ Pagar</button>`:''}<button class="btn btn-sm btn-danger" style="padding:5px 10px" onclick="APP.parcsDeleteOne('${c.id}')">✕</button></div><input type="hidden" id="parc_formaId_${c.id}" value="${c.formaId||c.forma||''}"><input type="hidden" id="parc_catId_${c.id}" value="${c.catId||c.cat||''}"><input type="hidden" id="parc_nota_${c.id}"></td>
       </tr>`;
     }).join('');
+    // Nota via .value (não interpolada no HTML) para preservar aspas e quebras de linha
+    parcs.forEach(c=>{const el=document.getElementById(`parc_nota_${c.id}`);if(el)el.value=c.nota||'';});
     document.getElementById('ovParcelas').classList.add('open');
     bindAllMoneyInputs(document.getElementById('ovParcelas'));
   },
@@ -326,6 +328,35 @@ Object.assign(APP, {
     modal.classList.remove('open');
     this.toast(`${field==='catId'?'Categoria':'Forma de pagamento'} alterada para "${nome}" em todas — clique em Salvar`,'success');
   },
+  // ── NOTA EM LOTE ──
+  // Abre com a nota já existente (a mais frequente entre as parcelas); se
+  // nenhuma tiver nota, abre vazio. A nota é preparada nos inputs ocultos
+  // parc_nota_* e só é gravada no Firestore ao clicar em Salvar.
+  parcsOpenNota(){
+    const parcs=CACHE.getByGrupo(STATE.parcGrupo);if(!parcs.length)return;
+    const notas=parcs.map(c=>(document.getElementById(`parc_nota_${c.id}`)?.value??c.nota??'').trim());
+    const freq={};notas.filter(Boolean).forEach(n=>{freq[n]=(freq[n]||0)+1;});
+    const distintas=Object.keys(freq);
+    const atual=distintas.sort((a,b)=>freq[b]-freq[a])[0]||'';
+    const semNota=notas.filter(n=>!n).length;
+    const aviso=document.getElementById('parcsNotaAviso');
+    const msgs=[];
+    if(distintas.length>1) msgs.push(`⚠️ As parcelas têm ${distintas.length} notas diferentes; ao aplicar, todas ficarão com o texto acima.`);
+    else if(distintas.length===1&&semNota>0) msgs.push(`${semNota} parcela(s) sem nota receberão este texto.`);
+    aviso.textContent=msgs.join(' ');aviso.style.display=msgs.length?'block':'none';
+    const txt=document.getElementById('txtParcsNota');txt.value=atual;
+    document.getElementById('ovParcsNota').classList.add('open');
+    setTimeout(()=>txt.focus(),100);
+  },
+  parcsApplyNota(){
+    const nota=document.getElementById('txtParcsNota').value.trim();
+    const parcs=CACHE.getByGrupo(STATE.parcGrupo);
+    const tinhaNota=parcs.some(c=>(document.getElementById(`parc_nota_${c.id}`)?.value||'').trim());
+    if(!nota&&tinhaNota&&!confirm('Remover a nota de todas as parcelas?'))return;
+    parcs.forEach(c=>{const el=document.getElementById(`parc_nota_${c.id}`);if(el)el.value=nota;});
+    document.getElementById('ovParcsNota').classList.remove('open');
+    this.toast(nota?'Nota aplicada a todas — clique em Salvar':'Nota removida de todas — clique em Salvar','info');
+  },
   async parcsSaveAll(){
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
     await Promise.all(parcs.map(c=>{
@@ -336,7 +367,11 @@ Object.assign(APP, {
       const parc=document.getElementById(`parc_parc_${c.id}`)?.value;
       const formaId=document.getElementById(`parc_formaId_${c.id}`)?.value||c.formaId||'';
       const catId=document.getElementById(`parc_catId_${c.id}`)?.value||c.catId||'';
-      return FS.updateConta(c.id,{conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,formaId,catId,updatedBy:STATE.usuario});
+      const upd={conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,formaId,catId,updatedBy:STATE.usuario};
+      // Nota só entra no update quando mudou (evita gravação/log desnecessários)
+      const notaEl=document.getElementById(`parc_nota_${c.id}`);
+      if(notaEl&&notaEl.value!==(c.nota||'')) upd.nota=notaEl.value;
+      return FS.updateConta(c.id,upd);
     }));
     this.toast('Alterações salvas','success');
     APP.closeModal('ovParcelas');
