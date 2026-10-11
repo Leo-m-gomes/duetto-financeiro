@@ -4,14 +4,59 @@ Object.assign(APP, {
   // ============================================================
   // RELATÓRIO
   // ============================================================
-  renderRelatorio(){
+  /**
+   * Normaliza texto para busca: minúsculas e sem acentos.
+   * @param {*} v
+   * @returns {string}
+   */
+  /** Escapa texto do usuário antes de interpolar em innerHTML. */
+  _escHtml(v){
+    return String(v==null?'':v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  },
+
+  _normBusca(v){
+    return String(v==null?'':v).toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu,'');
+  },
+
+  /**
+   * Monta o "texto pesquisável" de uma conta: descrição, nota, responsável,
+   * categoria, forma, parcela, autores, data (ISO e dd/mm/aaaa) e valores
+   * (formato pt-BR "1.234,56" e sem separador de milhar "1234,56").
+   * @param {object} c conta
+   * @returns {string}
+   */
+  _textoBuscaConta(c){
+    const valores=[vEfetivo(c),c.vPago,vPendente(c)]
+      .filter(v=>v>0)
+      .flatMap(v=>{ const br=fmtN(v); return [br, br.replace(/\./g,'')]; });
+    return this._normBusca([
+      c.conta,c.nota,c.resp,
+      CACHE.resolveCat(c.catId||c.cat),
+      CACHE.resolveForma(c.formaId||c.forma),
+      c.parcela,c.updatedBy,c.createdBy,c.paidBy,
+      c.data,fmtDate(c.data),
+      ...valores,
+    ].filter(Boolean).join(' | '));
+  },
+
+  /**
+   * Aplica TODOS os filtros da tela de Relatório (período, categoria, forma,
+   * responsável, status e busca textual). Fonte única usada pela tabela,
+   * pelo CSV e pelo PDF, garantindo que os três exibam o mesmo recorte.
+   *
+   * Busca: case/acento-insensível; múltiplos termos separados por espaço
+   * são combinados com E (todos precisam aparecer na conta).
+   *
+   * @returns {{data:object[], anoVal:string, mesVal:string, cat:string, resp:string, busca:string}}
+   */
+  _filtrarRelatorio(){
     const anoVal  = document.getElementById('relAno').value;
     const mesVal  = document.getElementById('relMes').value;
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
     const resp    = document.getElementById('relResp').value;
     const status  = document.getElementById('relStatus')?.value||'';
-    this._aplicarTemaResp(resp);
+    const busca   = (document.getElementById('relBusca')?.value||'').trim();
     const todosMeses = mesVal==='todos';
     const todosAnos  = anoVal==='todos';
     const p = STATE.periodo;
@@ -47,6 +92,21 @@ Object.assign(APP, {
     else if(status==='pendente') data=data.filter(c=>!_quitada(c));
     else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
 
+    if(busca){
+      const termos=this._normBusca(busca).split(/\s+/).filter(Boolean);
+      data=data.filter(c=>{ const txt=this._textoBuscaConta(c); return termos.every(t=>txt.includes(t)); });
+    }
+
+    return { data, anoVal, mesVal, cat, resp, busca };
+  },
+
+  renderRelatorio(){
+    const resp = document.getElementById('relResp').value;
+    this._aplicarTemaResp(resp);
+    let { data, busca } = this._filtrarRelatorio();
+    const btnLimpar = document.getElementById('relBuscaLimpar');
+    if(btnLimpar) btnLimpar.style.display = busca ? '' : 'none';
+
     const tP    = data.reduce((s,c)=>s+vEfetivo(c),0);
     const tPg   = data.reduce((s,c)=>s+(c.vPago||0),0);
     const tPend = data.reduce((s,c)=>s+vPendente(c),0);
@@ -79,7 +139,7 @@ Object.assign(APP, {
         <td data-label="Por" class="col-hide">${c.updatedBy||c.createdBy?`<span class="audit-chip">${c.updatedBy||c.createdBy}</span>`:''}</td>
         <td data-label="Nota" style="font-size:10.5px;color:var(--t4);max-width:100px;white-space:normal">${c.nota||'—'}</td>
       </tr>`;
-    }).join('')||`<tr><td colspan="12" style="padding:0;border:none"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">Nenhum dado para este filtro</div><div class="empty-sub">Tente ajustar os filtros de período, categoria ou responsável.</div></div></td></tr>`;
+    }).join('')||`<tr><td colspan="12" style="padding:0;border:none"><div class="empty-state"><div class="empty-icon">🔍</div><div class="empty-title">${busca?`Nada encontrado para "${this._escHtml(busca)}"`:'Nenhum dado para este filtro'}</div><div class="empty-sub">${busca?'A busca considera apenas o período e os filtros selecionados. Para buscar em todo o histórico, escolha "Todos" em ano e mês.':'Tente ajustar os filtros de período, categoria ou responsável.'}</div></div></td></tr>`;
 
     // Pareto do Relatório — respeita o toggle
     if(document.getElementById('chkParetoRel')?.checked !== false){
@@ -88,43 +148,9 @@ Object.assign(APP, {
   },
 
   exportCSV(){
-    const anoVal  = document.getElementById('relAno').value;
-    const mesVal  = document.getElementById('relMes').value;
-    const cat     = document.getElementById('relCat').value;
-    const formaId = document.getElementById('relForma')?.value||'';
-    const resp    = document.getElementById('relResp').value;
-    const status  = document.getElementById('relStatus')?.value||'';
-    const p       = STATE.periodo;
+    const { data, anoVal, mesVal } = this._filtrarRelatorio();
     const todosAnos  = anoVal==='todos';
     const todosMeses = mesVal==='todos';
-
-    let data = CACHE.contas;
-    if(p){
-      data = data.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; });
-    } else {
-      if(!todosAnos)  data = data.filter(c=>new Date(c.data+'T12:00').getFullYear()===parseInt(anoVal));
-      if(!todosMeses) data = data.filter(c=>new Date(c.data+'T12:00').getMonth()===parseInt(mesVal));
-    }
-
-    let mergeRef=null;
-    if(p) mergeRef={y:p.ano,m:p.mesIni};
-    else if(!todosAnos&&!todosMeses) mergeRef={y:parseInt(anoVal),m:parseInt(mesVal)};
-    if(mergeRef){
-      const ids=new Set(data.map(c=>c.id));
-      CACHE.getOverdue().forEach(c=>{
-        if(ids.has(c.id))return;
-        const d=new Date(c.data+'T12:00');
-        if(d.getFullYear()<mergeRef.y||(d.getFullYear()===mergeRef.y&&d.getMonth()<mergeRef.m))data.push(c);
-      });
-    }
-
-    if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
-    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
-    if(resp) data = filtrarPorResp(data, resp);
-    const _quitada=c=>c._split?c.vPago>0:(c.resp==='Leo & Pri'&&c.pagamentos?(!!c.pagamentos.Leo&&!!c.pagamentos.Pri):c.vPago>0);
-    if(status==='pago')          data=data.filter(c=>_quitada(c));
-    else if(status==='pendente') data=data.filter(c=>!_quitada(c));
-    else if(status==='atrasado') data=data.filter(c=>!_quitada(c)&&c.data<today());
 
     const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
     const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
