@@ -87,6 +87,7 @@
         <span style="flex:1"></span>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('forma')">💳 Forma de Pgto</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('cat')">🏷 Categoria</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenNota()">📝 Nota</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsApplyDesc()">Aplicar descrição a todas</button>
       </div>
       <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
@@ -109,6 +110,23 @@
     <div class="modal-footer">
       <button class="btn btn-ghost" data-close="ovParcsEditField">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.parcsApplyField()">✅ Aplicar a todas</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovParcsNota">
+  <div class="modal modal-sm">
+    <div class="modal-header"><h2>📝 Nota do Parcelamento</h2><button class="modal-close" data-close="ovParcsNota">&times;</button></div>
+    <div class="modal-body" style="padding:20px">
+      <div class="fg">
+        <label for="txtParcsNota" style="font-size:13px;font-weight:600;color:var(--t2);display:block;margin-bottom:8px">Nota aplicada a todas as parcelas:</label>
+        <textarea id="txtParcsNota" rows="4" maxlength="500" placeholder="Informações adicionais..." style="width:100%;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);font-family:var(--font-b);font-size:13px;outline:none;background:var(--bg);color:var(--t1);resize:vertical"></textarea>
+        <div id="parcsNotaAviso" style="display:none;margin-top:8px;font-size:11.5px;color:var(--orange)"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" data-close="ovParcsNota">Cancelar</button>
+      <button class="btn btn-primary" onclick="APP.parcsApplyNota()">✅ Aplicar a todas</button>
     </div>
   </div>
 </div>
