@@ -136,14 +136,12 @@ Object.assign(APP, {
     const wb  = XLSX.utils.book_new();
     // "Data Compra" é opcional: dia da compra na fatura do cartão. Usada para
     // identificar lançamentos repetidos (mesma compra importada duas vezes).
+    // Aba de importação vai SEM dados: só o cabeçalho (verde, com filtro e
+    // primeira linha congelada; ver _upEstilizarModelo). Exemplos e
+    // instruções ficam na aba "Referência".
     const cab = ['Status','Descrição','Responsável','Forma de Pagamento','Categoria','Data Vencimento','Data Compra','Valor Parcela','Total Parcelas','Parcela Atual','Nota'];
-    const ex  = [
-      ['Nova','Exemplo: Mensalidade Academia','Leo','PIX','Saúde','10/07/2026','',150,1,1,''],
-      ['Nova','Exemplo: Compra no cartão','Leo','Cartão Nubank','Roupa','10/07/2026','22/06/2026',120,3,1,'Data Compra opcional'],
-      ['Nova','Exemplo: Parcela Carro','Leo & Pri','Automático','Carro','15/07/2026','',850,48,12,'Da 12ª à 48ª parcela'],
-      ['Existente','Conta já cadastrada','Leo','PIX','Casa','04/07/2026','',350,12,7,'Será ignorada'],
-    ];
-    const ws = XLSX.utils.aoa_to_sheet([cab,...ex]);
+    const ws = XLSX.utils.aoa_to_sheet([cab]);
+    ws['!autofilter']={ref:`A1:${XLSX.utils.encode_col(cab.length-1)}5000`};
     ws['!cols']=[{wch:12.8},{wch:34.8},{wch:14.8},{wch:24.8},{wch:20.8},{wch:16.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:14.8},{wch:30.8}];
     ws['!views']=[{state:'frozen',xSplit:0,ySplit:1,topLeftCell:'A2',activePane:'bottomLeft'}];
     ws['!dataValidation']=[
@@ -155,6 +153,12 @@ Object.assign(APP, {
     XLSX.utils.book_append_sheet(wb,ws,'Importação');
 
     const wsRef=XLSX.utils.aoa_to_sheet([['REFERÊNCIA — NÃO EDITAR'],[''],
+      ['COMO PREENCHER A ABA "Importação"'],
+      ['• Status: "Nova" para cadastrar; "Existente" para ignorar a linha. Linhas com dados e Status vazio são recusadas.'],
+      ['• Datas no formato dd/mm/aaaa. "Data Compra" é opcional (dia da compra na fatura) e ajuda a detectar lançamentos repetidos.'],
+      ['• Valor Parcela: valor de UMA parcela. Total Parcelas e Parcela Atual: números inteiros (à vista = 1 e 1).'],
+      ['• Exemplo cartão: Nova | Loja X | Leo | Cartão Nubank | Roupa | 10/07/2026 | 22/06/2026 | 120 | 3 | 1 | (nota)'],
+      [''],
       ['RESPONSÁVEL','CATEGORIAS','FORMAS DE PAGAMENTO'],
       ...Array.from({length:Math.max(3,cats.length,formas.length)},(_,i)=>[['Leo','Pri','Leo & Pri'][i]||'',cats[i]||'',formas[i]||''])]);
     wsRef['!cols']=[{wch:18},{wch:28},{wch:28}];
@@ -168,9 +172,59 @@ Object.assign(APP, {
     while(wb.Workbook.Sheets.length<=mi) wb.Workbook.Sheets.push({});
     wb.Workbook.Sheets[mi].Hidden=1;
 
-    XLSX.writeFile(wb,nome+'.xlsx');
+    const arq = this._upEstilizarModelo(XLSX.write(wb,{bookType:'xlsx',type:'array'}), cab.length);
+    const a=document.createElement('a'); const url=URL.createObjectURL(new Blob([arq],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    a.href=url; a.download=nome+'.xlsx'; a.click(); setTimeout(()=>URL.revokeObjectURL(url),1000);
     APP.closeModal('ovModelo');
     this.toast(`"${nome}.xlsx" gerada ✅`,'success');
+  },
+
+  /**
+   * A SheetJS Community (0.18.5) não grava estilos nem painéis congelados
+   * (ws['!views'] é ignorado). Pós-processa o .xlsx (um zip) via XLSX.CFB:
+   *   • styles.xml : fonte branca negrito + preenchimento verde (#006437)
+   *   • sheet1.xml : aplica o estilo na linha 1 e congela a primeira linha
+   * Falha em qualquer etapa devolve o arquivo original (sem estilo), nunca quebra.
+   * @param {ArrayBuffer|Uint8Array} buf  saída de XLSX.write(type:'array')
+   * @param {number} nCols  colunas do cabeçalho
+   * @returns {Uint8Array|ArrayBuffer}
+   */
+  _upEstilizarModelo(buf, nCols){
+    try{
+      const CFB=XLSX.CFB, dec=new TextDecoder(), enc=new TextEncoder();
+      const zip=CFB.read(new Uint8Array(buf),{type:'array'});
+      const ler=p=>{ const e=CFB.find(zip,p); if(!e) throw new Error('sem '+p); return {e, xml:dec.decode(e.content)}; };
+      const st=ler('/xl/styles.xml'), sh=ler('/xl/worksheets/sheet1.xml');
+
+      // Acrescenta um item numa coleção (<fonts count="n">…</fonts>) e devolve seu índice
+      const add=(xml,tag,item)=>{
+        const re=new RegExp(`<${tag} count="(\\d+)">([\\s\\S]*?)</${tag}>`);
+        const m=xml.match(re); if(!m) throw new Error('sem '+tag);
+        const n=parseInt(m[1]);
+        return {xml:xml.replace(re,`<${tag} count="${n+1}">${m[2]}${item}</${tag}>`), idx:n};
+      };
+      let x=st.xml, r;
+      r=add(x,'fonts','<font><b/><sz val="12"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font>'); x=r.xml; const fontId=r.idx;
+      r=add(x,'fills','<fill><patternFill patternType="solid"><fgColor rgb="FF006437"/><bgColor indexed="64"/></patternFill></fill>'); x=r.xml; const fillId=r.idx;
+      r=add(x,'cellXfs',`<xf numFmtId="0" fontId="${fontId}" fillId="${fillId}" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="center"/></xf>`); x=r.xml; const xf=r.idx;
+
+      let s=sh.xml;
+      // Estilo nas células do cabeçalho (linha 1)
+      s=s.replace(/<row r="1"([^>]*)>([\s\S]*?)<\/row>/, (m,attrs,cells)=>
+        `<row r="1"${attrs} ht="22" customHeight="1">${cells.replace(/<c r="([A-Z]+1)"/g,`<c r="$1" s="${xf}"`)}</row>`);
+      // Congela a primeira linha
+      const pane='<sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A2" sqref="A2"/></sheetView>';
+      if(!/<sheetView workbookViewId="0"\/>/.test(s)) throw new Error('sheetView inesperado');
+      s=s.replace(/<sheetView workbookViewId="0"\/>/, pane);
+      if(!s.includes(` s="${xf}"`)) throw new Error('cabeçalho não estilizado');
+
+      st.e.content=enc.encode(x); st.e.size=st.e.content.length;
+      sh.e.content=enc.encode(s); sh.e.size=sh.e.content.length;
+      return CFB.write(zip,{type:'array',fileType:'zip'});
+    }catch(e){
+      console.warn('[upload] modelo sem estilo:',e.message);
+      return buf;
+    }
   },
 
   // ── HANDLE UPLOAD ──
@@ -243,7 +297,12 @@ Object.assign(APP, {
     rows.slice(1).forEach((row,idx)=>{
       const lin=idx+2;
       const st=String(row[iSt]||'').trim();
-      if(!st) return;
+      if(!st){
+        // Linha totalmente vazia: ignora. Com dados e sem Status: avisa
+        // (antes era descartada em silêncio e a conta não era cadastrada).
+        if(row.some(v=>String(v??'').trim())) errosLeitura.push(`Linha ${lin}: Status vazio; preencha "Nova" ou "Existente"`);
+        return;
+      }
       if(st.toLowerCase()==='existente'){ ign.push(lin); return; }
       if(st.toLowerCase()!=='nova'){ errosLeitura.push(`Linha ${lin}: Status "${st}" inválido — use Nova ou Existente`); return; }
 
