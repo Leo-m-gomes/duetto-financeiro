@@ -188,19 +188,21 @@ const FS = {
     );
   },
 
-  async desfazerPagamento(id, vPagarOriginal){
+  // Desfaz só o pagamento: vPagar (valor original) NÃO é tocado. Antes ele era
+  // sobrescrito pelo valor pago, corrompendo o original quando havia juros/desconto.
+  async desfazerPagamento(id){
     const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
-    const nome = snap?.exists ? snap.data().conta : '—';
+    const d    = snap?.exists ? snap.data() : {};
+    const nome = d.conta || '—';
     await fbDb.collection('contas').doc(id).update({
       vPago:  null,
-      vPagar: vPagarOriginal,
       paidBy: firebase.firestore.FieldValue.delete(),
       paidAt: firebase.firestore.FieldValue.delete(),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await this._log('desfazer_pagamento', id, nome,
-      `Pagamento desfeito por ${STATE.usuario} — valor restaurado: ${fmt(vPagarOriginal)}`,
-      {valor:vPagarOriginal}
+      `Pagamento de ${fmt(d.vPago||0)} desfeito por ${STATE.usuario} — valor a pagar mantido: ${fmt(d.vPagar||0)}`,
+      {valor:d.vPago||0}
     );
   },
 

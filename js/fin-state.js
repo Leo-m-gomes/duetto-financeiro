@@ -40,7 +40,24 @@ function getChartDefaults() {
 const fmt     = v => { if(v==null||isNaN(v)) return '—'; const cfg = typeof MONEY_CFG!=='undefined'?MONEY_CFG:{simbolo:'R$',locale:'pt-BR'}; return cfg.simbolo+' '+Number(v).toLocaleString(cfg.locale,{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const fmtN    = v => { if(v==null||isNaN(v)) return '—'; const loc = typeof MONEY_CFG!=='undefined'?MONEY_CFG.locale:'pt-BR'; return Number(v).toLocaleString(loc,{minimumFractionDigits:2,maximumFractionDigits:2}); };
 const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d.toLocaleDateString('pt-BR'); };
-const today   = () => new Date().toISOString().split('T')[0];
+// Data local YYYY-MM-DD. toISOString() usa UTC: no Brasil (UTC-3), após as 21h
+// devolveria o dia seguinte e marcaria como atrasadas as contas que vencem hoje.
+const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+const today   = () => isoLocal(new Date());
+/**
+ * Soma n meses a uma data ISO preservando o dia, limitado ao último dia do mês.
+ * Evita o overflow de Date#setMonth (31/01 + 1 mês virava 03/03, pulando fevereiro).
+ * @param {string} iso YYYY-MM-DD
+ * @param {number} n meses a somar
+ * @returns {string} YYYY-MM-DD
+ */
+const addMeses = (iso, n) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const alvo   = new Date(y, m - 1 + n, 1, 12);
+  const ultimo = new Date(alvo.getFullYear(), alvo.getMonth() + 1, 0).getDate();
+  alvo.setDate(Math.min(d, ultimo));
+  return isoLocal(alvo);
+};
 /**
  * Conta "Leo & Pri" (não dividida ÷2) com pagamento individual de ao menos
  * uma das partes. Nesse caso vPago guarda só a soma parcial, então vPago>0
@@ -120,6 +137,8 @@ window.fmt      = fmt;
 window.fmtN     = fmtN;
 window.fmtDate  = fmtDate;
 window.today    = today;
+window.isoLocal = isoLocal;
+window.addMeses = addMeses;
 window.isOverdue = isOverdue;
 window.isQuitada = isQuitada;
 window.vEfetivo  = vEfetivo;

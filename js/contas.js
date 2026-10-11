@@ -434,8 +434,8 @@ Object.assign(APP, {
       const grupo=`grp-${Date.now()}`;
       const novaConta = {...c, vPago:null};
       if(qt>1){
-        const base=new Date(c.data+'T12:00');const proms=[];
-        for(let i=0;i<qt;i++){const d=new Date(base);d.setMonth(d.getMonth()+i);proms.push(FS.addConta({...novaConta,data:d.toISOString().split('T')[0],parcela:`${i+1} de ${qt}`,grupo}));}
+        const proms=[];
+        for(let i=0;i<qt;i++){proms.push(FS.addConta({...novaConta,data:addMeses(c.data,i),parcela:`${i+1} de ${qt}`,grupo}));}
         await Promise.all(proms);
       } else {
         if(!novaConta.parcela)novaConta.parcela='1 de 1';

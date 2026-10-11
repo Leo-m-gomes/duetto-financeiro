@@ -332,14 +332,12 @@ Object.assign(APP, {
     novas.forEach(c=>{
       const gid=`grp-${Date.now()}-${Math.random().toString(36).slice(2,5)}`;
       const rest=c.totParc-c.parcAtual+1;
-      const db=new Date(c.data+'T12:00');
       const parcs=[];
       if(c.totParc<=1){
         parcs.push({...c,parcela:'1 de 1',dataF:c.data,gid});
       } else {
         for(let i=0;i<rest;i++){
-          const d=new Date(db);d.setMonth(d.getMonth()+i);
-          parcs.push({...c,parcela:`${c.parcAtual+i} de ${c.totParc}`,dataF:d.toISOString().split('T')[0],gid});
+          parcs.push({...c,parcela:`${c.parcAtual+i} de ${c.totParc}`,dataF:addMeses(c.data,i),gid});
         }
       }
       grupos.push({base:c,parcs,gid});
