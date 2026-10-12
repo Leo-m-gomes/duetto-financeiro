@@ -54,7 +54,7 @@ Object.assign(APP, {
     const mesVal  = document.getElementById('relMes').value;
     const cat     = document.getElementById('relCat').value;
     const formaId = document.getElementById('relForma')?.value||'';
-    const resp    = document.getElementById('relResp').value;
+    const resp    = STATE.resp;   // filtro global do topbar
     const status  = document.getElementById('relStatus')?.value||'';
     const busca   = (document.getElementById('relBusca')?.value||'').trim();
     const todosMeses = mesVal==='todos';
@@ -96,8 +96,6 @@ Object.assign(APP, {
   },
 
   renderRelatorio(){
-    const resp = document.getElementById('relResp').value;
-    this._aplicarTemaResp(resp);
     let { data, busca } = this._filtrarRelatorio();
     const btnLimpar = document.getElementById('relBuscaLimpar');
     if(btnLimpar) btnLimpar.style.display = busca ? '' : 'none';

@@ -111,6 +111,21 @@
       <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
       <div class="topbar-title" id="pageTitle">Dashboard</div>
       <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center" id="topbarBtns">
+        <!-- Filtro global de responsável: botões no desktop, select compacto no tablet/celular.
+             Os dois chamam APP.setResp(); updateTopbarBtns desativa nas telas onde não se aplica. -->
+        <div class="resp-global" id="respGlobal" role="group" aria-label="Filtrar por responsável">
+          <button type="button" class="resp-chip active" data-resp="" aria-pressed="true" onclick="APP.setResp('')">Todos</button>
+          <button type="button" class="resp-chip" data-resp="Leo" aria-pressed="false" onclick="APP.setResp('Leo')">Leo</button>
+          <button type="button" class="resp-chip" data-resp="Pri" aria-pressed="false" onclick="APP.setResp('Pri')">Pri</button>
+          <button type="button" class="resp-chip" data-resp="Leo &amp; Pri" aria-pressed="false" onclick="APP.setResp('Leo & Pri')" title="Só contas e receitas compartilhadas">Leo &amp; Pri</button>
+        </div>
+        <select class="filter-select resp-global-select" id="respGlobalSelect" aria-label="Filtrar por responsável" onchange="APP.setResp(this.value)">
+          <option value="">Todos</option>
+          <option value="Leo">Leo</option>
+          <option value="Pri">Pri</option>
+          <option value="Leo &amp; Pri">Leo &amp; Pri</option>
+        </select>
+        <span class="resp-global-sep" aria-hidden="true"></span>
         <button class="btn btn-secondary btn-sm" id="btnGerenciarSalarios" style="display:none">👥 Gerenciar Salários</button>
         <button class="btn btn-secondary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova Receita</span></button>
         <button class="btn btn-secondary btn-sm" id="btnCSVContas" style="display:none">⬇ Exportar CSV</button>

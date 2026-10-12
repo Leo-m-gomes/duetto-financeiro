@@ -8,13 +8,13 @@
   Conteúdo: extração LITERAL das linhas 281-335 do index.html legado.
 
   Esta view é a mais densa em filtros e análises. Ela contém:
-    • Filtros avançados (ano, mês, responsável, categoria, forma)
+    • Filtros avançados (ano, mês, categoria, forma); responsável vem do topbar (STATE.resp)
     • Gráficos: Pareto + Histórico mensal + Comparativo Leo vs Pri
     • Tabelas analíticas
     • Botões de exportação (PDF, CSV)
 
   IDs preservados (lista parcial, consultados por APP.renderRelatorio):
-    relBusca, relBuscaLimpar, relFiltroAno, relFiltroMes, relFiltroResp, relCat, relForma,
+    relBusca, relBuscaLimpar, relFiltroAno, relFiltroMes, relCat, relForma,
     btnRelPDF, btnRelCSV, periodoBadge, canvasParetoRel, paretoTableRel,
     canvasHistorico, canvasComparativo, tblPorCategoria, tblPorForma,
     relInfoTotais, relInfoCount.
@@ -43,7 +43,6 @@
             <select class="filter-select" id="relMes"></select>
             <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
             <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
-            <select class="filter-select" id="relResp"><option value="">Todos</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select>
             <select class="filter-select" id="relStatus"><option value="">Todos os status</option><option value="pago">Pago</option><option value="pendente">Pendente</option><option value="atrasado">Atrasado</option></select>
             <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
             <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid var(--palm-border);border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>

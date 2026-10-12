@@ -8,8 +8,7 @@ Object.assign(APP, {
     const search=document.getElementById('searchContas').value.toLowerCase();
     const ano=document.getElementById('filtroAnoContas').value;
     const mes=document.getElementById('filtroMesContas').value;
-    const resp=document.getElementById('filtroRespContas').value;
-    this._aplicarTemaResp(resp);
+    const resp=STATE.resp;   // filtro global do topbar
     const cat=document.getElementById('filtroCatContas').value;
     const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;

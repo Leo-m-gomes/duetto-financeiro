@@ -8,7 +8,7 @@ Object.assign(APP, {
   renderReceitas(){
     const search = (document.getElementById('searchReceitas')?.value||'').toLowerCase();
     const mesVal = document.getElementById('filtroMesReceitas')?.value||'todos';
-    const resp   = document.getElementById('filtroRespReceitas')?.value||'';
+    const resp   = STATE.resp;   // filtro global do topbar
     const tipo   = document.getElementById('filtroTipoReceitas')?.value||'';
     const mesFiltro = mesVal==='todos' ? null : parseInt(mesVal);
 

@@ -12,7 +12,7 @@ Object.assign(APP, {
     const todosAnos  = anoVal==='todos';
     const mes  = todosMeses ? null : parseInt(mesVal);
     const ano  = todosAnos  ? null : parseInt(anoVal);
-    const resp = STATE.dashResp;
+    const resp = STATE.resp;
 
     // Filtrar contas — período tem prioridade sobre ano/mês
     const filtrarContas = (all) => {
@@ -306,7 +306,7 @@ Object.assign(APP, {
   chartFluxo(baseContas, resp){
     // O gráfico Receita×Despesa SEMPRE mostra os 12 meses do ano selecionado
     // Ignora filtro de mês específico — usa todos os dados do ano
-    resp = (resp !== undefined) ? resp : STATE.dashResp;
+    resp = (resp !== undefined) ? resp : STATE.resp;
     const anoVal = document.getElementById('filtroAnoDash')?.value || 'todos';
     const ano    = anoVal === 'todos' ? null : parseInt(anoVal);
 
