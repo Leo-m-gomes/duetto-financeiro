@@ -114,6 +114,7 @@ Object.assign(APP, {
 
     // ── Gráfico ──
     this.renderRecChart(resp);
+    this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
   // ── CHART (preservado do original) ──

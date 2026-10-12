@@ -1,0 +1,351 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, MÓDULO shell.css
+   ═══════════════════════════════════════════════════════════════════════════
+   Responsabilidade: casca do app.
+     • Trilho de navegação fixo (desktop > 768px)
+     • Topbar: trilha da tela, período, busca rápida, filtro de responsável
+       em avatares e ações da tela
+     • Paleta de busca e ações (Ctrl K / ⌘K), montada por js/command-palette.js
+
+   CASCATA
+   ───────────────────────────────────────────────────────────────────────────
+   Carregado DEPOIS de style.css: vence as regras legadas de mesma
+   especificidade (.topbar, .topbar-title, #topbarBtns .btn).
+
+   TEMA
+   ───────────────────────────────────────────────────────────────────────────
+   Tudo deriva de tokens. --palm muda no modo escuro e no tema Pri
+   (html.theme-pri, aplicado quando o filtro de responsável é "Pri"),
+   então marca, indicador ativo e destaques acompanham sem regra extra.
+   As cores de identidade (--id-leo, --id-pri) NÃO mudam com o tema:
+   identificam a pessoa nos avatares.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TOKENS DO SHELL
+   ───────────────────────────────────────────────────────────────────────── */
+:root{
+  --rail-bg:     var(--surface);
+  --rail-border: var(--border);
+  --rail-fg:     var(--t3);
+  --rail-hover:  var(--hover);
+  --brand-a:     var(--palm);
+  --brand-b:     var(--palm-md);
+  --brand-ink:   #fff;
+  --tb-field:    var(--bg);
+  --tb-ring:     var(--bg);
+  --id-leo: #006437; --id-leo-ink: #fff;
+  --id-pri: #c026d3; --id-pri-ink: #fff;
+}
+.dark{
+  --rail-bg:     #111113;   /* mais escuro que --bg: o trilho ancora a tela */
+  --rail-border: rgba(255,255,255,.06);
+  --rail-fg:     rgba(235,235,245,.5);
+  --rail-hover:  rgba(255,255,255,.05);
+  --brand-ink:   #04240c;
+  --tb-field:    rgba(255,255,255,.05);
+  --tb-ring:     #28282a;
+  --id-leo: #32d74b; --id-leo-ink: #04240c;
+  --id-pri: #e879f9; --id-pri-ink: #2c0634;
+}
+.dark.theme-pri{ --brand-ink:#2c0634; }
+
+/* Utilitário: texto só para leitores de tela */
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TRILHO DE NAVEGAÇÃO
+   Largura fixa (--sw, theme.css). Ícone + rótulo curto; o título completo
+   da tela fica em data-title e aparece no topbar.
+   ───────────────────────────────────────────────────────────────────────── */
+.sidebar.rail{
+  position:fixed;left:0;top:0;bottom:0;width:var(--sw);
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  padding:14px 0;
+  background:var(--rail-bg);border-right:1px solid var(--rail-border);
+  z-index:var(--ui-z-sidebar);
+  overflow-x:hidden;overflow-y:auto;scrollbar-width:none;
+}
+.sidebar.rail::-webkit-scrollbar{display:none}
+
+.rail-brand{margin-bottom:10px;flex-shrink:0}
+.brand-mark{
+  width:38px;height:38px;border-radius:11px;
+  display:grid;place-items:center;
+  font-family:var(--font-d);font-size:21px;font-weight:700;line-height:1;
+  color:var(--brand-ink);
+  background:linear-gradient(140deg,var(--brand-a),var(--brand-b));
+  box-shadow:0 6px 18px color-mix(in srgb,var(--palm) 30%,transparent),inset 0 1px 0 rgba(255,255,255,.3);
+}
+
+.rail-nav{display:flex;flex-direction:column;align-items:center;gap:4px;width:100%}
+.rail .nav-item{
+  width:62px;flex-direction:column;justify-content:center;gap:5px;
+  padding:9px 2px 8px;border:0;border-radius:12px;
+  color:var(--rail-fg);background:transparent;box-shadow:none;transform:none;
+  font-size:9.5px;font-weight:600;letter-spacing:.2px;line-height:1.15;text-align:center;
+}
+.rail .nav-item svg{width:19px;height:19px}
+.rail .nav-item span{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rail .nav-item:hover{background:var(--rail-hover);color:var(--t1);transform:none}
+.rail .nav-item.active{
+  background:color-mix(in srgb,var(--palm) 12%,transparent);
+  color:var(--palm);border:0;box-shadow:none;font-weight:700;
+}
+/* Indicador luminoso na borda do trilho (o item tem 62px centrado em 76px: -7px = borda) */
+.rail .nav-item.active::before{
+  content:'';position:absolute;left:-7px;top:14px;bottom:14px;width:4px;
+  border-radius:0 4px 4px 0;background:var(--palm);
+  box-shadow:0 0 12px color-mix(in srgb,var(--palm) 70%,transparent);
+}
+.dark .rail .nav-item.active{color:#fff}
+.dark .rail .nav-item.active svg{
+  color:var(--palm);
+  filter:drop-shadow(0 0 6px color-mix(in srgb,var(--palm) 55%,transparent));
+}
+.rail .nav-item:focus-visible{outline:none;box-shadow:0 0 0 2px var(--palm)}
+
+.rail-div{width:28px;height:1px;flex-shrink:0;margin:6px 0;background:var(--rail-border)}
+.dark .rail-div{background:rgba(255,255,255,.09)}
+
+.rail-footer{margin-top:auto;padding-top:12px;display:flex;flex-direction:column;align-items:center;gap:12px;flex-shrink:0}
+.rail-btn{
+  width:36px;height:36px;display:grid;place-items:center;
+  border:1px solid var(--rail-border);background:transparent;color:var(--rail-fg);
+  cursor:pointer;transition:color .15s,border-color .15s,background .15s;
+}
+.rail-btn:hover{color:var(--palm);border-color:color-mix(in srgb,var(--palm) 45%,transparent);background:var(--rail-hover)}
+.rail-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--palm)}
+.rail-btn svg{width:16px;height:16px}
+.rail-btn .ic-sun{display:none}
+.dark .rail-btn .ic-sun{display:block}
+.dark .rail-btn .ic-moon{display:none}
+
+/* Avatar do usuário logado (inicial preenchida por APP.boot) */
+.rail-avatar{
+  width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;
+  font-size:14px;font-weight:800;user-select:none;
+  background:var(--id-leo);color:var(--id-leo-ink);
+  box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px color-mix(in srgb,var(--id-leo) 45%,transparent);
+}
+.rail-avatar[data-user="Pri"]{
+  background:var(--id-pri);color:var(--id-pri-ink);
+  box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px color-mix(in srgb,var(--id-pri) 45%,transparent);
+}
+.rail-avatar:empty{visibility:hidden}
+
+
+/* Coluna principal: min-width:0 impede que conteúdo largo (tabela de Contas)
+   estique o .main além da tela entre 769 e ~1200px. Sem isso a página inteira
+   rolava na horizontal e as ações do topbar saíam da tela; agora a tabela
+   rola dentro do próprio .table-wrap (overflow-x:auto). */
+.main{min-width:0}
+
+/* ─────────────────────────────────────────────────────────────────────────
+   TOPBAR
+   [Duetto / Tela  período] ···· [busca Ctrl K] ···· [responsável | ações]
+   As duas laterais crescem por igual (flex-basis 0): a busca fica centrada
+   enquanto houver espaço. As ações nunca encolhem abaixo do conteúdo.
+   ───────────────────────────────────────────────────────────────────────── */
+.topbar{gap:16px;padding:0 18px 0 24px;box-shadow:none}
+
+.tb-crumb{flex:1 1 0;min-width:0;display:flex;align-items:center;gap:8px;white-space:nowrap}
+.tb-crumb-root{font-size:13px;font-weight:500;color:var(--t3)}
+.tb-crumb-sep{color:var(--t4)}
+.topbar .topbar-title{
+  flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  font-family:var(--font-b);font-size:15px;font-weight:600;letter-spacing:-.1px;color:var(--t1);
+}
+.tb-periodo{
+  flex-shrink:0;padding:2px 9px;border-radius:999px;
+  background:var(--tb-field);border:1px solid var(--border);
+  font-size:11px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums;
+}
+.tb-periodo[hidden]{display:none}
+
+/* Gatilho da busca rápida */
+.cmd-trigger{
+  flex:0 1 340px;min-width:190px;height:36px;
+  display:flex;align-items:center;gap:9px;padding:0 6px 0 13px;
+  background:var(--tb-field);border:1px solid var(--border);color:var(--t3);
+  font-family:var(--font-b);font-size:12.5px;text-align:left;cursor:pointer;
+  transition:border-color .15s,box-shadow .15s,color .15s;
+}
+.cmd-trigger svg{width:15px;height:15px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.cmd-trigger:hover{border-color:color-mix(in srgb,var(--palm) 50%,transparent);color:var(--t2)}
+.cmd-trigger:focus-visible{outline:none;border-color:var(--palm);box-shadow:0 0 0 3px color-mix(in srgb,var(--palm) 22%,transparent)}
+.cmd-txt{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cmd-kbd,.cmdk kbd{
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:10.5px;line-height:1;padding:4px 7px;border-radius:999px;white-space:nowrap;
+  background:var(--surface);border:1px solid var(--border);color:var(--t3);
+}
+.dark .cmd-kbd,.dark .cmdk kbd{background:rgba(255,255,255,.07);border-color:rgba(255,255,255,.1)}
+
+/* Lado direito: responsável + ações */
+.tb-actions{flex:1 1 0;display:flex;flex-wrap:nowrap;align-items:center;justify-content:flex-end;gap:7px}
+
+/* Filtro global de responsável em avatares. O avatar ativo mostra o nome.
+   Nas telas que não usam o filtro (Notas, Upload, Backup) fica desativado. */
+.resp-global{
+  display:flex;align-items:center;gap:2px;padding:3px;border-radius:999px;
+  background:var(--tb-field);border:1px solid var(--border);
+}
+.who-btn{
+  display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 3px;
+  border:0;background:transparent;color:var(--t3);
+  font-family:var(--font-b);font-size:11.5px;font-weight:600;white-space:nowrap;
+  cursor:pointer;transition:background .2s,color .2s;
+}
+.who-btn:hover:not(:disabled){background:color-mix(in srgb,var(--t1) 6%,transparent);color:var(--t1)}
+.who-btn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--palm)}
+.who-btn.active{
+  padding-right:11px;color:var(--t1);background:var(--surface);
+  box-shadow:0 1px 3px rgba(0,0,0,.08),inset 0 0 0 1px color-mix(in srgb,var(--palm) 35%,transparent);
+}
+.dark .who-btn.active{background:rgba(255,255,255,.1);box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--palm) 45%,transparent)}
+.who-lb{display:none}
+.who-btn.active .who-lb{display:inline}
+.who-ic,.who-av{width:22px;height:22px;border-radius:50%;flex-shrink:0;display:grid;place-items:center;font-size:10.5px;font-weight:800}
+.who-ic{background:color-mix(in srgb,var(--t1) 8%,transparent);color:var(--t2)}
+.who-ic svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.who-leo{background:var(--id-leo);color:var(--id-leo-ink)}
+.who-pri{background:var(--id-pri);color:var(--id-pri-ink)}
+.who-duo{display:flex;align-items:center;height:22px}
+.who-duo i{
+  width:18px;height:18px;border-radius:50%;display:grid;place-items:center;
+  font-style:normal;font-size:8.5px;font-weight:800;
+  box-shadow:0 0 0 2px var(--tb-ring);
+}
+.who-duo i+i{margin-left:-6px}
+.resp-global[aria-disabled="true"],.resp-global-select:disabled{opacity:.45}
+.resp-global[aria-disabled="true"] .who-btn{cursor:not-allowed}
+
+/* Select compacto (tablet/celular) */
+#topbarBtns .resp-global-select{display:none;width:auto;min-width:0;padding:6px 26px 6px 10px;font-size:12px;font-weight:600}
+.resp-global-sep{width:1px;height:22px;flex-shrink:0;margin:0 3px;background:var(--border)}
+
+/* Ações: secundárias só com ícone; primária com rótulo */
+#topbarBtns .tb-icon{
+  width:34px;height:34px;padding:0;justify-content:center;
+  border-color:transparent;background:transparent;color:var(--t3);
+}
+#topbarBtns .tb-icon:hover{background:color-mix(in srgb,var(--t1) 6%,transparent);color:var(--t1);border-color:transparent}
+#topbarBtns .tb-icon svg{width:16px;height:16px;stroke-width:2}
+#topbarBtns .btn-primary{height:34px;padding:0 15px;font-weight:700}
+/* Verde Apple do modo escuro pede texto escuro (branco fica abaixo de 2:1) */
+.dark #topbarBtns .btn-primary{color:#04240c}
+.dark.theme-pri #topbarBtns .btn-primary{color:#fff}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   RESPONSIVO
+   ≤1100: avatares viram select · ≤900: busca vira ícone
+   ≤768:  trilho some (bottom nav assume) · ≤640: topbar compacto
+   ───────────────────────────────────────────────────────────────────────── */
+@media(max-width:1100px){
+  .resp-global{display:none}
+  #topbarBtns .resp-global-select{display:block}
+}
+@media(max-width:900px){
+  .cmd-trigger{flex:0 0 36px;width:36px;min-width:36px;padding:0;justify-content:center}
+  .cmd-txt,.cmd-kbd{display:none}
+}
+@media(max-width:768px){
+  .sidebar.rail{display:none}
+  .topbar{gap:8px;padding:0 12px}
+  .tb-crumb-root,.tb-crumb-sep{display:none}
+}
+@media(max-width:640px){
+  .topbar{gap:6px;padding:0 10px;height:auto;min-height:var(--sh)}
+  .topbar .topbar-title{font-size:14px}
+  .tb-periodo,.resp-global-sep{display:none}
+  .cmd-trigger{flex-basis:40px;width:40px;min-width:40px;height:40px}
+  #topbarBtns{gap:4px}
+  #topbarBtns .resp-global-select{padding:7px 22px 7px 8px;max-width:96px;font-size:12px}
+  #topbarBtns .tb-icon{width:40px;height:40px;min-height:40px;padding:0}
+  #topbarBtns .btn-primary{width:40px;height:40px;min-height:40px;padding:0;justify-content:center}
+}
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   PALETA DE BUSCA E AÇÕES (js/command-palette.js)
+   ───────────────────────────────────────────────────────────────────────── */
+.cmdk-overlay{
+  position:fixed;inset:0;z-index:var(--ui-z-palette);
+  display:flex;justify-content:center;align-items:flex-start;
+  padding:12vh 16px 16px;
+  background:rgba(10,14,12,.38);
+  -webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px);
+}
+.dark .cmdk-overlay{background:rgba(0,0,0,.55)}
+.cmdk-overlay[hidden]{display:none}
+
+.cmdk{
+  width:min(620px,100%);max-height:min(580px,78vh);
+  display:flex;flex-direction:column;overflow:hidden;
+  background:var(--surface);border:1px solid var(--border);border-radius:16px;
+  box-shadow:0 30px 80px rgba(0,0,0,.22),0 4px 14px rgba(0,0,0,.08);
+  animation:cmdkIn .16s cubic-bezier(.2,.8,.2,1);
+}
+.dark .cmdk{background:#232325;border-color:rgba(255,255,255,.1);box-shadow:0 30px 80px rgba(0,0,0,.6)}
+@keyframes cmdkIn{from{opacity:0;transform:translateY(-6px) scale(.985)}to{opacity:1;transform:none}}
+
+.cmdk-head{display:flex;align-items:center;gap:10px;height:54px;padding:0 14px;border-bottom:1px solid var(--border);flex-shrink:0}
+.cmdk-head > svg{width:17px;height:17px;flex-shrink:0;stroke:var(--t3);fill:none;stroke-width:2;stroke-linecap:round}
+.cmdk-input{
+  flex:1;min-width:0;height:100%;border:0;outline:none;background:transparent;
+  font-family:var(--font-b);font-size:15px;color:var(--t1);
+}
+.cmdk-input::placeholder{color:var(--t4)}
+.cmdk-input::-webkit-search-cancel-button{display:none}
+
+.cmdk-list{flex:1;overflow-y:auto;padding:6px;overscroll-behavior:contain}
+.cmdk-group{padding:10px 10px 4px;font-size:10px;font-weight:700;letter-spacing:1.1px;text-transform:uppercase;color:var(--t4)}
+.cmdk-item{
+  display:flex;align-items:center;gap:11px;min-height:42px;padding:6px 10px;
+  border-radius:10px;cursor:pointer;color:var(--t2);font-size:13px;
+}
+.cmdk-item[aria-selected="true"]{background:color-mix(in srgb,var(--palm) 11%,transparent);color:var(--t1)}
+.cmdk-ic{
+  width:28px;height:28px;border-radius:8px;flex-shrink:0;
+  display:grid;place-items:center;
+  background:color-mix(in srgb,var(--t1) 5%,transparent);color:var(--t3);
+}
+.cmdk-item[aria-selected="true"] .cmdk-ic{color:var(--palm);background:color-mix(in srgb,var(--palm) 14%,transparent)}
+.cmdk-ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.cmdk-main{flex:1;min-width:0}
+.cmdk-title{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmdk-sub{display:block;margin-top:1px;font-size:11px;color:var(--t4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dark .cmdk-sub{color:var(--t3)}
+.cmdk-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums}
+.cmdk-tag{padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
+.cmdk-tag.atr {background:var(--orange-lt);color:var(--orange)}
+.cmdk-tag.pend{background:var(--yellow-lt);color:var(--yellow)}
+.cmdk-tag.pago{background:var(--green-lt);color:var(--green)}
+.cmdk-pay{
+  height:26px;padding:0 10px;cursor:pointer;
+  border:1px solid var(--border);background:var(--surface);color:var(--t2);
+  font-family:var(--font-b);font-size:11px;font-weight:700;
+}
+.dark .cmdk-pay{background:transparent}
+.cmdk-pay:hover{border-color:var(--palm);color:var(--palm)}
+.cmdk-empty{padding:30px 16px;text-align:center;font-size:13px;color:var(--t4)}
+.cmdk-foot{
+  display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;flex-shrink:0;
+  padding:9px 14px;border-top:1px solid var(--border);
+  font-size:11px;color:var(--t4);
+}
+.cmdk-foot span{display:inline-flex;align-items:center;gap:5px}
+
+@media(max-width:640px){
+  .cmdk-overlay{padding:10px}
+  .cmdk{max-height:calc(100vh - 20px)}
+  .cmdk-foot{display:none}
+  .cmdk-meta .cmdk-tag{display:none}
+}
+@media(prefers-reduced-motion:reduce){
+  .cmdk{animation:none}
+}

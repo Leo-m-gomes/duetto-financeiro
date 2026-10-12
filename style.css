@@ -5,12 +5,9 @@
    DUP-005: Tabelas, badges, action-btn, pagination, sort → tables.css
    ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── SIDEBAR ── */
-.sidebar{position:fixed;left:0;top:0;width:var(--sw);height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:var(--ui-z-sidebar);box-shadow:var(--shadow-sm);transition:width var(--transition),transform var(--transition)}
-.sb-logo{display:flex;align-items:center;gap:10px;padding:22px 20px 18px;border-bottom:1px solid var(--border)}
-.sb-logo-text .name{font-family:var(--font-d);font-size:18px;font-weight:700;color:var(--palm);letter-spacing:-.3px}
-.sb-logo-text .tag{font-size:9px;font-weight:600;color:var(--t4);letter-spacing:1.5px;text-transform:uppercase;margin-top:1px}
-.sb-nav{flex:1;padding:12px 8px;display:flex;flex-direction:column;gap:2px;overflow-y:auto}
+/* ── NAVEGAÇÃO ──
+   Trilho (desktop), topbar e busca rápida vivem em css/shell.css.
+   .nav-item abaixo é a base compartilhada pelo trilho e pela bottom nav (mobile). */
 .nav-item{
   display:flex;align-items:center;gap:10px;padding:10px 12px;
   border-radius:var(--r-sm);color:var(--t3);text-decoration:none;
@@ -27,16 +24,11 @@
   box-shadow:0 1px 4px rgba(0,100,55,.12)
 }
 .nav-item.active::before{content:'';position:absolute;left:0;top:20%;bottom:20%;width:3px;background:var(--palm);border-radius:0 3px 3px 0}
-.sb-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:6px}
-.sb-badge{font-size:10px;font-weight:700;color:var(--t4);letter-spacing:1px;background:var(--bg);border:1px solid var(--border);border-radius:var(--ui-radius-pill);padding:3px 10px}
-.sb-user{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--palm);cursor:pointer;padding:5px 8px;border-radius:var(--r-sm);background:var(--palm-lt);border:1px solid var(--palm-border)}
 
 /* ── TOPBAR ── */
 .main{margin-left:var(--sw);flex:1;min-height:100vh;display:flex;flex-direction:column}
 .topbar{position:sticky;top:0;height:var(--sh);background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 22px;z-index:var(--ui-z-topbar);box-shadow:var(--shadow-sm)}
 .topbar-title{font-family:var(--font-d);font-weight:700;font-size:17px;flex:1;color:var(--t1)}
-.menu-toggle{display:none;flex-direction:column;gap:5px;background:none;border:none;cursor:pointer;padding:4px}
-.menu-toggle span{display:block;width:18px;height:2px;background:var(--t3);border-radius:2px}
 
 /* ── BUTTONS ── */
 .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r-sm);font-family:var(--font-b);font-size:12.5px;font-weight:500;cursor:pointer;transition:.15s;border:none;white-space:nowrap}
@@ -272,11 +264,7 @@
 /* ── RESPONSIVE ── */
 @media(max-width:1100px){.kpi-grid{grid-template-columns:repeat(2,1fr)}.charts-row{grid-template-columns:1fr}}
 @media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}.sidebar.open{transform:translateX(0);box-shadow:var(--shadow-lg)}
   .main{margin-left:0 !important}
-  .menu-toggle{display:none !important}
-  #sbCollapseBtn{display:none !important}
-  .sidebar-overlay{display:block}
   .kpi-grid{grid-template-columns:1fr}
   .form-grid{grid-template-columns:1fr}
   .totals-bar{grid-template-columns:1fr}
@@ -381,54 +369,7 @@
 .btn-google:hover{border-color:var(--palm);background:var(--palm-lt);color:var(--palm)}
 .login-note{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:20px;font-size:11.5px;color:var(--t4);line-height:1.4}
 
-/* ── SIDEBAR USER CHIP / COLLAPSE ── */
-.sb-user-chip{font-size:11px;font-weight:600;color:var(--palm);padding:3px 8px;background:var(--palm-lt);border:1px solid var(--palm-border);border-radius:var(--ui-radius-pill);max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sb-collapse-btn{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:var(--bg);border:1px solid var(--border);border-radius:6px;cursor:pointer;color:var(--t3);flex-shrink:0;transition:.15s}
-.sb-collapse-btn:hover{border-color:var(--palm);color:var(--palm)}
-
-/* ── SIDEBAR COLLAPSED ── */
-:root{--sw-collapsed:62px}
-.sidebar.collapsed{width:var(--sw-collapsed)}
-.sidebar.collapsed .sb-logo-text,.sidebar.collapsed .nav-item span,.sidebar.collapsed .sb-badge,.sidebar.collapsed .sb-user-chip{display:none}
-.sidebar.collapsed .sb-logo{justify-content:center;padding:18px 0}
-.sidebar.collapsed .sb-nav{padding:14px 8px}
-.sidebar.collapsed .nav-item{justify-content:center;padding:10px;gap:0}
-.sidebar.collapsed .nav-item svg{width:18px;height:18px}
-.sidebar.collapsed .sb-footer{justify-content:center;padding:12px 0}
-.sidebar.collapsed+.main{margin-left:var(--sw-collapsed)}
-.sidebar{transition:width .25s cubic-bezier(.4,0,.2,1),transform .3s cubic-bezier(.4,0,.2,1);overflow:hidden}
-.nav-item span{transition:opacity .2s}
-.sidebar.collapsed .nav-item:hover::after{
-  content:attr(data-tooltip);position:fixed;
-  left:calc(var(--sw-collapsed) + 8px);
-  background:var(--t1);color:#fff;padding:5px 10px;
-  border-radius:6px;font-size:12px;white-space:nowrap;
-  z-index:999;pointer-events:none
-}
-
-/* ── RESP CHIPS ── */
-.resp-chip{padding:5px 13px;border-radius:var(--ui-radius-pill);border:1.5px solid var(--border2);background:var(--surface);color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
-.resp-chip:hover{border-color:var(--palm);color:var(--palm)}
-.resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
-.resp-chip:disabled{cursor:not-allowed}
-
-/* ── Filtro global de responsável (topbar) ──
-   Botões acima de 1100px; select compacto no tablet/celular, onde o topbar não comporta 4 botões.
-   Nas telas que não usam o filtro (Notas, Upload, Backup) fica desativado e esmaecido. */
-.resp-global{display:flex;gap:4px;align-items:center}
-.resp-global .resp-chip{padding:4px 11px;font-size:11.5px}
-.resp-global[aria-disabled="true"],.resp-global-select:disabled{opacity:.45}
-.resp-global[aria-disabled="true"] .resp-chip:hover{border-color:var(--border2);color:var(--t3)}
-#topbarBtns .resp-global-select{display:none;width:auto;min-width:0;padding:6px 26px 6px 10px;font-size:12px;font-weight:600}
-.resp-global-sep{width:1px;height:22px;background:var(--border);margin:0 4px}
-@media(max-width:1100px){
-  .resp-global{display:none}
-  #topbarBtns .resp-global-select{display:block}
-}
-@media(max-width:640px){
-  .resp-global-sep{display:none}
-  #topbarBtns .resp-global-select{padding:7px 22px 7px 8px;max-width:96px;font-size:12px}
-}
+/* Filtro global de responsável (avatares no topbar): css/shell.css */
 
 /* ── DASHBOARD FILTERS (desktop) ── */
 .dash-filters{margin-bottom:16px}
@@ -460,10 +401,6 @@
 /* ── Elementos específicos do dark mode ── */
 .dark body                 { color:var(--t1); }
 .dark .main                { background:var(--bg); }
-.dark .sidebar             { background:#1c1c1e; border-color:var(--border); }
-.dark .sb-nav .nav-item    { color:var(--t3); }
-.dark .sb-nav .nav-item:hover{ background:rgba(255,255,255,.06); color:var(--t1); }
-.dark .sb-nav .nav-item.active{ background:rgba(50,215,75,.18); color:var(--palm); }
 .dark .topbar              { background:rgba(28,28,30,.92); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px); border-color:var(--border); }
 .dark .kpi-card            { background:var(--surface); border-color:var(--border); }
 .dark .kpi-card.kpi-hero   {
@@ -651,7 +588,6 @@
   .dash-filters-top{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:8px}
   .dash-filters-top .filter-select{width:100%;font-size:14px;padding:11px 14px}
   .dash-filters-top .btn-sm{width:100%;justify-content:center;padding:10px 14px}
-  .resp-chip{padding:7px 16px;font-size:13px}
 
   /* Item 1: KPIs em grade 2x2 — altura uniforme entre todos os cards */
   .kpi-grid{
@@ -937,12 +873,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   --border2:     #e879f9;
 }
 
-/* Chips resp ativos com cor Pri */
-.theme-pri #rc-pri {
-  background: #c026d3;
-  border-color: #c026d3;
-}
-
 /* Barra de saldo / badge-n no tema Pri */
 .theme-pri .kpi-card.kpi-hero {
   background: linear-gradient(135deg, #fdf4ff 0%, #fce7f3 100%);
@@ -950,15 +880,7 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   box-shadow: 0 2px 8px rgba(192,38,211,.1), 0 0 0 1px rgba(192,38,211,.08);
 }
 
-/* Nav item ativo */
-.theme-pri .nav-item.active {
-  background: linear-gradient(135deg, #fdf4ff 0%, #fce7f3 100%);
-  color: #c026d3;
-  border-color: #f5d0fe;
-  box-shadow: 0 1px 4px rgba(192,38,211,.12);
-}
-.theme-pri .nav-item.active::before { background: #c026d3; }
-.theme-pri .nav-item:hover { background: #fce7f3; color: #c026d3; }
+/* Nav ativo (trilho e bottom nav): deriva de --palm em css/shell.css e na bottom nav */
 
 /* Indicador sutil nas barras de totais */
 .theme-pri .total-pill.pendente { border-color: rgba(192,38,211,.25); }
@@ -970,12 +892,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 }
 .theme-pri .btn-primary:hover {
   background: linear-gradient(135deg, #a21caf, #86198f);
-}
-
-/* Chip ativo dos filtros */
-.theme-pri .resp-chip.active {
-  background: #c026d3;
-  border-color: #c026d3;
 }
 
 /* Badge-n (contador de pendentes) */
@@ -1021,12 +937,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   --border:  rgba(232,121,249,.2);
   --hover:   rgba(232,121,249,.08);
 }
-.dark.theme-pri .nav-item.active {
-  background: rgba(232,121,249,.15);
-  color: #e879f9;
-  border-color: rgba(232,121,249,.3);
-}
-.dark.theme-pri .nav-item.active::before { background: #e879f9; }
 .dark.theme-pri .btn-primary { background: #c026d3; border-color: #a21caf; }
 .dark.theme-pri .kpi-card.kpi-hero {
   background: rgba(232,121,249,.1);
@@ -1138,15 +1048,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
   pointer-events: none;
 }
 
-/* ── 6. SIDEBAR OVERLAY, fade de entrada ── */
-.sidebar-overlay {
-  opacity: 0;
-  transition: opacity 0.3s ease;
-}
-.sidebar-overlay.visible {
-  opacity: 1;
-}
-
 /* ══════════════════════════════════════════════════════
    BLOCO MOBILE, todas as regras de dimensionamento aqui
    Conforme R1: dentro de @media(max-width:640px)
@@ -1208,12 +1109,7 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
     min-height: 44px;
   }
   /* M09 mob-card action-btn → tables.css (DUP-005) */
-  /* Resp chips no dashboard */
-  .resp-chip {
-    padding: 10px 18px;
-    min-height: 44px;
-  }
-  /* Nav items na sidebar mobile */
+  /* Nav items da bottom nav: alvo de toque mínimo */
   .nav-item {
     padding: 12px 14px;
     min-height: 44px;
@@ -1232,9 +1128,6 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
 /* ══════════════════════════════════════════════════════
    DARK MODE, ajustes complementares (R3: cores globais)
    ══════════════════════════════════════════════════════ */
-.dark .resp-chip.active {
-  color: #1c1c1e;
-}
 /* .dark mobile mob-card gradiente → tables.css (DUP-005) */
 
 /* ══════════════════════════════════════════════════════
@@ -1401,9 +1294,9 @@ td.money.dim{color:var(--t4)!important;font-weight:400!important;font-family:var
    ═══════════════════════════════════════════════════════════════════════ */
 button,
 input[type=button], input[type=submit], input[type=reset],
-.btn, .action-btn, .pg-btn, .modal-close, .sb-collapse-btn, .btn-google,
-.cfg-tab, .resp-chip, .pg-resp-btn, .mob-filter-toggle, .mob-action-btn,
-.menu-toggle, .dash-filter-toggle, .rel-busca-clear,
+.btn, .action-btn, .pg-btn, .modal-close, .btn-google,
+.cfg-tab, .who-btn, .pg-resp-btn, .mob-filter-toggle, .mob-action-btn,
+.dash-filter-toggle, .rel-busca-clear,
 .nt-btn, .nt-modal-close, .nt-icon-btn, .nt-periodo-btn, .nt-analytics-toggle, .nt-search-clear{
   border-radius:var(--ui-radius-pill) !important;
 }

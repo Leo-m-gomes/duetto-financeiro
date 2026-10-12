@@ -46,7 +46,9 @@ const ROUTER = (() => {
 
   function updateChrome(page) {
     document.querySelectorAll('.nav-item').forEach(el => {
-      el.classList.toggle('active', el.dataset.page === page);
+      const ativo = el.dataset.page === page;
+      el.classList.toggle('active', ativo);
+      if (ativo) el.setAttribute('aria-current', 'page'); else el.removeAttribute('aria-current');
     });
     const t = document.getElementById('pageTitle');
     if (t && ROUTES[page]) t.textContent = ROUTES[page].title;

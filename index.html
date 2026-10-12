@@ -25,6 +25,7 @@
 <link rel="stylesheet" href="css/tables.css">
 <link rel="stylesheet" href="css/notes.css">
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="css/shell.css">
 </head>
 <body>
 
@@ -75,49 +76,65 @@
 <!-- ══ APP PRINCIPAL ══ -->
 <div id="screenApp" style="display:none">
 
-  <!-- SIDEBAR -->
-  <div class="sidebar-overlay" id="sidebarOverlay" onclick="APP.closeSidebarMobile()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:199;backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px)"></div>
-  <aside class="sidebar" id="sidebar">
-    <div class="sb-logo">
-      <div class="sb-logo-text">
-        <div class="name">Duetto</div>
-        <div class="tag">Financeiro</div>
-      </div>
-    </div>
-    <nav class="sb-nav">
-      <a class="nav-item active" data-page="dashboard" data-tooltip="Dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
-      <a class="nav-item" data-page="contas" data-tooltip="Contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
-      <a class="nav-item" data-page="receitas" data-tooltip="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
-      <a class="nav-item" data-page="notas" data-tooltip="Notas e Ações"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg><span>Notas</span></a>
-      <a class="nav-item" data-page="relatorio" data-tooltip="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
-      <a class="nav-item" data-page="upload" id="navUpload" data-tooltip="Upload Cards" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload Cards</span></a>
-      <a class="nav-item" data-page="config" data-tooltip="Configurações" id="navConfig" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Configurações</span></a>
+  <!-- TRILHO DE NAVEGAÇÃO (desktop, acima de 768px). No celular a navegação é a bottom nav.
+       Os itens mantêm .nav-item + data-page: APP.nav() e ROUTER.updateChrome() dependem disso.
+       data-title é o título completo da tela (o rótulo do trilho é curto). -->
+  <aside class="sidebar rail" id="sidebar" aria-label="Navegação principal">
+    <div class="rail-brand" title="Duetto Financeiro"><span class="brand-mark" aria-hidden="true">D</span><span class="sr-only">Duetto Financeiro</span></div>
+    <nav class="rail-nav">
+      <a class="nav-item active" href="#" data-page="dashboard" data-title="Dashboard" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
+      <a class="nav-item" href="#" data-page="contas" data-title="Contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
+      <a class="nav-item" href="#" data-page="receitas" data-title="Receitas"><svg viewBox="0 0 24 24"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg><span>Receitas</span></a>
+      <span class="rail-div" aria-hidden="true"></span>
+      <a class="nav-item" href="#" data-page="relatorio" data-title="Relatório"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
+      <a class="nav-item" href="#" data-page="notas" data-title="Notas e Ações"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg><span>Notas</span></a>
+      <span class="rail-div" id="railDivAdmin" aria-hidden="true" style="display:none"></span>
+      <a class="nav-item" href="#" data-page="upload" id="navUpload" data-title="Upload Cards" style="display:none"><svg viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload</span></a>
+      <a class="nav-item" href="#" data-page="config" id="navConfig" data-title="Configurações" style="display:none"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Config</span></a>
     </nav>
-    <div class="sb-footer">
-      <div class="sb-badge">2026</div>
-      <div id="sbUserChip" class="sb-user-chip"></div>
-      <button id="btnDarkMode" onclick="APP.toggleDark()" title="Modo escuro" class="sb-collapse-btn" style="margin-right:4px">
-        <svg id="iconDark" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+    <div class="rail-footer">
+      <button type="button" id="btnDarkMode" class="rail-btn" onclick="APP.toggleDark()" title="Alternar modo escuro" aria-label="Alternar modo escuro">
+        <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+        <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="3.5"/><line x1="12" y1="20.5" x2="12" y2="22.5"/><line x1="4.6" y1="4.6" x2="6" y2="6"/><line x1="18" y1="18" x2="19.4" y2="19.4"/><line x1="1.5" y1="12" x2="3.5" y2="12"/><line x1="20.5" y1="12" x2="22.5" y2="12"/><line x1="4.6" y1="19.4" x2="6" y2="18"/><line x1="18" y1="6" x2="19.4" y2="4.6"/></svg>
       </button>
-      <button id="sbCollapseBtn" onclick="APP.toggleSidebar()" title="Recolher menu" class="sb-collapse-btn">
-        <svg id="sbCollapseIcon" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
+      <span id="sbUserChip" class="rail-avatar" role="img" aria-label=""></span>
     </div>
   </aside>
 
   <!-- MAIN -->
   <main class="main">
     <header class="topbar">
-      <button class="menu-toggle" id="menuToggle"><span></span><span></span><span></span></button>
-      <div class="topbar-title" id="pageTitle">Dashboard</div>
-      <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:center" id="topbarBtns">
-        <!-- Filtro global de responsável: botões no desktop, select compacto no tablet/celular.
-             Os dois chamam APP.setResp(); updateTopbarBtns desativa nas telas onde não se aplica. -->
+      <div class="tb-crumb">
+        <span class="tb-crumb-root" aria-hidden="true">Duetto</span>
+        <span class="tb-crumb-sep" aria-hidden="true">/</span>
+        <div class="topbar-title" id="pageTitle">Dashboard</div>
+        <span class="tb-periodo" id="topbarPeriodo" title="Período exibido nesta tela" hidden></span>
+      </div>
+
+      <!-- Busca e ações rápidas (js/command-palette.js). Atalhos: Ctrl K / ⌘K e "/". -->
+      <button type="button" class="cmd-trigger" id="btnBusca" onclick="CMD.open()" aria-haspopup="dialog" aria-keyshortcuts="Control+K Meta+K" title="Buscar e ações rápidas">
+        <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <span class="cmd-txt">Buscar conta, receita ou ação…</span>
+        <kbd class="cmd-kbd" id="cmdKbd">Ctrl K</kbd>
+      </button>
+
+      <div class="tb-actions" id="topbarBtns">
+        <!-- Filtro global de responsável: avatares no desktop, select compacto no tablet/celular.
+             Os dois chamam APP.setResp(); updateTopbarBtns desativa nas telas onde não se aplica.
+             O nome só aparece no avatar ativo; aria-label garante o rótulo para leitores de tela. -->
         <div class="resp-global" id="respGlobal" role="group" aria-label="Filtrar por responsável">
-          <button type="button" class="resp-chip active" data-resp="" aria-pressed="true" onclick="APP.setResp('')">Todos</button>
-          <button type="button" class="resp-chip" data-resp="Leo" aria-pressed="false" onclick="APP.setResp('Leo')">Leo</button>
-          <button type="button" class="resp-chip" data-resp="Pri" aria-pressed="false" onclick="APP.setResp('Pri')">Pri</button>
-          <button type="button" class="resp-chip" data-resp="Leo &amp; Pri" aria-pressed="false" onclick="APP.setResp('Leo & Pri')" title="Só contas e receitas compartilhadas">Leo &amp; Pri</button>
+          <button type="button" class="who-btn active" data-resp="" aria-pressed="true" aria-label="Todos" title="Todos" onclick="APP.setResp('')">
+            <span class="who-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span><span class="who-lb" aria-hidden="true">Todos</span>
+          </button>
+          <button type="button" class="who-btn" data-resp="Leo" aria-pressed="false" aria-label="Leo" title="Leo" onclick="APP.setResp('Leo')">
+            <span class="who-av who-leo" aria-hidden="true">L</span><span class="who-lb" aria-hidden="true">Leo</span>
+          </button>
+          <button type="button" class="who-btn" data-resp="Pri" aria-pressed="false" aria-label="Pri" title="Pri" onclick="APP.setResp('Pri')">
+            <span class="who-av who-pri" aria-hidden="true">P</span><span class="who-lb" aria-hidden="true">Pri</span>
+          </button>
+          <button type="button" class="who-btn" data-resp="Leo &amp; Pri" aria-pressed="false" aria-label="Leo &amp; Pri, só compartilhadas" title="Leo &amp; Pri: só contas e receitas compartilhadas" onclick="APP.setResp('Leo & Pri')">
+            <span class="who-duo" aria-hidden="true"><i class="who-leo">L</i><i class="who-pri">P</i></span><span class="who-lb" aria-hidden="true">Leo &amp; Pri</span>
+          </button>
         </div>
         <select class="filter-select resp-global-select" id="respGlobalSelect" aria-label="Filtrar por responsável" onchange="APP.setResp(this.value)">
           <option value="">Todos</option>
@@ -126,17 +143,19 @@
           <option value="Leo &amp; Pri">Leo &amp; Pri</option>
         </select>
         <span class="resp-global-sep" aria-hidden="true"></span>
-        <button class="btn btn-secondary btn-sm" id="btnGerenciarSalarios" style="display:none">👥 Gerenciar Salários</button>
-        <button class="btn btn-secondary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova Receita</span></button>
-        <button class="btn btn-secondary btn-sm" id="btnCSVContas" style="display:none">⬇ Exportar CSV</button>
-        <button class="btn btn-secondary btn-sm" id="btnGerarRec" style="display:none" onclick="APP.openRecorrentes()">🔁 Gerar Recorrentes</button>
-        <button class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Conta</button>
-        <button class="btn btn-ghost btn-sm" id="btnTogglePrivacy" onclick="APP.togglePrivacy()" title="Ocultar valores" style="padding:8px 10px">
-          <svg id="iconPrivacyOn" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <svg id="iconPrivacyOff" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+        <!-- Ações da tela (visibilidade por página em APP.updateTopbarBtns). Secundárias só com ícone;
+             também ficam na busca rápida. -->
+        <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnGerenciarSalarios" style="display:none" title="Gerenciar salários" aria-label="Gerenciar salários"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></button>
+        <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnCSVContas" style="display:none" title="Exportar contas em CSV" aria-label="Exportar contas em CSV"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg></button>
+        <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnGerarRec" style="display:none" onclick="APP.openRecorrentes()" title="Gerar contas recorrentes" aria-label="Gerar contas recorrentes"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova receita</span></button>
+        <button type="button" class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova conta</span></button>
+        <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnTogglePrivacy" onclick="APP.togglePrivacy()" title="Ocultar valores" aria-label="Ocultar valores">
+          <svg id="iconPrivacyOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          <svg id="iconPrivacyOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
-        <button class="btn btn-ghost btn-sm" onclick="AUTH.signOut()" title="Sair" style="padding:8px 10px">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+        <button type="button" class="btn btn-ghost btn-sm tb-icon" onclick="AUTH.signOut()" title="Sair" aria-label="Sair">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
     </header>
@@ -191,5 +210,6 @@
 <script src="js/salarios.js"></script>
 <script src="js/relatorios.js"></script>
 <script src="js/gerenciar.js"></script>
+<script src="js/command-palette.js"></script>
 </body>
 </html>
