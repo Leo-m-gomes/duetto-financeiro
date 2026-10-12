@@ -205,34 +205,37 @@
           <label>Descrição Geral</label>
           <textarea id="ntF_descricao" rows="3" placeholder="Detalhes, contexto ou observações sobre a nota..."></textarea>
         </div>
-        <div class="nt-fg">
-          <label>Tipo *</label>
-          <select id="ntF_tipo">
-            <option value="anotacao">Anotação</option>
-            <option value="acao">Ação</option>
-          </select>
-        </div>
-        <div class="nt-fg">
-          <label>Status *</label>
-          <select id="ntF_status">
-            <option value="ativa">Ativa</option>
-            <option value="concluida">Concluída</option>
-          </select>
-        </div>
-        <!-- Os dois campos abaixo são exclusivos do tipo "Ação".
-             Quando tipo=anotação, recebem display:none via ntApplyTipoUX. -->
-        <div class="nt-fg" id="ntFG_prazo">
-          <label>Prazo *</label>
-          <input type="date" id="ntF_prazo">
-        </div>
-        <div class="nt-fg nt-fg-full" id="ntFG_resp">
-          <label>Responsável *</label>
-          <select id="ntF_resp">
-            <option value="">Selecione...</option>
-            <option value="Leo">Leo</option>
-            <option value="Pri">Pri</option>
-            <option value="Leo & Pri">Leo & Pri</option>
-          </select>
+        <!-- Tipo, Responsável, Status e Prazo numa linha só (2x2 no celular).
+             Responsável e Prazo são exclusivos do tipo "Ação": com tipo=anotação
+             recebem display:none via ntApplyTipoUX e Tipo/Status dividem a linha. -->
+        <div class="nt-fg-full nt-fg-row4">
+          <div class="nt-fg">
+            <label>Tipo *</label>
+            <select id="ntF_tipo">
+              <option value="anotacao">Anotação</option>
+              <option value="acao">Ação</option>
+            </select>
+          </div>
+          <div class="nt-fg" id="ntFG_resp">
+            <label>Responsável *</label>
+            <select id="ntF_resp">
+              <option value="">Selecione...</option>
+              <option value="Leo">Leo</option>
+              <option value="Pri">Pri</option>
+              <option value="Leo & Pri">Leo & Pri</option>
+            </select>
+          </div>
+          <div class="nt-fg">
+            <label>Status *</label>
+            <select id="ntF_status">
+              <option value="ativa">Ativa</option>
+              <option value="concluida">Concluída</option>
+            </select>
+          </div>
+          <div class="nt-fg" id="ntFG_prazo">
+            <label>Prazo *</label>
+            <input type="date" id="ntF_prazo">
+          </div>
         </div>
       </div>
 

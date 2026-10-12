@@ -390,6 +390,9 @@
 }
 .nt-fg-grid{display:grid}
 .nt-fg-full{grid-column:1/-1}
+/* Linha Tipo · Responsável · Status · Prazo: flex divide a largura entre os campos
+   visíveis (4 com tipo Ação, 2 com Anotação). Dimensões nos blocos @media. */
+.nt-fg-row4{display:flex;flex-wrap:wrap}
 .nt-form-section-title{
   font-weight:700;color:var(--palm);text-transform:uppercase;letter-spacing:.8px;
   border-bottom:1px solid var(--border);
@@ -854,6 +857,9 @@
   .nt-modal-body{padding:14px}
   .nt-modal-footer{padding:11px 14px;gap:6px;flex-wrap:wrap}
   .nt-fg-grid{grid-template-columns:1fr;gap:10px}
+  .nt-fg-row4{gap:10px}
+  .nt-fg-row4>.nt-fg{flex:1 1 calc(50% - 5px);min-width:0}
+  .nt-fg-row4 input,.nt-fg-row4 select{min-width:0;width:100%}
   .nt-fg{gap:5px;margin-bottom:0}
   .nt-fg label{font-size:9.5px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:9px 11px;font-size:12.5px}
@@ -964,6 +970,9 @@
   .nt-modal-body{padding:16px 18px}
   .nt-modal-footer{padding:13px 18px;gap:8px;flex-wrap:wrap}
   .nt-fg-grid{grid-template-columns:1fr 1fr;gap:12px}
+  .nt-fg-row4{gap:12px}
+  .nt-fg-row4>.nt-fg{flex:1 1 calc(50% - 6px);min-width:0}
+  .nt-fg-row4 input,.nt-fg-row4 select{min-width:0;width:100%}
   .nt-fg{gap:6px;margin-bottom:0}
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:10px 12px;font-size:13px}
@@ -1075,6 +1084,9 @@
   .nt-modal-body{padding:22px 24px}
   .nt-modal-footer{padding:16px 24px;gap:10px}
   .nt-fg-grid{grid-template-columns:1fr 1fr;gap:14px}
+  .nt-fg-row4{gap:14px}
+  .nt-fg-row4>.nt-fg{flex:1 1 0;min-width:0}
+  .nt-fg-row4 input,.nt-fg-row4 select{min-width:0;width:100%}
   .nt-fg{gap:6px;margin-bottom:0}
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:10px 13px;font-size:13px}
@@ -1182,6 +1194,9 @@
   .nt-modal-body{padding:24px 26px}
   .nt-modal-footer{padding:18px 26px;gap:12px}
   .nt-fg-grid{grid-template-columns:1fr 1fr 1fr;gap:16px}
+  .nt-fg-row4{gap:16px}
+  .nt-fg-row4>.nt-fg{flex:1 1 0;min-width:0}
+  .nt-fg-row4 input,.nt-fg-row4 select{min-width:0;width:100%}
   .nt-fg{gap:7px;margin-bottom:0}
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:11px 14px;font-size:13px}
