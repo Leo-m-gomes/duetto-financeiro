@@ -71,6 +71,21 @@ const CACHE = {
   },
 
   // ── SALÁRIOS E RECEITAS ──
+  /**
+   * Receita líquida de um mês (0-11) para o filtro de responsável: salários da pessoa
+   * + outras receitas pela fatiaReceita ("Ambos" ÷2). Fonte única do Dashboard.
+   * @param {number} m    mês, 0-11
+   * @param {string} resp 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
+   */
+  getReceitaMes(m, resp){
+    let t = 0;
+    this.salarios.forEach(s=>{
+      if(resp && s.pessoa!==resp) return;
+      const h=this.getSalarioMes(s,m); t+=h?h.liquido:0;
+    });
+    this.outras.forEach(r=>{ t += (r.valores[m]||0) * fatiaReceita(r, resp); });
+    return t;
+  },
   getSalarioMes(sal,mes){
     const v=sal.historico.filter(h=>h.mesInicio<=mes).sort((a,b)=>b.mesInicio-a.mesInicio);
     return v[0]||sal.historico[0];

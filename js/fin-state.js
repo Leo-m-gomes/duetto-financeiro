@@ -7,7 +7,7 @@
  *
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
- *   centavos, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
+ *   centavos, fatiaReceita, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
  *   SEED_FORMAS, STATE
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -68,7 +68,9 @@ const isQuitada = c => temPgIndividual(c) ? (!!c.pagamentos.Leo && !!c.pagamento
 
 // Atrasada = vencida e não quitada. Compartilhada com só uma parte paga continua atrasada.
 const isOverdue = c => !!(c.data < today() && !isQuitada(c));
-const vEfetivo  = c => c.vPago > 0 ? c.vPago : c.vPagar;
+// Valor que a conta pesa nas despesas. Compartilhada com só uma parte paga: vPago guarda
+// apenas a parcial, então vale o valor cheio (vPagar) até as duas partes pagarem.
+const vEfetivo  = c => (c.vPago > 0 && !(temPgIndividual(c) && !isQuitada(c))) ? c.vPago : c.vPagar;
 const vPendente = c => {
   if(isQuitada(c)) return 0;
   if(temPgIndividual(c)){
@@ -76,6 +78,20 @@ const vPendente = c => {
     return Math.max(0, (c.vPagar||0) - parcial);
   }
   return c.vPagar||0;
+};
+/**
+ * Fração de uma "outra receita" que pertence ao filtro de responsável.
+ * Mesma regra das contas compartilhadas (÷2): receita "Ambos" (resp vazio) vale metade
+ * para Leo e metade para Pri, então Leo + Pri soma exatamente o total da casa.
+ * @param {Object} r    receita (CACHE.outras)
+ * @param {string} resp 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
+ * @returns {number} 1, 0.5 ou 0
+ */
+const fatiaReceita = (r, resp) => {
+  if(!resp || r.resp === resp) return 1;
+  const compartilhada = !r.resp || r.resp === 'Ambos';
+  if(!compartilhada) return 0;
+  return resp === 'Leo & Pri' ? 1 : 0.5;
 };
 // Valor em reais (float) → centavos inteiros. Some em centavos e divida por 100 só na exibição,
 // para não acumular erro de ponto flutuante (0.1 + 0.2 !== 0.3).
@@ -141,4 +157,5 @@ window.isQuitada = isQuitada;
 window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
 window.centavos  = centavos;
+window.fatiaReceita = fatiaReceita;
 window.filtrarPorResp = filtrarPorResp;
