@@ -31,7 +31,10 @@ Object.assign(APP, {
     if (iconOn) iconOn.style.display = STATE.hideValues ? 'none' : 'block';
     if (iconOff) iconOff.style.display = STATE.hideValues ? 'block' : 'none';
     const btn = document.getElementById('btnTogglePrivacy');
-    if (btn) btn.title = STATE.hideValues ? 'Mostrar valores' : 'Ocultar valores';
+    if (btn) {
+      btn.title = STATE.hideValues ? 'Mostrar valores' : 'Ocultar valores';
+      btn.setAttribute('aria-label', btn.title);
+    }
   }
 
 });

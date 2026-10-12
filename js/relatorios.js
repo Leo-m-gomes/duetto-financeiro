@@ -138,6 +138,7 @@ Object.assign(APP, {
     if(document.getElementById('chkParetoRel')?.checked !== false){
       this.renderPareto('canvasParetoRel','paretoTableRel', data);
     }
+    this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
   exportCSV(){

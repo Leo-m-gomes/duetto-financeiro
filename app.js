@@ -56,14 +56,22 @@ const APP = {
       await ROUTER.injectModals();
     }
     this.nav(); this.topBtns(); this.modals(); this.selects(); this.filtros();
-    this.restoreSidebarState();
+    localStorage.removeItem('dt_sb_collapsed');   // legado: o trilho tem largura fixa
+    // Avatar do usuário logado no trilho (inicial + cor de identidade via data-user)
     const chip=document.getElementById('sbUserChip');
-    if(chip) chip.textContent='👤 '+STATE.usuario;
+    if(chip){
+      chip.textContent=(STATE.usuario||'?').charAt(0).toUpperCase();
+      chip.dataset.user=STATE.usuario;
+      chip.title=STATE.usuario;
+      chip.setAttribute('aria-label','Conectado como '+STATE.usuario);
+    }
     if(STATE.usuario==='Leo'){
       const navCfg=document.getElementById('navConfig');
       if(navCfg) navCfg.style.display='flex';
       const navUp=document.getElementById('navUpload');
       if(navUp) navUp.style.display='flex';
+      const divAdmin=document.getElementById('railDivAdmin');
+      if(divAdmin) divAdmin.style.display='block';
       // Espelha visibilidade nos itens da bottom nav mobile
       const navCfgMob=document.getElementById('navConfigMob');
       if(navCfgMob) navCfgMob.style.display='flex';
@@ -76,32 +84,6 @@ const APP = {
       await ROUTER.navigate('dashboard');
     } else {
       this.renderPage('dashboard');
-    }
-  },
-
-  // ── SIDEBAR ──
-  toggleSidebar(){
-    const isMobile = window.innerWidth <= 768;
-    if(isMobile){
-      this.closeSidebarMobile();
-      return;
-    }
-    const sb=document.getElementById('sidebar');
-    const icon=document.getElementById('sbCollapseIcon');
-    const collapsed=sb.classList.toggle('collapsed');
-    localStorage.setItem('dt_sb_collapsed',collapsed?'1':'0');
-    if(icon) icon.innerHTML=collapsed
-      ?'<polyline points="9 18 15 12 9 6"/>'
-      :'<polyline points="15 18 9 12 15 6"/>';
-  },
-
-  closeSidebarMobile(){
-    const sb      = document.getElementById('sidebar');
-    const overlay = document.getElementById('sidebarOverlay');
-    sb.classList.remove('open');
-    if(overlay) {
-      overlay.classList.remove('visible');
-      setTimeout(() => { overlay.style.display = 'none'; }, 300);
     }
   },
 
@@ -145,20 +127,6 @@ const APP = {
       :'<polyline points="6 9 12 15 18 9"/>';
   },
 
-  restoreSidebarState(){
-    const isMobile = window.innerWidth <= 768;
-    const sb   = document.getElementById('sidebar');
-    const icon = document.getElementById('sbCollapseIcon');
-    if(isMobile){
-      sb.classList.remove('collapsed');
-      return;
-    }
-    if(localStorage.getItem('dt_sb_collapsed')==='1'){
-      sb.classList.add('collapsed');
-      if(icon) icon.innerHTML='<polyline points="9 18 15 12 9 6"/>';
-    }
-  },
-
   // ── NAV ──
   nav(){
     const isShellMode = !!document.getElementById('appMain') && !!window.ROUTER;
@@ -168,23 +136,11 @@ const APP = {
         const page = el.dataset.page;
         document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
         el.classList.add('active');
-        document.getElementById('pageTitle').textContent=(el.querySelector('span')||el).textContent.trim();
+        // data-title: título completo (o rótulo do trilho é curto, ex.: "Config")
+        document.getElementById('pageTitle').textContent=el.dataset.title||(el.querySelector('span')||el).textContent.trim();
         this.updateTopbarBtns(page);
-        const sb = document.getElementById('sidebar'); if(sb) sb.classList.remove('open');
-        const ov = document.getElementById('sidebarOverlay');
-        if(ov){ ov.classList.remove('visible'); setTimeout(()=>{ov.style.display='none';},300); }
         if(isShellMode){ ROUTER.navigate(page); } else { this.renderPage(page); }
       });
-    });
-    const menuToggle = document.getElementById('menuToggle');
-    if(menuToggle) menuToggle.addEventListener('click',()=>{
-      const sb=document.getElementById('sidebar'); const overlay=document.getElementById('sidebarOverlay');
-      if(!sb) return;
-      const isOpen=sb.classList.toggle('open');
-      if(overlay){
-        if(isOpen){ overlay.style.display='block'; requestAnimationFrame(()=>overlay.classList.add('visible')); }
-        else { overlay.classList.remove('visible'); setTimeout(()=>{overlay.style.display='none';},300); }
-      }
     });
   },
 
@@ -212,6 +168,43 @@ const APP = {
       grupo.querySelectorAll('button').forEach(b=>{ b.disabled = !usaResp; });
     }
     if(sel){ sel.disabled = !usaResp; sel.title = dica; }
+  },
+
+  /**
+   * Período exibido na tela atual, mostrado ao lado do título no topbar.
+   * Lê os filtros da própria tela (cada tela tem o seu); período personalizado
+   * tem prioridade sobre ano/mês. Receitas não têm ano (valores mensais valem
+   * para qualquer ano). Telas sem período escondem o selo.
+   * Chamado por renderPage e no fim de cada render com filtro de período.
+   */
+  atualizarContextoTopbar(){
+    const el = document.getElementById('topbarPeriodo');
+    if(!el) return;
+    const val = id => document.getElementById(id)?.value;
+    const rotulo = (p, ano, mes) => {
+      if(p) return p.mesIni===p.mesFim
+        ? `${MESES[p.mesIni]} ${p.ano}`
+        : `${MESES[p.mesIni]} → ${MESES[p.mesFim]} ${p.ano}`;
+      if(ano==null || mes==null) return '';
+      const todosA = ano==='todos', todosM = mes==='todos';
+      if(todosA && todosM) return 'Todo o histórico';
+      if(todosA) return `${MESES[+mes]} · todos os anos`;
+      if(todosM) return `${ano} inteiro`;
+      return `${MESES[+mes]} ${ano}`;
+    };
+    let txt = '';
+    switch(STATE.page){
+      case 'dashboard': txt = rotulo(STATE.periodoDash, val('filtroAnoDash'), val('filtroMesDash')); break;
+      case 'contas':    txt = rotulo(STATE.periodoContas, val('filtroAnoContas'), val('filtroMesContas')); break;
+      case 'relatorio': txt = rotulo(STATE.periodo, val('relAno'), val('relMes')); break;
+      case 'receitas': {
+        const m = val('filtroMesReceitas');
+        txt = m==null ? '' : (m==='todos' ? 'Jan → Dez' : MESES_F[+m]);
+        break;
+      }
+    }
+    el.textContent = txt;
+    el.hidden = !txt;
   },
 
   topBtns(){
@@ -364,6 +357,7 @@ const APP = {
     } catch(err) {
       console.error('[renderPage] Erro ao renderizar ' + p + ':', err);
     }
+    this.atualizarContextoTopbar();
   },
 
   _aplicarTemaResp(resp){
@@ -398,9 +392,9 @@ const APP = {
     }
   },
 
-  // Reflete STATE.resp nos botões e no select do topbar
+  // Reflete STATE.resp nos avatares e no select do topbar
   _sincronizarRespGlobal(){
-    document.querySelectorAll('#respGlobal .resp-chip').forEach(b=>{
+    document.querySelectorAll('#respGlobal [data-resp]').forEach(b=>{
       const on = b.dataset.resp === STATE.resp;
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', String(on));

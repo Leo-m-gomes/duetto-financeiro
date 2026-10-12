@@ -112,6 +112,7 @@ Object.assign(APP, {
 
     this.chartCategoria(contas);this.chartFluxo(baseContas,resp);
     this.renderPareto('canvasParetoDash','paretoTableDash',contas);
+    this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
   /**

@@ -45,7 +45,7 @@
   --cat-4:#eda100; --cat-5:#e87ba4; --cat-6:#008300;
   --cat-rest:#c3c8cf;
   --r:16px; --r-sm:10px;
-  --sw:230px; --sh:60px;
+  --sw:76px; --sh:60px;   /* --sw: largura do trilho de navegação (css/shell.css) */
   /* ── DESIGN TOKENS DE ESPAÇAMENTO (v1.1) ──
      Tokens unificados aplicados como referência global. Os tokens em si são
      constantes (não dimensões aplicadas), portanto válidos em :root conforme R2/R3.
@@ -70,6 +70,7 @@
   --ui-z-toast:    9999;  /* toast: acima de tudo */
   --ui-z-screen:   9000;  /* loading overlay full-screen */
   --ui-z-submodal: 1100;  /* sub-modal sobre modal */
+  --ui-z-palette:  1050;  /* busca rápida Ctrl K (abre e fecha antes dos modais) */
   --ui-z-modal:    1000;  /* modais principais */
   --ui-z-sidebar:   200;  /* sidebar e overlays mobile */
   --ui-z-topbar:    100;  /* topbar (acima de thead sticky) */

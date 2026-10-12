@@ -106,6 +106,7 @@ Object.assign(APP, {
       const info=document.createElement('span');info.style.cssText='font-size:11px;color:var(--t4);margin-left:8px';
       info.textContent=`${start+1}–${Math.min(start+STATE.pgSz,data.length)} de ${data.length}`;pgEl.appendChild(info);
     }
+    this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
   atualizarDiffPagamento(){
