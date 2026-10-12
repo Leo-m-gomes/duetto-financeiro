@@ -410,17 +410,34 @@
 .resp-chip{padding:5px 13px;border-radius:var(--ui-radius-pill);border:1.5px solid var(--border2);background:var(--surface);color:var(--t3);font-size:12px;font-weight:600;cursor:pointer;transition:.15s}
 .resp-chip:hover{border-color:var(--palm);color:var(--palm)}
 .resp-chip.active{background:var(--palm);color:#fff;border-color:var(--palm)}
+.resp-chip:disabled{cursor:not-allowed}
+
+/* ── Filtro global de responsável (topbar) ──
+   Botões acima de 1100px; select compacto no tablet/celular, onde o topbar não comporta 4 botões.
+   Nas telas que não usam o filtro (Notas, Upload, Backup) fica desativado e esmaecido. */
+.resp-global{display:flex;gap:4px;align-items:center}
+.resp-global .resp-chip{padding:4px 11px;font-size:11.5px}
+.resp-global[aria-disabled="true"],.resp-global-select:disabled{opacity:.45}
+.resp-global[aria-disabled="true"] .resp-chip:hover{border-color:var(--border2);color:var(--t3)}
+#topbarBtns .resp-global-select{display:none;width:auto;min-width:0;padding:6px 26px 6px 10px;font-size:12px;font-weight:600}
+.resp-global-sep{width:1px;height:22px;background:var(--border);margin:0 4px}
+@media(max-width:1100px){
+  .resp-global{display:none}
+  #topbarBtns .resp-global-select{display:block}
+}
+@media(max-width:640px){
+  .resp-global-sep{display:none}
+  #topbarBtns .resp-global-select{padding:7px 22px 7px 8px;max-width:96px;font-size:12px}
+}
 
 /* ── DASHBOARD FILTERS (desktop) ── */
 .dash-filters{margin-bottom:16px}
 .dash-filters-top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
-.dash-filters-resp{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
 /* Toggle button: hidden via .mob-filter-toggle base class */
 /* Body: always visible on desktop. Período e responsável na MESMA linha
    (economiza espaço vertical); quebra só se faltar largura. O mobile
    (media query abaixo) volta a empilhar. */
 .dash-filters-body{display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 16px}
-.dash-filters-body > .dash-filters-resp{padding-left:16px;border-left:1px solid var(--border)}
 
 /* ── UPLOAD CARDS PAGE ── */
 #page-upload .page-inner{width:100%;box-sizing:border-box}
@@ -632,10 +649,8 @@
   .dash-filters-body.dash-filters-open{display:flex}
   .dash-filters{margin-bottom:0}
   .dash-filters-top{flex-direction:column;align-items:stretch;gap:8px;margin-bottom:8px}
-  .dash-filters-body > .dash-filters-resp{padding-left:0;border-left:none}
   .dash-filters-top .filter-select{width:100%;font-size:14px;padding:11px 14px}
   .dash-filters-top .btn-sm{width:100%;justify-content:center;padding:10px 14px}
-  .dash-filters-resp{gap:8px;flex-wrap:wrap}
   .resp-chip{padding:7px 16px;font-size:13px}
 
   /* Item 1: KPIs em grade 2x2 — altura uniforme entre todos os cards */

@@ -200,6 +200,18 @@ const APP = {
     const show=id=>{ const b=document.getElementById(id); if(b) b.style.display='flex'; };
     if(page==='contas'){ show('btnNovaConta'); show('btnGerarRec'); show('btnCSVContas'); }
     if(page==='receitas'){ show('btnNovaReceita'); show('btnGerenciarSalarios'); }
+
+    // Filtro global de responsável: desativado nas telas que não o usam (Notas, Upload, Backup)
+    const usaResp = ['dashboard','contas','receitas','relatorio','config'].includes(page);
+    const grupo = document.getElementById('respGlobal');
+    const sel   = document.getElementById('respGlobalSelect');
+    const dica  = usaResp ? 'Filtrar por responsável' : 'O filtro de responsável não se aplica a esta tela';
+    if(grupo){
+      grupo.setAttribute('aria-disabled', String(!usaResp));
+      grupo.title = dica;
+      grupo.querySelectorAll('button').forEach(b=>{ b.disabled = !usaResp; });
+    }
+    if(sel){ sel.disabled = !usaResp; sel.title = dica; }
   },
 
   topBtns(){
@@ -284,7 +296,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=>{ STATE.periodoDash=null; self._atualizarPeriodoBadge('dashboard',null); self.renderDashboard(); };
     });
-    ['searchContas','filtroAnoContas','filtroMesContas','filtroRespContas','filtroCatContas','filtroFormaContas','filtroStatus','filtroRecorrente'].forEach(id=>{
+    ['searchContas','filtroAnoContas','filtroMesContas','filtroCatContas','filtroFormaContas','filtroStatus','filtroRecorrente'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{
         if(id==='filtroAnoContas'||id==='filtroMesContas'){ STATE.periodoContas=null; self._atualizarPeriodoBadge('contas',null); }
@@ -292,7 +304,7 @@ const APP = {
         STATE.pg=1; self.renderContas();
       };
     });
-    ['searchReceitas','filtroMesReceitas','filtroRespReceitas','filtroTipoReceitas'].forEach(id=>{
+    ['searchReceitas','filtroMesReceitas','filtroTipoReceitas'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{ STATE.pgReceitas=1; self.renderReceitas(); };
     });
@@ -300,7 +312,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=>{ STATE.periodo=null; self._atualizarPeriodoBadge('relatorio',null); self.renderRelatorio(); };
     });
-    ['relCat','relForma','relResp','relStatus'].forEach(id=>{
+    ['relCat','relForma','relStatus'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.onchange = ()=> self.renderRelatorio();
     });
@@ -361,13 +373,40 @@ const APP = {
     else if(resp==='Leo') root.classList.add('theme-leo');
   },
 
-  setRespDash(r){
-    STATE.dashResp=r;
-    document.querySelectorAll('#rc-todos,#rc-leo,#rc-pri').forEach(b=>{b.classList.remove('active');});
-    const ids={'':'rc-todos','Leo':'rc-leo','Pri':'rc-pri'};
-    document.getElementById(ids[r])?.classList.add('active');
-    this._aplicarTemaResp(r);
-    this.renderDashboard();
+  /**
+   * Filtro global de responsável (topbar). Atualiza o estado, os controles e o tema,
+   * e redesenha a tela atual se ela usar o filtro. Modais não são afetados.
+   * @param {string} r '', 'Leo', 'Pri' ou 'Leo & Pri'
+   */
+  setResp(r){
+    STATE.resp = r || '';
+    this._sincronizarRespGlobal();
+    this._aplicarTemaResp(STATE.resp);
+    const rerender = {
+      dashboard: ()=>this.renderDashboard(),
+      contas:    ()=>{ STATE.pg=1; this.renderContas(); this.atualizarBarraPagamento?.(); },
+      receitas:  ()=>{ STATE.pgReceitas=1; this.renderReceitas(); },
+      relatorio: ()=>this.renderRelatorio(),
+      config:    ()=>{
+        // Logs só recarregam se a aba estiver visível (cada carga lê o Firestore)
+        if(document.getElementById('cfgLogBody')?.offsetParent) this.cfgCarregarLog();
+        if(document.getElementById('cfgLogAcessoBody')?.offsetParent) this.cfgCarregarLogAcesso();
+      },
+    }[STATE.page];
+    if(rerender){
+      try { rerender(); } catch(err){ console.error('[setResp] Erro ao redesenhar '+STATE.page+':', err); }
+    }
+  },
+
+  // Reflete STATE.resp nos botões e no select do topbar
+  _sincronizarRespGlobal(){
+    document.querySelectorAll('#respGlobal .resp-chip').forEach(b=>{
+      const on = b.dataset.resp === STATE.resp;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', String(on));
+    });
+    const sel = document.getElementById('respGlobalSelect');
+    if(sel) sel.value = STATE.resp;
   },
 
   filtrarAtrasadas(){

@@ -133,7 +133,9 @@ const SEED_FORMAS = ['Automático','Boleto','Cartão Banescard Chica','Cartão f
 // ── ESTADO GLOBAL ──
 const STATE = {
   page:'dashboard', pg:1, pgSz:20,
-  dashResp:'', editContaId:null, editSalPessoa:null,
+  // Filtro global de responsável (topbar): '', 'Leo', 'Pri' ou 'Leo & Pri'. Vale para
+  // Dashboard, Contas, Receitas, Relatório e logs da Config; não se aplica a Notas nem a modais.
+  resp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
   periodo:null, periodoDash:null, periodoContas:null, periodoTela:null,
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),

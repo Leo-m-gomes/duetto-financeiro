@@ -57,7 +57,7 @@ Object.assign(APP, {
     // Modo de baixa das contas compartilhadas (Leo & Pri), congelado na abertura:
     //   filtro 'Leo'/'Pri'        → baixa apenas da parte do responsável filtrado
     //   filtro vazio/'Leo & Pri'  → baixa integral (as duas partes)
-    const filtro = document.getElementById('filtroRespContas')?.value || '';
+    const filtro = STATE.resp || '';   // filtro global do topbar
     const respParte = (filtro==='Leo'||filtro==='Pri') ? filtro : '';
 
     let temCompartilhada = false;

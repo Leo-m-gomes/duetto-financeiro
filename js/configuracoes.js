@@ -195,7 +195,7 @@ Object.assign(APP, {
 
   // ── LOG DE ATIVIDADES ──
   cfgLimparFiltrosLog(){
-    ['logDataIni','logDataFim','logResp','logEvento'].forEach(id=>{
+    ['logDataIni','logDataFim','logEvento'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
     this.cfgCarregarLog();
@@ -210,7 +210,8 @@ Object.assign(APP, {
     // Ler filtros
     const dataIni  = document.getElementById('logDataIni')?.value  || '';
     const dataFim  = document.getElementById('logDataFim')?.value  || '';
-    const respFilt = document.getElementById('logResp')?.value     || '';
+    // Pessoa vem do filtro global do topbar ('Leo & Pri' = ações de qualquer um dos dois)
+    const respFilt = STATE.resp === 'Leo & Pri' ? '' : (STATE.resp || '');
     const evFilt   = document.getElementById('logEvento')?.value   || '';
 
     // ── Busca: sem filtros de período = limite 50 / com período = busca tudo
@@ -312,7 +313,7 @@ Object.assign(APP, {
 
   // ── LOG DE ACESSO ──
   cfgLimparFiltrosLogAcesso(){
-    ['logAcessoDataIni','logAcessoDataFim','logAcessoResp'].forEach(id=>{
+    ['logAcessoDataIni','logAcessoDataFim'].forEach(id=>{
       const el=document.getElementById(id); if(el) el.value='';
     });
     this.cfgCarregarLogAcesso();
@@ -326,7 +327,7 @@ Object.assign(APP, {
 
     const dataIni  = document.getElementById('logAcessoDataIni')?.value  || '';
     const dataFim  = document.getElementById('logAcessoDataFim')?.value  || '';
-    const respFilt = document.getElementById('logAcessoResp')?.value     || '';
+    const respFilt = STATE.resp === 'Leo & Pri' ? '' : (STATE.resp || '');   // filtro global do topbar
 
     const temPeriodo = dataIni || dataFim;
     const snap = await fbDb.collection('logs_acesso')
