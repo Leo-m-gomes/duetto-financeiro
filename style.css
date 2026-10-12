@@ -122,6 +122,44 @@
 .chart-header h3{font-family:var(--font-d);font-size:13.5px;font-weight:700;color:var(--t1)}
 .chart-container{position:relative;height:220px;width:100%}
 .chart-container canvas{position:absolute;top:0;left:0}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ── DESPESAS POR CATEGORIA (donut + tabela) ──
+   Cores das fatias: tokens --cat-* (theme.css), lidos pelo JS a cada render.
+   Valores com .money: o modo privacidade borra sem código extra.
+   O donut encolhe com o cartão (cqi) e empilha sobre a tabela em cartões estreitos. */
+.cat-card{container-type:inline-size}
+.cat-layout{display:grid;grid-template-columns:150px minmax(0,1fr);grid-template-columns:clamp(116px,34cqi,168px) minmax(0,1fr);gap:20px;align-items:center}
+.cat-layout[hidden]{display:none}
+.cat-donut{position:relative;width:100%;aspect-ratio:1/1;container-type:inline-size}
+.cat-donut canvas{position:absolute;inset:0}
+.cat-donut-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;pointer-events:none;text-align:center}
+.cat-dc-l{font-size:10px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--t3)}
+.cat-dc-v{font-size:13px;font-size:clamp(10px,8cqi,14px);font-weight:600;color:var(--t1);white-space:nowrap}
+.cat-legend{width:100%;border-collapse:collapse;font-size:12.5px}
+.cat-legend td{padding:5px 6px;border-bottom:1px solid var(--border);color:var(--t1)}
+.cat-legend tr:last-child td{border-bottom:0}
+.cat-legend td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cat-legend td.cat-pct{width:3.6em;color:var(--t3)}
+.cat-legend tr.cat-row.is-active td{background:var(--hover)}
+.cat-legend tr.cat-sub td{font-size:12px;color:var(--t3)}
+.cat-legend tr.cat-sub td:first-child{padding-left:24px}
+.cat-legend tr.cat-total td{font-weight:600;border-top:1px solid var(--border2)}
+.cat-nome{display:flex;align-items:center;gap:8px;min-width:0}
+.cat-txt{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cat-sw{flex:none;width:10px;height:10px;border-radius:50%}
+.cat-disc{display:inline-flex;align-items:center;gap:6px;min-width:0;padding:0;border:0;background:none;font:inherit;color:inherit;cursor:pointer}
+.cat-disc .cat-chev{flex:none;font-size:9px;color:var(--t3);transition:transform var(--transition)}
+.cat-disc[aria-expanded="true"] .cat-chev{transform:rotate(90deg)}
+.cat-disc:focus-visible{outline:2px solid var(--palm);outline-offset:2px;border-radius:4px}
+.cat-empty{padding:48px 0;text-align:center;color:var(--t4);font-size:13px}
+@container (max-width:340px){
+  .cat-layout{grid-template-columns:1fr}
+  .cat-donut{width:160px;margin-inline:auto}
+}
+
+/* Nota "inclui atrasadas de meses anteriores" no cabeçalho de Pendentes do Mês */
+.pend-ant-note{margin-right:auto;font-size:11.5px;font-weight:500;color:var(--orange)}
 
 /* ── TABLE ── (regras base movidas para tables.css — DUP-005) */
 

@@ -25,11 +25,7 @@ Object.assign(APP, {
     else if(ano!=='todos'&&mes!=='todos') mergeRef={y:parseInt(ano),m:parseInt(mes)};
     if(mergeRef){
       const ids=new Set(data.map(c=>c.id));
-      CACHE.getOverdue().forEach(c=>{
-        if(ids.has(c.id))return;
-        const d=new Date(c.data+'T12:00');
-        if(d.getFullYear()<mergeRef.y||(d.getFullYear()===mergeRef.y&&d.getMonth()<mergeRef.m))data.push(c);
-      });
+      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
     }
 
     if(search)  data = data.filter(c=>{

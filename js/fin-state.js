@@ -7,7 +7,7 @@
  *
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
- *   filtrarPorResp, getChartColors, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
+ *   centavos, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
  *   SEED_FORMAS, STATE
  * ═══════════════════════════════════════════════════════════════════════════
  */
@@ -19,13 +19,7 @@ const MESES_F = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','
 const COLORS  = ['#006437','#00a85a','#d97706','#dc2626','#2563eb','#7c3aed','#0891b2','#ea580c','#65a30d','#64748b'];
 
 // ── CHART.JS DUAL-THEME (M03) ──
-function getChartColors() {
-  const dark = document.documentElement.classList.contains('dark');
-  return dark
-    ? ['#32d74b','#0a84ff','#ff9f0a','#ff453a','#bf5af2','#64d2ff','#ffd60a','#30d158','#5e5ce6','#ac8c00']
-    : ['#006437','#2563eb','#d97706','#dc2626','#7c3aed','#0891b2','#ea580c','#65a30d','#4f46e5','#64748b'];
-}
-
+// A paleta categórica fica em css/theme.css (--cat-1..6, --cat-rest); ver APP.chartCategoria.
 function getChartDefaults() {
   const dark = document.documentElement.classList.contains('dark');
   return {
@@ -83,6 +77,9 @@ const vPendente = c => {
   }
   return c.vPagar||0;
 };
+// Valor em reais (float) → centavos inteiros. Some em centavos e divida por 100 só na exibição,
+// para não acumular erro de ponto flutuante (0.1 + 0.2 !== 0.3).
+const centavos = v => Math.round((Number(v)||0) * 100);
 
 /**
  * DUP-004: helper centralizado para filtrar contas por responsável
@@ -143,4 +140,5 @@ window.isOverdue = isOverdue;
 window.isQuitada = isQuitada;
 window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
+window.centavos  = centavos;
 window.filtrarPorResp = filtrarPorResp;
