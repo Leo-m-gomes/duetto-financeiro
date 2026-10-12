@@ -48,6 +48,16 @@ const CACHE = {
     });
   },
   getOverdue(){ return this.contas.filter(isOverdue); },
+  /**
+   * Contas vencidas e não quitadas com vencimento ANTES do mês de referência.
+   * Fonte única da regra "atrasadas de meses anteriores" (Dashboard, Contas, Relatório).
+   * @param {number} ano  ano de referência
+   * @param {number} mes  mês de referência, 0-11
+   */
+  getOverdueAntesDe(ano, mes){
+    const inicio = `${ano}-${String(mes+1).padStart(2,'0')}-01`;
+    return this.contas.filter(c => isOverdue(c) && c.data < inicio);
+  },
   getByGrupo(grupo){ return this.contas.filter(c=>c.grupo===grupo).sort((a,b)=>a.data.localeCompare(b.data)); },
   getContasFiltradas(mes, resp, ano){
     const all = mes===null ? [...this.contas] : this.getByMes(mes, ano);

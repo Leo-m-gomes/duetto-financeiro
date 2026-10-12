@@ -15,6 +15,8 @@ Object.assign(APP, {
     STATE.darkMode = !STATE.darkMode;
     document.documentElement.classList.toggle('dark', STATE.darkMode);
     localStorage.setItem('dt_dark', STATE.darkMode ? '1' : '0');
+    // Canvas não lê variáveis CSS sozinho: redesenha os gráficos com as cores do novo tema
+    if (STATE.page === 'dashboard' && typeof this.renderDashboard === 'function') this.renderDashboard();
   },
 
   initDark() {

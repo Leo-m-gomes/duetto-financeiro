@@ -78,11 +78,7 @@ Object.assign(APP, {
     else if(!todosAnos&&!todosMeses) mergeRef={y:parseInt(anoVal),m:parseInt(mesVal)};
     if(mergeRef){
       const ids=new Set(data.map(c=>c.id));
-      CACHE.getOverdue().forEach(c=>{
-        if(ids.has(c.id))return;
-        const d=new Date(c.data+'T12:00');
-        if(d.getFullYear()<mergeRef.y||(d.getFullYear()===mergeRef.y&&d.getMonth()<mergeRef.m))data.push(c);
-      });
+      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
     }
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));

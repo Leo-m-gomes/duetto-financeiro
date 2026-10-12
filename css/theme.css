@@ -37,6 +37,13 @@
   --green:   #16a34a; --green-lt:  #f0fdf4;
   --yellow:  #d97706; --yellow-lt: #fffbeb;
   --t1:#0f1f14; --t2:#374151; --t3:#6b7280; --t4:#9ca3af;
+  /* ── Paleta categórica dos gráficos (ordem fixa, não reciclar) ──
+     Validada para daltonismo (protan/deutan) entre vizinhas e contra --surface.
+     --cat-rest é o agrupamento "Demais". Abaixo de 3:1 no claro (3, 4, 5):
+     por isso todo gráfico que usa a paleta mostra nome e valor em texto. */
+  --cat-1:#2a78d6; --cat-2:#eb6834; --cat-3:#1baf7a;
+  --cat-4:#eda100; --cat-5:#e87ba4; --cat-6:#008300;
+  --cat-rest:#c3c8cf;
   --r:16px; --r-sm:10px;
   --sw:230px; --sh:60px;
   /* ── DESIGN TOKENS DE ESPAÇAMENTO (v1.1) ──
@@ -136,4 +143,9 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   --orange-lt:rgba(255,159,10,.12);
   --green:   #32d74b;
   --green-lt:rgba(50,215,75,.12);
+
+  /* Paleta categórica: mesmos matizes, passos escolhidos para a superfície escura */
+  --cat-1:#3987e5; --cat-2:#d95926; --cat-3:#199e70;
+  --cat-4:#c98500; --cat-5:#d55181; --cat-6:#008300;
+  --cat-rest:#aeaeb2;
 }

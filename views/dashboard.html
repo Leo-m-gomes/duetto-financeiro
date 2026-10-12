@@ -14,6 +14,8 @@
      rc-todos, rc-leo, rc-pri, dashInfoBanner, kpiGrid, insightBar,
      pendentesCount, tblPendentes, tbodyPendentes, canvasCategoria,
      canvasFluxo, canvasParetoDash, paretoTableDash.
+   • IDs novos: pendentesAntNote (atrasadas de meses anteriores),
+     catLayout, catTotal, tbodyCatLegend, catEmpty (cartão de categorias).
    • Classes preservadas: page, page-inner, dash-page-inner, dash-filters,
      dash-order-* (ordem mobile), kpi-grid, insight-bar, section-card,
      dash-pendentes-card, charts-row, chart-card, pareto-card, pareto-layout.
@@ -57,13 +59,23 @@
 
     <!-- PENDENTES, primeiro no mobile (item 2) -->
     <div class="section-card dash-pendentes-card dash-order-pendentes">
-      <div class="section-header"><h3>Pendentes do Mês</h3><span class="badge-n" id="pendentesCount">0</span></div>
+      <div class="section-header"><h3>Pendentes do Mês</h3><span class="pend-ant-note" id="pendentesAntNote" hidden></span><span class="badge-n" id="pendentesCount">0</span></div>
       <div class="table-wrap"><table class="data-table" id="tblPendentes"><thead><tr><th>Descrição</th><th>Responsável</th><th>Categoria</th><th>Vencimento</th><th>Valor</th><th>Status</th></tr></thead><tbody id="tbodyPendentes"></tbody></table></div>
     </div>
 
     <!-- GRÁFICOS, depois dos pendentes no mobile (item 2) -->
     <div class="charts-row dash-order-charts">
-      <div class="chart-card"><div class="chart-header"><h3>Despesas por Categoria</h3></div><div class="chart-container"><canvas id="canvasCategoria"></canvas></div></div>
+      <div class="chart-card cat-card">
+        <div class="chart-header"><h3>Despesas por Categoria</h3></div>
+        <div class="cat-layout" id="catLayout">
+          <div class="cat-donut">
+            <canvas id="canvasCategoria" role="img" aria-label="Despesas por categoria"></canvas>
+            <div class="cat-donut-center" aria-hidden="true"><span class="cat-dc-l">Total</span><span class="cat-dc-v money" id="catTotal"></span></div>
+          </div>
+          <table class="cat-legend"><caption class="sr-only">Despesas por categoria no período</caption><tbody id="tbodyCatLegend"></tbody></table>
+        </div>
+        <p class="cat-empty" id="catEmpty" hidden>Nenhuma despesa no período.</p>
+      </div>
       <div class="chart-card"><div class="chart-header"><h3>Receita × Despesa</h3></div><div class="chart-container"><canvas id="canvasFluxo"></canvas></div></div>
     </div>
 

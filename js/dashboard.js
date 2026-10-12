@@ -53,16 +53,31 @@ Object.assign(APP, {
     const mesLabel = todosMeses ? 'Ano completo' : MESES_F[mes];
     const periodoLabel = `${anoLabel} · ${mesLabel}`;
 
-    const atrasadasAll=CACHE.getOverdue();
-    const atrasadas=resp ? atrasadasAll.filter(c=>c.resp===resp||c.resp==='Leo & Pri') : atrasadasAll;
+    // Vencidas e não pagas de meses anteriores ao mês de referência (mesma regra de Contas e
+    // Relatório: só com mês específico ou período). Entram no que falta pagar (KPI Pendente,
+    // tabela de pendentes), mas NÃO em Total Despesas nem no Saldo: esses seguem o mês de
+    // vencimento, e a conta já pesou no mês dela; somar de novo seria contar duas vezes.
+    const mergeRef = p ? {y:p.ano, m:p.mesIni} : (!todosAnos && !todosMeses ? {y:ano, m:mes} : null);
+    const anteriores = mergeRef
+      ? filtrarPorResp(CACHE.getOverdueAntesDe(mergeRef.y, mergeRef.m), resp).filter(c=>!isQuitada(c))
+      : [];
+    const pendPeriodoCent   = contas.reduce((s,c)=>s+centavos(vPendente(c)),0);
+    const pendAnterioresCent= anteriores.reduce((s,c)=>s+centavos(vPendente(c)),0);
+    const pendTotal = [...anteriores, ...pendList].sort((a,b)=>a.data.localeCompare(b.data));
+
+    // Alerta: todas as atrasadas (qualquer mês), com o valor que falta pagar (÷2 quando filtrado)
+    const atrasadas = filtrarPorResp(CACHE.getOverdue(), resp).filter(c=>!isQuitada(c));
+    const atrasadasCent = atrasadas.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const banner=document.getElementById('dashInfoBanner');
-    if(atrasadas.length>0){banner.style.display='flex';banner.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso!</strong> Clique para ver → ${atrasadas.slice(0,2).map(c=>c.conta).join(', ')}${atrasadas.length>2?'...':''}`;}
+    if(atrasadas.length>0){banner.style.display='flex';banner.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso (<span class="money">${fmt(atrasadasCent/100)}</span>)!</strong> Clique para ver → ${atrasadas.slice(0,2).map(c=>c.conta).join(', ')}${atrasadas.length>2?'...':''}`;}
     else banner.style.display='none';
 
+    const pendSub = `${pendTotal.length} contas`
+      + (anteriores.length ? `<br>${fmt(pendAnterioresCent/100)} de meses anteriores` : '');
     const kpis=[
       {label:'Receita',val:fmt(recMes),sub:periodoLabel+(resp?` — ${resp}`:''),icon:'📈',c:'var(--palm)',hero:false},
       {label:'Total Despesas',val:fmt(totP),sub:`${contas.length} contas`,icon:'📋',c:'var(--blue)',hero:false},
-      {label:'Pendente',val:fmt(totPend),sub:`${pendList.length} contas`,icon:'⏳',c:'var(--red)',hero:false},
+      {label:'Pendente',val:fmt((pendPeriodoCent+pendAnterioresCent)/100),sub:pendSub,icon:'⏳',c:'var(--red)',hero:false},
       {label:'Saldo',val:fmt(saldo),sub:saldo>=0?'✅ Positivo':'⚠️ Atenção',icon:saldo>=0?'💰':'📉',c:saldo>=0?'var(--palm)':'var(--red)',hero:true}
     ];
     document.getElementById('kpiGrid').innerHTML=kpis.map(k=>`<div class="kpi-card${k.hero?' kpi-hero':''}" style="--kc:${k.c}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.c}">${k.val}</div><div class="kpi-sub">${k.sub}</div><div class="kpi-icon">${k.icon}</div></div>`).join('');
@@ -70,8 +85,20 @@ Object.assign(APP, {
     // ── INSIGHTS automáticos ──
     this._renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas);
 
-    document.getElementById('pendentesCount').textContent=pendList.length;
-    document.getElementById('tbodyPendentes').innerHTML=pendList.slice(0,8).map(c=>{
+    // Pendentes: atrasadas de meses anteriores primeiro (mais antigas no topo), depois as do período
+    const PEND_MAX = 8;
+    document.getElementById('pendentesCount').textContent=pendTotal.length;
+    const antNote=document.getElementById('pendentesAntNote');
+    if(antNote){
+      antNote.hidden = !anteriores.length;
+      antNote.innerHTML = anteriores.length
+        ? `inclui ${anteriores.length} de meses anteriores · <span class="money">${fmt(pendAnterioresCent/100)}</span>`
+        : '';
+    }
+    const pendMais = pendTotal.length>PEND_MAX
+      ? `<tr><td colspan="6" style="text-align:center;padding:12px;font-size:12px;color:var(--t3)">Mostrando ${PEND_MAX} de ${pendTotal.length} · <a href="#" onclick="APP.goPage('contas');return false" style="color:var(--palm);font-weight:600">Ver todas em Contas</a></td></tr>`
+      : '';
+    document.getElementById('tbodyPendentes').innerHTML=pendTotal.slice(0,PEND_MAX).map(c=>{
       const atr=isOverdue(c);const catNome=CACHE.resolveCat(c.catId||c.cat);
       return`<tr class="mob-card pend-mob-row">
         <td data-label="Descrição"><strong>${c.conta}</strong>${c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':''}</td>
@@ -83,9 +110,9 @@ Object.assign(APP, {
           <span class="badge ${atr?'bg-atr':'bg-pend'}">${atr?'● Atrasado':'● Pendente'}</span>
         </td>
       </tr>`;
-    }).join('')||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
+    }).join('')+pendMais||'<tr><td colspan="6" style="text-align:center;padding:28px;color:var(--t4)">Nenhuma pendência 🎉</td></tr>';
 
-    this.chartCategoria(mes,resp,baseContas);this.chartFluxo(baseContas,resp);
+    this.chartCategoria(contas);this.chartFluxo(baseContas,resp);
     this.renderPareto('canvasParetoDash','paretoTableDash',contas);
   },
 
@@ -150,57 +177,126 @@ Object.assign(APP, {
       : '';
   },
 
-  chartCategoria(mes,resp,baseContas){
-    const dark = document.documentElement.classList.contains('dark');
-    const textColor  = dark ? 'rgba(235,235,245,.85)' : '#374151';
-    const borderColor = dark ? '#2c2c2e' : '#fff';
-    const base = baseContas || CACHE.contas;
-    let src = mes===null ? base : base.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
-    const contas = resp ? filtrarPorResp(src, resp) : [...src];
-    const map={};contas.forEach(c=>{const n=CACHE.resolveCat(c.catId||c.cat);map[n]=(map[n]||0)+vEfetivo(c);});
-    const sorted=Object.entries(map).sort((a,b)=>b[1]-a[1]).slice(0,9);
-    const total = sorted.reduce((s,[,v])=>s+v,0);
-    // M03: paleta adaptada ao tema (claro/escuro), garantindo contraste no dark
-    const chartColors = getChartColors();
-    this.mkChart('canvasCategoria',{
+  /**
+   * Despesas por Categoria: donut + tabela HTML (nome, valor, %).
+   *  • Até 6 categorias: uma fatia cada. Acima disso: as 5 maiores + "Demais" (cinza),
+   *    que abre na tabela para mostrar as categorias agrupadas.
+   *  • Percentuais sobre o total de TODAS as categorias, calculado antes do agrupamento.
+   *  • Somas em centavos inteiros.
+   *  • Cores das fatias vêm dos tokens --cat-* (theme.css). Textos e valores ficam no HTML,
+   *    então seguem o tema e o modo privacidade (.money) sem código extra.
+   * @param {Array} contas contas do período, já filtradas por responsável (÷2 aplicado)
+   */
+  chartCategoria(contas){
+    const MAX_FATIAS = 6;
+    const layout = document.getElementById('catLayout');
+    const vazio  = document.getElementById('catEmpty');
+    const tbody  = document.getElementById('tbodyCatLegend');
+    const canvas = document.getElementById('canvasCategoria');
+    if(!layout || !tbody || !canvas) return;
+
+    const porCat = {};
+    contas.forEach(c=>{
+      const nome = CACHE.resolveCat(c.catId||c.cat);
+      porCat[nome] = (porCat[nome]||0) + centavos(vEfetivo(c));
+    });
+    const ordenadas = Object.entries(porCat)
+      .filter(([,v])=>v>0)
+      .sort((a,b)=>b[1]-a[1])
+      .map(([nome,v])=>({nome,v}));
+    const total = ordenadas.reduce((s,d)=>s+d.v,0);
+
+    if(!total){
+      if(STATE.charts.canvasCategoria){ STATE.charts.canvasCategoria.destroy(); delete STATE.charts.canvasCategoria; }
+      layout.hidden = true;
+      if(vazio) vazio.hidden = false;
+      return;
+    }
+    layout.hidden = false;
+    if(vazio) vazio.hidden = true;
+
+    const resto  = ordenadas.length > MAX_FATIAS ? ordenadas.slice(MAX_FATIAS-1) : [];
+    const fatias = resto.length
+      ? [...ordenadas.slice(0,MAX_FATIAS-1), {nome:`Demais (${resto.length})`, v:resto.reduce((s,d)=>s+d.v,0), resto}]
+      : ordenadas;
+    const corVar = (f,i) => f.resto ? '--cat-rest' : `--cat-${i+1}`;
+
+    const loc   = typeof MONEY_CFG!=='undefined' ? MONEY_CFG.locale : 'pt-BR';
+    const pct   = v => (Math.round(v*1000/total)/10).toLocaleString(loc,{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+    const valor = v => fmt(v/100);
+    const esc   = s => this._escHtml(s);
+    const aberto = !!this._catDemaisAberto;
+
+    // ── Tabela (legenda) ──
+    tbody.innerHTML = fatias.map((f,i)=>{
+      const sw = `<span class="cat-sw" style="background:var(${corVar(f,i)})"></span>`;
+      const nome = f.resto
+        ? `<button type="button" class="cat-disc" aria-expanded="${aberto}"><span class="cat-chev" aria-hidden="true">▶</span><span class="cat-txt">${esc(f.nome)}</span></button>`
+        : `<span class="cat-txt" title="${esc(f.nome)}">${esc(f.nome)}</span>`;
+      const linha = `<tr class="cat-row" data-i="${i}"><td><span class="cat-nome">${sw}${nome}</span></td><td class="num money">${valor(f.v)}</td><td class="num cat-pct">${pct(f.v)}</td></tr>`;
+      const subs = (f.resto||[]).map(r=>
+        `<tr class="cat-sub"${aberto?'':' hidden'}><td><span class="cat-txt" title="${esc(r.nome)}">${esc(r.nome)}</span></td><td class="num money dim">${valor(r.v)}</td><td class="num cat-pct">${pct(r.v)}</td></tr>`
+      ).join('');
+      return linha + subs;
+    }).join('') + `<tr class="cat-total"><td>Total</td><td class="num money">${valor(total)}</td><td class="num cat-pct">${pct(total)}</td></tr>`;
+
+    const totalEl = document.getElementById('catTotal');
+    if(totalEl) totalEl.textContent = valor(total);
+    canvas.setAttribute('aria-label', 'Despesas por categoria: ' + fatias.map(f=>`${f.nome} ${pct(f.v)}`).join(', '));
+
+    // ── Donut ── cores lidas do tema ativo (por isso o toggle de tema redesenha o dashboard)
+    const css = getComputedStyle(document.documentElement);
+    const cores = fatias.map((f,i)=>css.getPropertyValue(corVar(f,i)).trim());
+    const superficie = css.getPropertyValue('--surface').trim();
+    const linhas = [...tbody.querySelectorAll('tr.cat-row')];
+    let ativo = -1;
+    const marcar = i => linhas.forEach(tr=>tr.classList.toggle('is-active', Number(tr.dataset.i)===i));
+
+    const chart = this.mkChart('canvasCategoria',{
       type:'doughnut',
       data:{
-        labels:sorted.map(([k])=>k),
+        labels:fatias.map(f=>f.nome),
         datasets:[{
-          data:sorted.map(([,v])=>v),
-          backgroundColor:chartColors,
-          borderWidth:3,
-          borderColor,
-          hoverOffset:6,
+          data:fatias.map(f=>f.v),
+          backgroundColor:cores,
+          borderColor:superficie, hoverBorderColor:superficie,
+          borderWidth:2,          // vão de 2px na cor do cartão entre fatias
+          hoverOffset:5,
         }]
       },
       options:{
-        responsive:true,maintainAspectRatio:false,
-        cutout:'62%',
-        plugins:{
-          legend:{
-            position:'right',
-            labels:{color:textColor,font:{size:11},boxWidth:10,padding:10,
-              generateLabels(chart){
-                const ds=chart.data.datasets[0];
-                return chart.data.labels.map((label,i)=>{
-                  const val=ds.data[i];
-                  const pct=total>0?((val/total)*100).toFixed(1):'0.0';
-                  return{text:`${label} ${pct}%`,fillStyle:ds.backgroundColor[i],hidden:false,index:i};
-                });
-              }
-            }
-          },
-          tooltip:{
-            backgroundColor:'rgba(15,31,20,.92)',padding:10,cornerRadius:8,
-            callbacks:{label:ctx=>{
-              const pct=total>0?((ctx.raw/total)*100).toFixed(1):'0.0';
-              return ` ${ctx.label}: ${fmt(ctx.raw)} (${pct}%)`;
-            }}
-          }
-        }
+        responsive:true, maintainAspectRatio:false,
+        cutout:'70%', layout:{padding:6},
+        // Sem legenda nem tooltip no canvas: a tabela mostra nome, valor e %
+        plugins:{legend:{display:false}, tooltip:{enabled:false}},
+        onHover:(e,els)=>{ ativo = els.length ? els[0].index : -1; marcar(ativo); },
       }
     });
+    if(!chart) return;
+
+    // Linha da tabela ↔ fatia do donut (handlers por propriedade: o render repete sem acumular)
+    const ativar = i => {
+      if(i===ativo) return;
+      ativo = i;
+      chart.setActiveElements(i<0 ? [] : [{datasetIndex:0,index:i}]);
+      chart.update();
+      marcar(i);
+    };
+    canvas.onmouseleave = () => { ativo = -1; marcar(-1); };
+    tbody.onmouseover = e => {
+      const tr = e.target.closest('tr');
+      ativar(tr?.classList.contains('cat-row') ? Number(tr.dataset.i)
+           : tr?.classList.contains('cat-sub') ? fatias.length-1
+           : -1);
+    };
+    tbody.onmouseleave = () => ativar(-1);
+    tbody.onclick = e => {
+      const btn = e.target.closest('.cat-disc');
+      if(!btn) return;
+      this._catDemaisAberto = btn.getAttribute('aria-expanded')!=='true';
+      btn.setAttribute('aria-expanded', String(this._catDemaisAberto));
+      tbody.querySelectorAll('tr.cat-sub').forEach(tr=>{ tr.hidden = !this._catDemaisAberto; });
+    };
   },
 
   chartFluxo(baseContas, resp){
