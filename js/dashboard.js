@@ -28,35 +28,30 @@ Object.assign(APP, {
     const baseContas = filtrarContas(CACHE.contas);
     const contas = resp ? filtrarPorResp(baseContas, resp) : baseContas.map(c=>({...c}));
 
-    // Receita: sempre ano completo por mês (o gráfico mostra o ano todo)
-    let recMes=0;
-    const mesesCalc = todosMeses ? Array.from({length:12},(_,i)=>i) : [mes];
-    CACHE.salarios.forEach(s=>{
-      mesesCalc.forEach(m=>{ const h=CACHE.getSalarioMes(s,m); const liq=h?h.liquido:0;
-        if(!resp)recMes+=liq; else if(s.pessoa===resp)recMes+=liq;
-      });
-    });
-    CACHE.outras.forEach(r=>{
-      mesesCalc.forEach(m=>{ const v=r.valores[m]||0;
-        if(!resp) recMes+=v;
-        else if(r.resp===resp) recMes+=v;
-        else if(resp==='Leo & Pri'&&(!r.resp||r.resp==='Ambos')) recMes+=v;
-        else if(!r.resp||r.resp==='Ambos') recMes+=v/2;
-      });
-    });
+    // Receita dos MESMOS meses das despesas: período (mesIni..mesFim), ano completo ou o mês.
+    // Antes, com período ativo, somava só o mês do seletor e o Saldo saía errado.
+    const mesesCalc = p
+      ? Array.from({length:p.mesFim-p.mesIni+1},(_,i)=>p.mesIni+i)
+      : todosMeses ? Array.from({length:12},(_,i)=>i) : [mes];
+    const recCent = mesesCalc.reduce((s,m)=>s+centavos(CACHE.getReceitaMes(m, resp)),0);
+    const recMes  = recCent/100;
 
-    const totP    = contas.reduce((s,c)=>s+vEfetivo(c),0);
+    const totPCent= contas.reduce((s,c)=>s+centavos(vEfetivo(c)),0);
+    const totP    = totPCent/100;
     const totPend = contas.reduce((s,c)=>s+vPendente(c),0);
     const pendList= contas.filter(c=>!isQuitada(c));
-    const saldo   = recMes-totP;
+    const saldoCent = recCent-totPCent;
+    const saldo     = saldoCent/100;
     const anoLabel = todosAnos ? 'Todos os anos' : String(anoVal);
     const mesLabel = todosMeses ? 'Ano completo' : MESES_F[mes];
-    const periodoLabel = `${anoLabel} · ${mesLabel}`;
+    const periodoLabel = p
+      ? `${MESES_F[p.mesIni]} → ${MESES_F[p.mesFim]} ${p.ano}`
+      : `${anoLabel} · ${mesLabel}`;
 
     // Vencidas e não pagas de meses anteriores ao mês de referência (mesma regra de Contas e
     // Relatório: só com mês específico ou período). Entram no que falta pagar (KPI Pendente,
-    // tabela de pendentes), mas NÃO em Total Despesas nem no Saldo: esses seguem o mês de
-    // vencimento, e a conta já pesou no mês dela; somar de novo seria contar duas vezes.
+    // tabela de pendentes) e numa linha "Após atrasadas anteriores" do Saldo. O valor principal
+    // de Total Despesas e Saldo segue o mês de vencimento: a conta já pesou no mês dela.
     const mergeRef = p ? {y:p.ano, m:p.mesIni} : (!todosAnos && !todosMeses ? {y:ano, m:mes} : null);
     const anteriores = mergeRef
       ? filtrarPorResp(CACHE.getOverdueAntesDe(mergeRef.y, mergeRef.m), resp).filter(c=>!isQuitada(c))
@@ -74,16 +69,19 @@ Object.assign(APP, {
 
     const pendSub = `${pendTotal.length} contas`
       + (anteriores.length ? `<br>${fmt(pendAnterioresCent/100)} de meses anteriores` : '');
+    // Saldo projetado: o que sobra do mês depois de quitar também as atrasadas anteriores
+    const saldoSub = (saldo>=0 ? '✅ Positivo' : '⚠️ Atenção')
+      + (anteriores.length ? `<br>Após atrasadas anteriores: <span style="white-space:nowrap">${fmt((saldoCent-pendAnterioresCent)/100)}</span>` : '');
     const kpis=[
       {label:'Receita',val:fmt(recMes),sub:periodoLabel+(resp?` — ${resp}`:''),icon:'📈',c:'var(--palm)',hero:false},
       {label:'Total Despesas',val:fmt(totP),sub:`${contas.length} contas`,icon:'📋',c:'var(--blue)',hero:false},
       {label:'Pendente',val:fmt((pendPeriodoCent+pendAnterioresCent)/100),sub:pendSub,icon:'⏳',c:'var(--red)',hero:false},
-      {label:'Saldo',val:fmt(saldo),sub:saldo>=0?'✅ Positivo':'⚠️ Atenção',icon:saldo>=0?'💰':'📉',c:saldo>=0?'var(--palm)':'var(--red)',hero:true}
+      {label:'Saldo',val:fmt(saldo),sub:saldoSub,icon:saldo>=0?'💰':'📉',c:saldo>=0?'var(--palm)':'var(--red)',hero:true}
     ];
     document.getElementById('kpiGrid').innerHTML=kpis.map(k=>`<div class="kpi-card${k.hero?' kpi-hero':''}" style="--kc:${k.c}"><div class="kpi-label">${k.label}</div><div class="kpi-value" style="color:${k.c}">${k.val}</div><div class="kpi-sub">${k.sub}</div><div class="kpi-icon">${k.icon}</div></div>`).join('');
 
-    // ── INSIGHTS automáticos ──
-    this._renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas);
+    // ── INSIGHTS automáticos ── (com período ativo, mês/ano do seletor não valem: comparação desligada)
+    this._renderInsights(p?null:mes, p?null:ano, totP, totPend, saldo, resp, contas);
 
     // Pendentes: atrasadas de meses anteriores primeiro (mais antigas no topo), depois as do período
     const PEND_MAX = 8;
@@ -116,7 +114,11 @@ Object.assign(APP, {
     this.renderPareto('canvasParetoDash','paretoTableDash',contas);
   },
 
-  _renderInsights(mes, ano, totP, totPend, saldo, resp, baseContas){
+  /**
+   * @param {Array} contas contas do período JÁ filtradas por responsável (÷2 aplicado),
+   *                       as mesmas dos KPIs, para os chips baterem com os cards.
+   */
+  _renderInsights(mes, ano, totP, totPend, saldo, resp, contas){
     const el = document.getElementById('insightBar');
     if(!el) return;
     const chips = [];
@@ -125,10 +127,12 @@ Object.assign(APP, {
     if(mes !== null && ano !== null){
       const mesPrev = mes === 0 ? 11 : mes - 1;
       const anoPrev = mes === 0 ? ano - 1 : ano;
-      const contasPrev = CACHE.contas.filter(c=>{
+      const basePrev = CACHE.contas.filter(c=>{
         const d = new Date(c.data+'T12:00');
-        return d.getFullYear()===anoPrev && d.getMonth()===mesPrev && (!resp || c.resp===resp || c.resp==='Leo & Pri');
+        return d.getFullYear()===anoPrev && d.getMonth()===mesPrev;
       });
+      // Mesmo ÷2 do mês atual: antes o mês anterior entrava inteiro e a variação saía inflada
+      const contasPrev = resp ? filtrarPorResp(basePrev, resp) : basePrev;
       const totPrev = contasPrev.reduce((s,c)=>s+vEfetivo(c),0);
       if(totPrev > 0 && totP > 0){
         const diff = ((totP - totPrev) / totPrev) * 100;
@@ -141,11 +145,11 @@ Object.assign(APP, {
     }
 
     // 2. Categoria com maior gasto
-    if(baseContas.length > 0){
+    if(contas.length > 0){
       const map = {};
-      baseContas.forEach(c=>{ const n=CACHE.resolveCat(c.catId||c.cat); map[n]=(map[n]||0)+vEfetivo(c); });
+      contas.forEach(c=>{ const n=CACHE.resolveCat(c.catId||c.cat); map[n]=(map[n]||0)+centavos(vEfetivo(c)); });
       const top = Object.entries(map).sort((a,b)=>b[1]-a[1])[0];
-      if(top) chips.push({cls:'insight-neu', text:`🏷️ Maior categoria: ${top[0]} (${fmt(top[1])})`});
+      if(top) chips.push({cls:'insight-neu', text:`🏷️ Maior categoria: ${top[0]} (${fmt(top[1]/100)})`});
     }
 
     // 3. Saldo negativo — alerta
@@ -318,12 +322,7 @@ Object.assign(APP, {
       return filtrado.reduce((s,c)=>s+vEfetivo(c),0);
     });
 
-    const rec=Array.from({length:12},(_,m)=>{
-      let t=0;
-      CACHE.salarios.forEach(s=>{if(!resp||s.pessoa===resp){const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;}});
-      CACHE.outras.forEach(r=>{const v=r.valores[m]||0;if(!resp)t+=v;else if(r.resp===resp)t+=v;else if(resp==='Leo & Pri'&&(!r.resp||r.resp==='Ambos'))t+=v;else if(!r.resp||r.resp==='Ambos')t+=v/2;});
-      return t;
-    });
+    const rec=Array.from({length:12},(_,m)=>CACHE.getReceitaMes(m, resp));
     const mesAtual = new Date().getMonth();
     const anoAtualNum = new Date().getFullYear();
     const dark = document.documentElement.classList.contains('dark');

@@ -35,12 +35,14 @@ Object.assign(APP, {
     if(tipo!=='salario'){
       const meses = mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
       for(const r of CACHE.outras){
-        if(resp && r.resp && r.resp!==resp) continue;
+        // Mesma regra do Dashboard: receita "Ambos" vale metade para Leo e metade para Pri
+        const fatia = fatiaReceita(r, resp);
+        if(!fatia) continue;
         for(const m of meses){
           if(!r.valores[m]) continue;
           data.push({
             tipo:'outra', desc:r.desc, resp:r.resp||'',
-            mes:m, valor:r.valores[m], updatedBy:r.updatedBy||'',
+            mes:m, valor:r.valores[m]*fatia, _split:fatia<1, updatedBy:r.updatedBy||'',
             readOnly:false, id:r.id
           });
         }
@@ -78,9 +80,10 @@ Object.assign(APP, {
       const tipoBadge = r.tipo==='salario'
         ? '<span class="badge bg-cat">Salário</span>'
         : '<span class="badge" style="background:var(--blue-lt);color:var(--blue)">Outra</span>';
-      const respChip = r.resp
+      const respChip = (r.resp
         ? '<span class="badge bg-cat">'+r.resp+'</span>'
-        : '<span style="font-size:10.5px;color:var(--t4)">Ambos</span>';
+        : '<span style="font-size:10.5px;color:var(--t4)">Ambos</span>')
+        + (r._split ? '<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>' : '');
       const auditChip = r.updatedBy ? '<span class="audit-chip">'+r.updatedBy+'</span>' : '';
       const acoes = r.readOnly
         ? '<span style="font-size:10px;color:var(--t4)">auto</span>'
@@ -116,9 +119,8 @@ Object.assign(APP, {
   // ── CHART (preservado do original) ──
   renderRecChart(filtroResp=''){
     const sals=CACHE.salarios.filter(s=>!filtroResp||s.pessoa===filtroResp);
-    const outras=CACHE.outras.filter(r=>!filtroResp||!r.resp||r.resp===filtroResp);
     const salVals=Array.from({length:12},(_,m)=>{let t=0;sals.forEach(s=>{const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;});return t;});
-    const outVals=Array.from({length:12},(_,m)=>outras.reduce((s,r)=>s+(r.valores[m]||0),0));
+    const outVals=Array.from({length:12},(_,m)=>CACHE.outras.reduce((s,r)=>s+(r.valores[m]||0)*fatiaReceita(r,filtroResp),0));
     const dark = document.documentElement.classList.contains('dark');
 
     const salColor    = dark ? 'rgba(0,100,55,.75)'    : 'rgba(0,100,55,.82)';
