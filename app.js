@@ -403,14 +403,27 @@ const APP = {
     if(sel) sel.value = STATE.resp;
   },
 
-  filtrarAtrasadas(){
-    const fs = document.getElementById('filtroStatus');
-    const fm = document.getElementById('filtroMesContas');
-    const fa = document.getElementById('filtroAnoContas');
-    if(fs) fs.value='atrasado';
-    if(fm) fm.value='todos';
-    if(fa) fa.value='todos';
-    this.goPage('contas');STATE.pg=1;this.renderContas();
+  /**
+   * Mostra todas as contas atrasadas em Contas (avisos de atraso de Contas e Dashboard).
+   * Status "atrasado", todos os anos e meses, sem busca nem filtros de categoria, forma,
+   * recorrente ou período; o filtro global de responsável continua valendo. Assim a lista
+   * bate com a contagem do aviso.
+   * Já em Contas, não recarrega a view: recarregar recria os campos e zerava o filtro
+   * logo depois de aplicado. Fora dela, navega e só então preenche os campos.
+   */
+  async filtrarAtrasadas(){
+    if(STATE.page!=='contas' || !document.getElementById('page-contas')){
+      if(window.ROUTER) await ROUTER.navigate('contas'); else this.goPage('contas');
+    }
+    const set = (id, v) => { const el = document.getElementById(id); if(el) el.value = v; };
+    set('filtroStatus', 'atrasado');
+    set('filtroMesContas', 'todos');
+    set('filtroAnoContas', 'todos');
+    ['searchContas','filtroCatContas','filtroFormaContas','filtroRecorrente'].forEach(id=>set(id, ''));
+    STATE.periodoContas = null;
+    this._atualizarPeriodoBadge('contas', null);
+    STATE.pg = 1;
+    this.renderContas();
   },
 
 };

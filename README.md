@@ -441,7 +441,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 | Saldo | Receita − Total Despesas. Linha extra "Após atrasadas anteriores" = Saldo − pendente das atrasadas anteriores |
 
 * **Atrasadas de meses anteriores:** contas atrasadas com vencimento antes do 1º dia do mês de referência (mês selecionado ou mês inicial do período). Só existem com mês específico ou período. Entram em Pendente e na tabela de pendentes; **não** entram em Total Despesas nem no Saldo principal (já pesaram no mês delas).
-* **Banner de atraso:** todas as atrasadas de qualquer mês (com filtro de responsável e ÷2), quantidade e soma do que falta pagar. Clique leva a Contas.
+* **Banner de atraso:** todas as atrasadas de qualquer mês (com filtro de responsável e ÷2), quantidade e soma do que falta pagar. O clique abre Contas só com as atrasadas (`APP.filtrarAtrasadas`).
 * **Pendentes do mês:** atrasadas anteriores primeiro (mais antigas no topo), depois as do período; mostra até 8 com link "Ver todas".
 * **Insights automáticos:**
   1. Variação das despesas contra o mês anterior (só com mês específico): acima de +5% "acima", abaixo de −5% "abaixo", senão "estáveis". Usa o mesmo ÷2.
@@ -456,6 +456,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 ### 10.2 Contas
 
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
+* **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (÷2 nas compartilhadas; a metade já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
 * Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma, recorrente (sim/não), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
 * Com mês específico ou período, as **atrasadas de meses anteriores** entram na lista.
 * Totais: Total = Σ `vEfetivo`; Pago = Σ `vPago`; Pendente = Σ `vPendente`.
@@ -577,4 +578,5 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-13 | **Atrasadas:** o aviso "N contas em atraso" de Contas passa a respeitar o filtro de responsável (antes contava sempre todas) e mostra o valor pendente, igual ao Dashboard. Corrigido o clique no aviso, que recarregava a tela e perdia o filtro "atrasado"; agora o aviso de Contas, o banner do Dashboard e a busca rápida abrem a mesma lista de atrasadas. |
 | 2026-10-12 | **Novo shell (proposta "Trilho"):** trilho de navegação fixo de 76px substitui a sidebar de 230px (sem recolher); topbar com trilha da tela, selo de período, busca rápida Ctrl K / ⌘K / "/" (`js/command-palette.js`), filtro de responsável em avatares e ações secundárias só com ícone; novo `css/shell.css`; tema Pri derivado de tokens no trilho e na bottom nav; `.main` com `min-width:0` (fim da rolagem horizontal entre 769 e ~1200px na tela Contas). Criado este README com a regra de atualização obrigatória. |

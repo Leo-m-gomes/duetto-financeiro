@@ -77,7 +77,7 @@ const CMD = (() => {
     return [
       {titulo:'Nova conta', sub:'Despesa à vista ou parcelada', ic:'mais', run:()=>APP.openConta()},
       {titulo:'Nova receita', sub:'Outra receita mensal: aluguel, freelance, reembolso', ic:'mais', run:()=>APP.openReceita()},
-      {titulo:'Ver contas em atraso', sub:'Abre Contas com todas as atrasadas, de qualquer mês', ic:'alerta', run:()=>irParaContas({status:'atrasado'})},
+      {titulo:'Ver contas em atraso', sub:'Abre Contas com todas as atrasadas, de qualquer mês', ic:'alerta', run:()=>APP.filtrarAtrasadas()},
       {titulo:'Gerar contas recorrentes', sub:'Copia as recorrentes de um ano para outro', ic:'repetir', run:()=>APP.openRecorrentes()},
       {titulo:'Gerenciar salários', sub:'Bruto, INSS, IR e líquido por pessoa', ic:'pessoas', run:()=>APP.openSalariosModal()},
       // exportCSVContas lê os filtros da tela de Contas: só existe lá
