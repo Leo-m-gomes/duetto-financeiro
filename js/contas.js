@@ -46,9 +46,13 @@ Object.assign(APP, {
     document.getElementById('totalPago').textContent     = fmt(data.reduce((s,c)=>s+(c.vPago||0),0));
     document.getElementById('totalPendente').textContent = fmt(data.reduce((s,c)=>s+vPendente(c),0));
 
-    const atrasadas=CACHE.getOverdue();
+    // Aviso de atraso: atrasadas de qualquer mês com o filtro global de responsável (÷2 nas
+    // compartilhadas). Mesma regra do banner do Dashboard: a metade já paga pela pessoa
+    // filtrada deixa de contar. O clique filtra por atrasado e a lista bate com a contagem.
+    const atrasadas=filtrarPorResp(CACHE.getOverdue(), resp).filter(c=>!isQuitada(c));
+    const atrasadasCent=atrasadas.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const alertEl=document.getElementById('overdueAlert');
-    if(atrasadas.length>0){alertEl.style.display='block';alertEl.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso</strong> — Clique para filtrar`;}
+    if(atrasadas.length>0){alertEl.style.display='block';alertEl.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso (<span class="money">${fmt(atrasadasCent/100)}</span>)</strong> — Clique para filtrar`;}
     else alertEl.style.display='none';
 
     document.getElementById('contasInfo').textContent=`${data.length} conta${data.length!==1?'s':''} encontrada${data.length!==1?'s':''}`;
