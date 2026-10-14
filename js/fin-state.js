@@ -137,7 +137,7 @@ const STATE = {
   // Dashboard, Contas, Receitas, Relatório e logs da Config; não se aplica a Notas nem a modais.
   resp:'', editContaId:null, editSalPessoa:null,
   charts:{}, recEditando:false, parcGrupo:null, gerenciarTipo:'cat',
-  periodo:null, periodoDash:null, periodoContas:null, periodoTela:null,
+  periodo:null, periodoDash:null, periodoContas:null, periodoReceitas:null, periodoTela:null,
   usuario:'', filtroAno:String(new Date().getFullYear()), filtroMes:String(new Date().getMonth()),
   sortContas:  {col:'data', dir:1},
   sortReceitas:{col:null, dir:1},

@@ -154,7 +154,7 @@ views/                Fragmentos HTML de cada tela + modals.html (todos os modai
 `[Duetto / Tela  selo de período] · [busca Ctrl K] · [filtro de responsável | ações da tela | privacidade | sair]`
 
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
-  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas (ano e mês da tela). Some em Notas, Upload, Backup e Config.
+  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Some em Notas, Upload, Backup e Config.
 * **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
 * **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Gerar recorrentes, Exportar CSV. Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
@@ -432,7 +432,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 9.4 Outras receitas
 
-* Descrição e **ano** obrigatórios (2019 a 2035); responsável Leo, Pri ou Ambos. Nova receita vem com o ano filtrado na tela Receitas.
+* Descrição e **ano** obrigatórios (2019 a 2035); responsável Leo, Pri ou Ambos. Nova receita vem com o ano do período ativo da tela Receitas, senão com o ano filtrado.
 * Período dentro do ano: "Todos os meses" aplica o valor de Jan a Dez; mês inicial + final aplica no intervalo; só mês inicial aplica em um mês. Mês final não pode ser anterior ao inicial.
 * **Edição preserva os valores mês a mês:** se valor e meses não forem alterados (ex.: só trocar o ano ou a descrição), os 12 valores originais são mantidos. Se a receita tem valores diferentes por mês e o usuário muda valor ou meses, o sistema pede confirmação antes de aplicar o mesmo valor a todo o período.
 * Receitas não se repetem entre anos: para o ano seguinte, cadastre de novo.
@@ -488,14 +488,15 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 ### 10.4 Receitas
 
 * Lista unificada: salários (uma linha por pessoa por mês do ano, com o salário vigente) + outras receitas **do ano** (uma linha por mês com valor).
-* Filtros: busca (inclui mês e ano), **ano** (padrão: ano atual; "Todos os anos" = anos com movimento, e a coluna Mês mostra o ano), mês, tipo (salário/outra) e responsável global (receitas "Ambos" entram pela metade com selo ÷2 quando o filtro é Leo ou Pri).
+* Filtros: busca (inclui mês e ano), **ano** (padrão: ano atual; "Todos os anos" = anos com movimento, e a coluna Mês mostra o ano), mês, tipo (salário/outra), **período** (botão 📅 Período, 10.5) e responsável global (receitas "Ambos" entram pela metade com selo ÷2 quando o filtro é Leo ou Pri).
+* **Período ativo:** lista e totais usam só os meses de mesIni a mesFim do ano do período (ignora Ano e Mês da tela); o selo verde ao lado do botão mostra o intervalo e remove o filtro ao clicar. O gráfico anual mostra os 12 meses do ano do período (mesma regra do gráfico Receita × Despesa do Dashboard).
 * Ordenar por "Mês" ordena por ano e mês.
 * Totais: total, salários, outras. Gráfico anual empilhado (salários + outras) dos anos filtrados.
 * Receitas sem ano confirmado aparecem com o selo "ano?" e um aviso no topo que abre a revisão (9.1).
 
 ### 10.5 Período personalizado
 
-Ano entre 2019 e 2035, mês final ≥ mês inicial, sempre dentro de um único ano. Cada tela (Dashboard, Contas, Relatório) guarda o seu; mudar ano/mês limpa o período daquela tela.
+Ano entre 2019 e 2035, mês final ≥ mês inicial, sempre dentro de um único ano. Cada tela (Dashboard, Contas, Receitas, Relatório) guarda o seu (`STATE.periodoDash`, `periodoContas`, `periodoReceitas`, `periodo`; mapa `PERIODO_TELAS` em `js/ui-period.js`); mudar ano/mês limpa o período daquela tela. Tela nova com período: adicionar a entrada em `PERIODO_TELAS`.
 
 ---
 
@@ -596,6 +597,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-14 | **Receitas com filtro de Período:** botão 📅 Período na tela Receitas (mesmo modal de Contas/Dashboard/Relatório: ano + mês inicial + mês final). Com período ativo, lista e totais usam só esses meses e ignoram Ano/Mês; selo verde remove o filtro; mudar Ano ou Mês limpa o período; o período continua ao sair e voltar para a tela; selo do topbar e ano padrão da nova receita seguem o período. `js/ui-period.js` passa a usar o mapa `PERIODO_TELAS`. |
 | 2026-10-14 | **Modal de nota:** tabela de Notas Adicionais ordenada por data (crescente, sem data no fim; só exibição, a gravação não muda). Espaçamento: sem o recuo extra acima de "Dados Cadastrais", totais 12px abaixo da tabela e alinhados às bordas dela (sai a faixa de fundo atrás dos cartões; cores dos cartões mantidas), linhas da tabela mais compactas e rolagem horizontal da tabela também em telas de até 375px (antes a coluna Realizado era cortada). |
 | 2026-10-14 | **Revertido o ajuste geral de contraste** (token `--on-palm`, `--t3`/`--t4` mais claros, botões primários, abas, Pareto, cartão de salário, Notas e textos da barra voltam como eram). Mantidos: correção do botão "Limpar seleção" no modo escuro e a correção dos modais (clique no fundo só fecha se começar e terminar no fundo; Duplicatas não trava o Salvar). |
 | 2026-10-14 | **Modo escuro legível e modais estáveis:** novo token `--on-palm` para texto sobre a cor do tema (botão primário, barra de seleção, Pareto, abas, paginação, cartão de salário); "Limpar seleção" deixa de ficar ilegível (1,1:1). `--t3`/`--t4` do escuro sobem para 62%/48%. Modais deixam de fechar ao selecionar texto arrastando para fora (clique no fundo só fecha se começar e terminar no fundo); clique no fundo do modal de Duplicatas não trava mais o Salvar. |

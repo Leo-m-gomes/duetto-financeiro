@@ -196,7 +196,7 @@ const APP = {
       case 'dashboard': txt = rotulo(STATE.periodoDash, val('filtroAnoDash'), val('filtroMesDash')); break;
       case 'contas':    txt = rotulo(STATE.periodoContas, val('filtroAnoContas'), val('filtroMesContas')); break;
       case 'relatorio': txt = rotulo(STATE.periodo, val('relAno'), val('relMes')); break;
-      case 'receitas':  txt = rotulo(null, val('filtroAnoReceitas'), val('filtroMesReceitas')); break;
+      case 'receitas':  txt = rotulo(STATE.periodoReceitas, val('filtroAnoReceitas'), val('filtroMesReceitas')); break;
     }
     el.textContent = txt;
     el.hidden = !txt;
@@ -305,7 +305,10 @@ const APP = {
     });
     ['searchReceitas','filtroAnoReceitas','filtroMesReceitas','filtroTipoReceitas'].forEach(id=>{
       const el=document.getElementById(id);
-      if(el) el.oninput = ()=>{ STATE.pgReceitas=1; self.renderReceitas(); };
+      if(el) el.oninput = ()=>{
+        if(id==='filtroAnoReceitas'||id==='filtroMesReceitas'){ STATE.periodoReceitas=null; self._atualizarPeriodoBadge('receitas',null); }
+        STATE.pgReceitas=1; self.renderReceitas();
+      };
     });
     ['relAno','relMes'].forEach(id=>{
       const el=document.getElementById(id);

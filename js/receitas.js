@@ -17,9 +17,14 @@ Object.assign(APP, {
     const resp   = STATE.resp;   // filtro global do topbar
     const tipo   = document.getElementById('filtroTipoReceitas')?.value||'';
     const mesFiltro = mesVal==='todos' ? null : parseInt(mesVal);
-    const anos   = this._anosReceitas();
+    // Período (botão 📅) tem prioridade sobre Ano/Mês, como em Contas e Dashboard
+    const p      = STATE.periodoReceitas;
+    const anos   = p ? [p.ano] : this._anosReceitas();
     const variosAnos = anos.length > 1;
-    const meses  = mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
+    const meses  = p
+      ? Array.from({length:p.mesFim-p.mesIni+1},(_,i)=>p.mesIni+i)
+      : mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
+    this._atualizarPeriodoBadge('receitas', p);   // view recarregada ao voltar para a tela
 
     // ── Build unified data ── (ordem = ano*12+mês, para ordenar por período entre anos)
     let data = [];
@@ -268,8 +273,8 @@ Object.assign(APP, {
     const rAno=document.getElementById('rAno');
     if(rAno){
       if(!rAno.options.length) for(let a=2019;a<=2035;a++) rAno.appendChild(new Option(a,a));
-      // Nova receita: ano filtrado na tela Receitas (ou o atual)
-      const filtro=document.getElementById('filtroAnoReceitas')?.value;
+      // Nova receita: ano do período ativo ou o filtrado na tela Receitas (ou o atual)
+      const filtro=STATE.periodoReceitas ? String(STATE.periodoReceitas.ano) : document.getElementById('filtroAnoReceitas')?.value;
       rAno.value=String(/^\d{4}$/.test(filtro||'') ? filtro : new Date().getFullYear());
     }
 
