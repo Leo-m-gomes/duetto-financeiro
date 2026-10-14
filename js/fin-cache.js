@@ -71,32 +71,93 @@ const CACHE = {
   },
 
   // ── SALÁRIOS E RECEITAS ──
+  // Regra: OUTRAS RECEITAS pertencem a um ano (campo `ano`). SALÁRIO vale para todos os
+  // anos: vigora a entrada mais recente do histórico com início ≤ (ano, mês).
+
+  /** Ano inteiro de um texto 'YYYY-...' ou de um Timestamp do Firestore; null se não houver. */
+  _anoDe(v){
+    if(!v) return null;
+    if(typeof v.toDate === 'function') return v.toDate().getFullYear();
+    const y = parseInt(String(v).slice(0,4), 10);
+    return y > 1900 ? y : null;
+  },
+
   /**
-   * Receita líquida de um mês (0-11) para o filtro de responsável: salários da pessoa
-   * + outras receitas pela fatiaReceita ("Ambos" ÷2). Fonte única do Dashboard.
+   * Ano de uma "outra receita". Receitas novas gravam `ano`. As cadastradas antes do
+   * controle por ano (sem o campo) usam o ano da última alteração (updatedAt), senão o do
+   * cadastro (createdAt), senão o ano atual, até o ano ser confirmado em Receitas.
+   * Nada é gravado aqui: a inferência é estável porque esses campos não mudam sozinhos.
+   */
+  anoReceita(r){
+    if(Number.isInteger(r.ano)) return r.ano;
+    return this._anoDe(r.updatedAt) || this._anoDe(r.createdAt) || new Date().getFullYear();
+  },
+  /** Outras receitas ainda sem `ano` gravado (cadastradas antes do controle por ano). */
+  receitasSemAno(){ return this.outras.filter(r=>!Number.isInteger(r.ano)); },
+
+  /**
+   * Anos com movimento: anos de vencimento das contas e anos das outras receitas.
+   * Usado quando a tela pede "Todos os anos": o salário vale para qualquer ano, então a
+   * soma precisa de um conjunto finito de anos.
+   */
+  anosComDados(){
+    const anos = new Set();
+    this.contas.forEach(c=>{ const y=this._anoDe(c.data); if(y) anos.add(y); });
+    this.outras.forEach(r=>anos.add(this.anoReceita(r)));
+    return [...anos].sort((a,b)=>a-b);
+  },
+
+  /**
+   * Ano de início de uma entrada do histórico de salário. Entradas antigas (sem
+   * `anoInicio`) usam o ano em que foram salvas (updatedAt), senão o ano atual.
+   */
+  anoInicioSalario(h){
+    if(Number.isInteger(h.anoInicio)) return h.anoInicio;
+    return this._anoDe(h.updatedAt) || new Date().getFullYear();
+  },
+  _chaveSalario(h){ return this.anoInicioSalario(h)*12 + (h.mesInicio||0); },
+  /** Histórico de salário em ordem cronológica de início (mais antigo primeiro). */
+  historicoSalario(sal){
+    return [...(sal.historico||[])].sort((a,b)=>this._chaveSalario(a)-this._chaveSalario(b));
+  },
+  /**
+   * Entrada do salário vigente em (ano, mês 0-11): a mais recente com início ≤ (ano, mês).
+   * Antes da primeira entrada, repete a primeira (o salário vale para todos os anos);
+   * depois da última, repete a última (o valor atual segue nos anos seguintes).
+   */
+  getSalarioMes(sal, ano, mes){
+    const hist = this.historicoSalario(sal);
+    if(!hist.length) return null;
+    const alvo = ano*12 + mes;
+    let vigente = null;
+    for(const h of hist){ if(this._chaveSalario(h) <= alvo) vigente = h; else break; }
+    return vigente || hist[0];
+  },
+  /** Salário vigente hoje (cartões, edição e cálculo detalhado). */
+  getSalarioVigente(sal){
+    const d = new Date();
+    return this.getSalarioMes(sal, d.getFullYear(), d.getMonth());
+  },
+
+  /**
+   * Receita líquida de um mês para o filtro de responsável: salários vigentes da pessoa
+   * + outras receitas DO ANO pela fatiaReceita ("Ambos" ÷2). Fonte única de Dashboard e
+   * Receitas.
+   * @param {number} ano  ano (ex.: 2026)
    * @param {number} m    mês, 0-11
    * @param {string} resp 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
    */
-  getReceitaMes(m, resp){
+  getReceitaMes(ano, m, resp){
     let t = 0;
     this.salarios.forEach(s=>{
       if(resp && s.pessoa!==resp) return;
-      const h=this.getSalarioMes(s,m); t+=h?h.liquido:0;
+      const h=this.getSalarioMes(s, ano, m); t+=h?h.liquido:0;
     });
-    this.outras.forEach(r=>{ t += (r.valores[m]||0) * fatiaReceita(r, resp); });
+    this.outras.forEach(r=>{
+      if(this.anoReceita(r)!==ano) return;
+      t += ((r.valores||[])[m]||0) * fatiaReceita(r, resp);
+    });
     return t;
-  },
-  getSalarioMes(sal,mes){
-    const v=sal.historico.filter(h=>h.mesInicio<=mes).sort((a,b)=>b.mesInicio-a.mesInicio);
-    return v[0]||sal.historico[0];
-  },
-  getReceitas(){
-    return Array.from({length:12},(_,m)=>{
-      let t=0;
-      this.salarios.forEach(s=>{ const h=this.getSalarioMes(s,m); t+=h?h.liquido:0; });
-      this.outras.forEach(r=>t+=r.valores[m]||0);
-      return t;
-    });
   },
 
   // ── CÁLCULOS TRIBUTÁRIOS ──

@@ -176,17 +176,21 @@ Object.assign(APP, {
         dados.contas.map(c=>[c._id,c.conta,c.resp,cat(c.catId||c.cat),c.catId||c.cat||'',forma(c.formaId||c.forma),c.formaId||c.forma||'',c.data,c.dataCompra||'',c.vPagar,c.vPago??'',c.pagamentos?.Leo?.valor??'',c.pagamentos?.Pri?.valor??'',c.parcela||'',c.grupo||'',c.recorrente?'Sim':'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'',c.origem||'']),
         [24,36,12,18,22,20,22,12,12,12,12,10,10,10,26,10,30,12,12,12,12,12]);
 
-      // Salários: uma linha por período do histórico (antes só nome/pessoa)
+      // Salários: uma linha por período do histórico. Ano de início: gravado ou, em entradas
+      // antigas, o inferido pelo sistema (CACHE.anoInicioSalario)
       addAba('Salários',
-        ['ID','Nome','Pessoa','A partir de (mês)','Dependentes','Salário Bruto','Bonificação','INSS','IR','Líquido','Atualizado por','Atualizado em'],
+        ['ID','Nome','Pessoa','A partir de (mês)','A partir de (ano)','Dependentes','Salário Bruto','Bonificação','INSS','IR','Líquido','Atualizado por','Atualizado em'],
         dados.salarios.flatMap(s=>(s.historico&&s.historico.length?s.historico:[{}]).map(h=>
-          [s._id,s.nome,s.pessoa,h.mesInicio!=null?MESES_F[h.mesInicio]:'',h.deps??'',h.salario??'',h.bonificacao??'',h.inss??'',h.ir??'',h.liquido??'',h.updatedBy||'',h.updatedAt||''])),
-        [24,24,10,16,12,14,12,12,12,14,14,14]);
+          [s._id,s.nome,s.pessoa,h.mesInicio!=null?MESES_F[h.mesInicio]:'',h.mesInicio!=null?CACHE.anoInicioSalario(h):'',h.deps??'',h.salario??'',h.bonificacao??'',h.inss??'',h.ir??'',h.liquido??'',h.updatedBy||'',h.updatedAt||''])),
+        [24,24,10,16,14,12,14,12,12,12,14,14,14]);
 
+      // Outras receitas são por ano. "Ano confirmado = Não" marca receitas antigas cujo ano
+      // ainda é inferido (CACHE.anoReceita)
+      const anoOutra = id => { const r=CACHE.outras.find(x=>x.id===id); return r?CACHE.anoReceita(r):''; };
       addAba('Outras Receitas',
-        ['ID','Descrição','Responsável',...MESES],
-        dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,...(r.valores||Array(12).fill(0))]),
-        [24,32,12,...Array(12).fill(10)]);
+        ['ID','Descrição','Responsável','Ano','Ano confirmado',...MESES],
+        dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,Number.isInteger(r.ano)?r.ano:anoOutra(r._id),Number.isInteger(r.ano)?'Sim':'Não',...(r.valores||Array(12).fill(0))]),
+        [24,32,12,8,14,...Array(12).fill(10)]);
 
       addAba('Categorias',['ID','Nome'],dados.categorias.map(c=>[c._id,c.nome]),[24,28]);
       addAba('Formas de Pagamento',['ID','Nome'],dados.formas.map(f=>[f._id,f.nome]),[24,28]);

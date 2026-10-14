@@ -174,7 +174,7 @@
       <div class="form-grid">
         <div class="fg full"><label>Nome Completo *</label><input type="text" id="sNome" placeholder="Ex: Leonardo Gomes"></div>
         <div class="fg"><label>Pessoa *</label><select id="sPessoa"><option value="">Selecione...</option><option value="Leo">Leo</option><option value="Pri">Pri</option></select></div>
-        <div class="fg"><label>Válido a partir de</label><select id="sMesInicio"></select></div>
+        <div class="fg"><label>Válido a partir de</label><div style="display:flex;gap:6px"><select id="sMesInicio" aria-label="Mês de início" style="flex:1;min-width:0"></select><select id="sAnoInicio" aria-label="Ano de início" style="width:96px"></select></div></div>
         <div class="fg"><label>Salário Bruto (R$) *</label><input type="text" inputmode="numeric" id="sSal" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Bonificação (R$)</label><input type="text" inputmode="numeric" id="sBon" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Nº de Dependentes</label><input type="number" id="sDeps" inputmode="numeric" min="0" value="0"></div>
@@ -182,7 +182,7 @@
         <div class="fg"><label>INSS (calculado)</label><input type="text" id="sINSS" readonly></div>
         <div class="fg"><label>IR (calculado)</label><input type="text" id="sIR" readonly></div>
         <div class="fg full"><label>Salário Líquido</label><input type="text" id="sLiq" readonly class="highlight"></div>
-        <div class="form-note">⚠️ Alterações salariais aplicam-se apenas a partir do mês selecionado.</div>
+        <div class="form-note">⚠️ O salário vale para todos os anos: cada alteração vigora a partir do mês e ano selecionados e segue nos anos seguintes.</div>
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovSalario">Cancelar</button><button class="btn btn-primary" id="btnSalvarSal">Salvar</button></div>
@@ -212,7 +212,8 @@
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><input type="text" id="rDesc" placeholder="Ex: Freelance, Aluguel..."></div>
         <div class="fg"><label>Responsável</label><select id="rResp"><option value="">Ambos</option><option>Leo</option><option>Pri</option></select></div>
-        <div class="fg"><label>Valor (R$)</label><input type="text" inputmode="numeric" id="rValor" class="money-input" placeholder="0,00"></div>
+        <div class="fg"><label>Ano *</label><select id="rAno" onchange="APP.rAtualizarPeriodoInfo()"></select></div>
+        <div class="fg full"><label>Valor (R$)</label><input type="text" inputmode="numeric" id="rValor" class="money-input" placeholder="0,00"></div>
         <div class="fg"><label>Mês inicial</label>
           <select id="rMesIni" onchange="APP.rAtualizarPeriodoInfo()">
             <option value="-1">Todos os meses</option>
@@ -237,6 +238,24 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovReceita">Cancelar</button><button class="btn btn-primary" id="btnSalvarReceita">Criar</button></div>
+  </div>
+</div>
+
+<!-- MODAL: CONFIRMAR ANO DAS RECEITAS ANTIGAS (antes do controle por ano) -->
+<div class="modal-overlay" id="ovRecAnos">
+  <div class="modal modal-lg">
+    <div class="modal-header"><h2>Ano das receitas antigas</h2><button class="modal-close" data-close="ovRecAnos">&times;</button></div>
+    <div class="modal-body">
+      <p style="font-size:12.5px;color:var(--t3);margin-bottom:12px;line-height:1.5">
+        Estas receitas foram cadastradas quando as receitas não tinham ano e valiam para todos os anos.
+        Agora cada receita pertence a um ano. O ano sugerido é o da última alteração (ou do cadastro).
+        Confira e grave: somente o ano é gravado, os valores de cada mês não mudam.
+      </p>
+      <div class="table-wrap"><table class="data-table"><thead><tr>
+        <th>Descrição</th><th>Responsável</th><th>Meses com valor</th><th style="text-align:right">Total no ano</th><th>Ano</th>
+      </tr></thead><tbody id="recAnosBody"></tbody></table></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovRecAnos">Cancelar</button><button class="btn btn-primary" id="btnSalvarRecAnos" onclick="APP.salvarAnosReceitas()">Gravar anos</button></div>
   </div>
 </div>
 

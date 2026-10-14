@@ -154,7 +154,7 @@ views/                Fragmentos HTML de cada tela + modals.html (todos os modai
 `[Duetto / Tela  selo de período] · [busca Ctrl K] · [filtro de responsável | ações da tela | privacidade | sair]`
 
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
-  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Em Receitas mostra só o mês (`Outubro` ou `Jan → Dez`), porque receitas não têm ano. Some em Notas, Upload, Backup e Config.
+  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas (ano e mês da tela). Some em Notas, Upload, Backup e Config.
 * **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
 * **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Gerar recorrentes, Exportar CSV. Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
@@ -166,7 +166,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 * **Contas:** busca em **todo o histórico**, com a mesma regra de texto do Relatório (descrição, nota, responsável, categoria, forma, parcela, autores, data em ISO e dd/mm/aaaa, valores em `1.234,56` e `1234,56`), sem acento, sem diferença de maiúsculas, vários termos combinados com E. Mostra até 7, mais "Ver resultados em Contas".
   Ordem: em aberto antes de pagas → descrição que começa com o termo → contém o termo → outros campos → atrasadas antes de pendentes → vencimento mais próximo de hoje.
   Valor exibido: pendente mostra o que falta pagar (`vPendente`); paga mostra o valor pago (`vEfetivo`).
-* **Outras receitas:** até 3 por descrição/responsável; Enter abre a edição.
+* **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
 * **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes, Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
 * **Ir para:** telas do app (Upload e Config só para o admin).
 * **Teclado:** ↑/↓ ou Tab navegam, Enter abre, **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
@@ -239,8 +239,8 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 
 | Coleção / doc | Conteúdo |
 |---|---|
-| `salarios` | `{nome, pessoa:'Leo'\|'Pri', historico:[{mesInicio:0-11, deps, salario, bonificacao, inss, ir, liquido, updatedBy, updatedAt}], createdBy}` |
-| `outras_receitas` | `{desc, resp:''\|'Leo'\|'Pri', valores:[12 números, Jan..Dez], createdBy, createdAt, updatedBy, updatedAt}`. `resp:''` = **Ambos** |
+| `salarios` | `{nome, pessoa:'Leo'\|'Pri', historico:[{anoInicio, mesInicio:0-11, deps, salario, bonificacao, inss, ir, liquido, updatedBy, updatedAt}], createdBy}`. Entradas antigas podem não ter `anoInicio` (ver 9.3) |
+| `outras_receitas` | `{desc, resp:''\|'Leo'\|'Pri', ano, valores:[12 números, Jan..Dez do ano], createdBy, createdAt, updatedBy, updatedAt}`. `resp:''` = **Ambos**. Receitas antigas podem não ter `ano` (ver 9.1) |
 | `categorias` | `{nome}` (nome único, sem diferenciar maiúsculas) |
 | `formas` | `{nome}` (formas de pagamento; nome único) |
 | `config/tabelas` | `{ir:[{de,ate,al,ded}], inss:[{de,ate,al,ded}], dedDep, tetoINSS, vigencia}` |
@@ -366,15 +366,18 @@ O sistema **avisa e o usuário decide**; nunca bloqueia sozinho. Usado no cadast
 
 ## 9. Receitas, salários, INSS e IR
 
-### 9.1 Receitas não têm ano
+### 9.1 Receita por ano: outras receitas têm ano, salário vale para todos
 
-`outras_receitas.valores` tem 12 posições (Jan a Dez) e o histórico de salário usa `mesInicio` (0 a 11). **Os mesmos valores valem para qualquer ano.** Receita de outubro de 2025 e de outubro de 2026 é a mesma.
+* **Outras receitas pertencem a um ano** (campo `ano`). Os 12 valores (`valores[0..11]`) valem só para os meses daquele ano. Uma receita de 2025 não aparece em 2026.
+* **Salário vale para todos os anos.** Cada entrada do histórico tem início em mês e ano (`mesInicio`, `anoInicio`). O valor vigente em um mês é o da entrada mais recente que começou até ele, e repete nos anos seguintes. Antes da primeira entrada repete a primeira (ver 9.3).
+* **Receitas cadastradas antes do controle por ano (sem `ano`):** continuam valendo, no ano da última alteração (`updatedAt`), senão do cadastro (`createdAt`), senão no ano atual (`CACHE.anoReceita`). Nada é gravado automaticamente. A tela Receitas e o Dashboard avisam; o modal "Ano das receitas antigas" grava **somente** o `ano` (os valores não mudam).
+* **"Todos os anos":** como o salário vale para qualquer ano, a soma usa os **anos com movimento** (`CACHE.anosComDados()`: anos de vencimento das contas + anos das outras receitas).
 
-### 9.2 Receita do mês (`CACHE.getReceitaMes(m, resp)`)
+### 9.2 Receita do mês (`CACHE.getReceitaMes(ano, m, resp)`)
 
 ```
-receita(m, resp) = Σ salários líquidos do mês m (só da pessoa, se resp = Leo/Pri)
-                 + Σ outras_receitas.valores[m] × fatiaReceita(r, resp)
+receita(ano, m, resp) = Σ salário líquido vigente em (ano, m) (só da pessoa, se resp = Leo/Pri)
+                      + Σ outras_receitas DO ANO: valores[m] × fatiaReceita(r, resp)
 
 fatiaReceita(r, resp):
   sem filtro ou r.resp == resp            → 1
@@ -383,7 +386,7 @@ fatiaReceita(r, resp):
   receita "Ambos" e filtro Leo ou Pri     → 0,5
 ```
 
-* Salário do mês m: a entrada do histórico com o maior `mesInicio ≤ m`. Se nenhuma, usa a primeira entrada do histórico.
+* Salário vigente em (ano, m): a entrada com maior `anoInicio×12 + mesInicio` que seja ≤ `ano×12 + m`; se nenhuma, a primeira entrada (`CACHE.getSalarioMes`).
 * Com filtro "Leo & Pri", salários (individuais) não entram e só receitas "Ambos" entram.
 
 ### 9.3 Salário líquido
@@ -397,7 +400,9 @@ líquido = base − INSS − IR          (arredondado a 2 casas)
 ```
 
 * INSS, IR e líquido são calculados **no momento em que o salário é salvo** e gravados no histórico. Alterar as tabelas fiscais **não recalcula** salários já salvos: é preciso salvar o salário de novo.
-* "Atualizar salário" grava uma entrada nova a partir do mês escolhido (substitui a entrada do mesmo `mesInicio`). É obrigatório manter ao menos uma entrada.
+* "Atualizar salário" grava uma entrada nova a partir do **mês e ano** escolhidos (substitui a entrada do mesmo mês/ano de início). Nessa gravação, entradas antigas sem `anoInicio` recebem o ano que o sistema já usava para elas, sem mudar valores. É obrigatório manter ao menos uma entrada.
+* Entradas antigas sem `anoInicio` usam o ano em que foram salvas (`updatedAt`), senão o ano atual (`CACHE.anoInicioSalario`).
+* O cartão do salário, a edição e o cálculo detalhado mostram o **salário vigente hoje**; o histórico lista "A partir de Mês/Ano" do mais recente para o mais antigo.
 * O "cálculo detalhado" mostra INSS pela fórmula da parcela a deduzir (`base × al − ded`); coincide com o progressivo quando as deduções da tabela estão coerentes.
 
 **Tabelas padrão** (`DEFAULT_TABELAS`, vigência 2024/2025; os valores ativos ficam em `config/tabelas` e são editáveis pelo admin):
@@ -421,8 +426,10 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 9.4 Outras receitas
 
-* Descrição obrigatória; responsável Leo, Pri ou Ambos.
-* Período: "Todos os meses" aplica o valor de Jan a Dez; mês inicial + final aplica no intervalo; só mês inicial aplica em um mês. Mês final não pode ser anterior ao inicial.
+* Descrição e **ano** obrigatórios (2019 a 2035); responsável Leo, Pri ou Ambos. Nova receita vem com o ano filtrado na tela Receitas.
+* Período dentro do ano: "Todos os meses" aplica o valor de Jan a Dez; mês inicial + final aplica no intervalo; só mês inicial aplica em um mês. Mês final não pode ser anterior ao inicial.
+* **Edição preserva os valores mês a mês:** se valor e meses não forem alterados (ex.: só trocar o ano ou a descrição), os 12 valores originais são mantidos. Se a receita tem valores diferentes por mês e o usuário muda valor ou meses, o sistema pede confirmação antes de aplicar o mesmo valor a todo o período.
+* Receitas não se repetem entre anos: para o ano seguinte, cadastre de novo.
 * Salários aparecem na lista de Receitas como linhas automáticas (somente leitura).
 
 ---
@@ -435,7 +442,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 | KPI | Cálculo (centavos inteiros) |
 |---|---|
-| Receita | Σ `getReceitaMes(m, resp)` para cada mês da seleção (período: mesIni..mesFim; ano completo: 12 meses; mês: 1) |
+| Receita | Σ `getReceitaMes(ano, m, resp)` para cada ano e mês da seleção (período: mesIni..mesFim do ano do período; ano completo: 12 meses; mês: 1; "Todos os anos": cada ano com movimento) |
 | Total Despesas | Σ `vEfetivo` das contas com vencimento na seleção (÷2 quando filtrado) |
 | Pendente | Σ `vPendente` do período **+ atrasadas de meses anteriores** |
 | Saldo | Receita − Total Despesas. Linha extra "Após atrasadas anteriores" = Saldo − pendente das atrasadas anteriores |
@@ -449,8 +456,9 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
   3. Saldo negativo: "Despesas superam a receita em X".
   4. Contas em aberto que vencem de hoje até 3 dias (qualquer mês; compartilhadas contam para os dois).
   5. Recorrentes sem registro no mês (chave: descrição em minúsculas + responsável).
+  6. Receitas antigas sem ano confirmado (clique leva a Receitas).
 * **Despesas por categoria:** donut + tabela. Até 6 categorias, uma fatia cada; acima disso, as 5 maiores + "Demais (n)" expansível. Percentual sobre o total de todas as categorias. Cores fixas `--cat-1..6` (paleta validada para daltonismo).
-* **Receita × Despesa:** sempre os 12 meses do ano selecionado (ignora o mês); despesas por `vEfetivo` com filtro de responsável; mês atual destacado.
+* **Receita × Despesa:** sempre os 12 meses do ano selecionado, ou do ano do período personalizado quando ativo (ignora o mês); receita do ano ("Todos os anos" soma cada mês nos anos com movimento); despesas por `vEfetivo` com filtro de responsável; mês atual destacado.
 * **Pareto 80/20:** ver 10.3.
 
 ### 10.2 Contas
@@ -473,9 +481,11 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 10.4 Receitas
 
-* Lista unificada: salários (uma linha por pessoa por mês, automática) + outras receitas (uma linha por mês com valor).
-* Filtros: busca, mês, tipo (salário/outra) e responsável global (receitas "Ambos" entram pela metade com selo ÷2 quando o filtro é Leo ou Pri).
-* Totais: total, salários, outras. Gráfico anual empilhado (salários + outras).
+* Lista unificada: salários (uma linha por pessoa por mês do ano, com o salário vigente) + outras receitas **do ano** (uma linha por mês com valor).
+* Filtros: busca (inclui mês e ano), **ano** (padrão: ano atual; "Todos os anos" = anos com movimento, e a coluna Mês mostra o ano), mês, tipo (salário/outra) e responsável global (receitas "Ambos" entram pela metade com selo ÷2 quando o filtro é Leo ou Pri).
+* Ordenar por "Mês" ordena por ano e mês.
+* Totais: total, salários, outras. Gráfico anual empilhado (salários + outras) dos anos filtrados.
+* Receitas sem ano confirmado aparecem com o selo "ano?" e um aviso no topo que abre a revisão (9.1).
 
 ### 10.5 Período personalizado
 
@@ -537,7 +547,7 @@ Somente admin.
 
 * Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso`. **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
 * **JSON** (versão 2): timestamps serializados como `{__tipo:'timestamp', iso, seconds, nanoseconds}`; `meta` com data, autor, contagem e falhas.
-* **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos e salários por período.
+* **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos, salários por período (mês e ano de início) e outras receitas com Ano e "Ano confirmado" (Não = ano ainda inferido).
 * Coleção que falhar não derruba o backup: entra em `meta.falhas` e o usuário é avisado.
 * Não existe restauração automática a partir do backup.
 
@@ -560,7 +570,8 @@ Somente admin.
 ## 15. Restrições e limitações conhecidas
 
 * **Segurança no servidor:** o controle de acesso no código é só do lado do cliente. A proteção real depende das **Regras do Firestore**, configuradas no Firebase Console e **não versionadas neste repositório**. Elas devem refletir: só os dois e-mails, logs imutáveis e permissões de Notas.
-* **Receitas sem ano** (9.1): mudar salário ou outra receita altera todos os anos. Com "Todos os anos" no Dashboard, a receita soma um único ano enquanto as despesas somam todos: o Saldo nesse modo não é comparável.
+* **Receitas antigas sem `ano`** usam um ano inferido (9.1) até a confirmação. Se alguma foi cadastrada num ano para valer em outro, confira na revisão antes de comparar anos.
+* **Novos campos no Firestore** (`outras_receitas.ano`, `historico[].anoInicio`): se as Regras do Firestore validarem campos, precisam aceitá-los.
 * **Dinheiro em float** nas contas e receitas gravadas. Contas, Relatório e Receitas somam em reais (float); o Dashboard soma em centavos. Diferença de 1 centavo é possível em casos raros. Migrar para centavos inteiros exige migração de dados.
 * **Salários não recalculam** ao mudar as tabelas fiscais (9.3).
 * **Moeda** só muda a formatação, sem conversão.
@@ -578,5 +589,6 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-14 | **Receita por ano:** outras receitas passam a ter `ano` (cadastro com ano obrigatório, filtro de ano na tela Receitas, edição que preserva os valores mês a mês). Salário vale para todos os anos com vigência por mês e ano (`anoInicio`): o valor atual segue nos anos seguintes. Dashboard (KPI Receita, gráfico Receita × Despesa, insight), Receitas (lista, totais, gráfico), busca rápida, backup Excel e selo do topbar usam o ano. Receitas antigas sem ano continuam valendo no ano da última alteração, com aviso e modal para confirmar (grava só o `ano`). |
 | 2026-10-13 | **Atrasadas:** o aviso "N contas em atraso" de Contas passa a respeitar o filtro de responsável (antes contava sempre todas) e mostra o valor pendente, igual ao Dashboard. Corrigido o clique no aviso, que recarregava a tela e perdia o filtro "atrasado"; agora o aviso de Contas, o banner do Dashboard e a busca rápida abrem a mesma lista de atrasadas. |
 | 2026-10-12 | **Novo shell (proposta "Trilho"):** trilho de navegação fixo de 76px substitui a sidebar de 230px (sem recolher); topbar com trilha da tela, selo de período, busca rápida Ctrl K / ⌘K / "/" (`js/command-palette.js`), filtro de responsável em avatares e ações secundárias só com ícone; novo `css/shell.css`; tema Pri derivado de tokens no trilho e na bottom nav; `.main` com `min-width:0` (fim da rolagem horizontal entre 769 e ~1200px na tela Contas). Criado este README com a regra de atualização obrigatória. |

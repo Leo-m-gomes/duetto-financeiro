@@ -173,8 +173,7 @@ const APP = {
   /**
    * Período exibido na tela atual, mostrado ao lado do título no topbar.
    * Lê os filtros da própria tela (cada tela tem o seu); período personalizado
-   * tem prioridade sobre ano/mês. Receitas não têm ano (valores mensais valem
-   * para qualquer ano). Telas sem período escondem o selo.
+   * tem prioridade sobre ano/mês. Telas sem período escondem o selo.
    * Chamado por renderPage e no fim de cada render com filtro de período.
    */
   atualizarContextoTopbar(){
@@ -197,11 +196,7 @@ const APP = {
       case 'dashboard': txt = rotulo(STATE.periodoDash, val('filtroAnoDash'), val('filtroMesDash')); break;
       case 'contas':    txt = rotulo(STATE.periodoContas, val('filtroAnoContas'), val('filtroMesContas')); break;
       case 'relatorio': txt = rotulo(STATE.periodo, val('relAno'), val('relMes')); break;
-      case 'receitas': {
-        const m = val('filtroMesReceitas');
-        txt = m==null ? '' : (m==='todos' ? 'Jan → Dez' : MESES_F[+m]);
-        break;
-      }
+      case 'receitas':  txt = rotulo(null, val('filtroAnoReceitas'), val('filtroMesReceitas')); break;
     }
     el.textContent = txt;
     el.hidden = !txt;
@@ -242,6 +237,12 @@ const APP = {
       if(ms.options.length === 0){ MESES_F.forEach((m,i) => ms.appendChild(new Option(m,i))); }
       ms.value = new Date().getMonth();
     }
+    // Ano de início da vigência do salário (o salário vale para todos os anos a partir dele)
+    const as = document.getElementById('sAnoInicio');
+    if(as){
+      if(as.options.length === 0){ for(let a=2019;a<=2035;a++) as.appendChild(new Option(a,a)); }
+      as.value = new Date().getFullYear();
+    }
   },
 
   selects(){
@@ -278,6 +279,7 @@ const APP = {
     mkMes('filtroMesDash');
     mkAno('filtroAnoContas');
     mkMes('filtroMesContas');
+    mkAno('filtroAnoReceitas');
     mkMes('filtroMesReceitas');
     mkAno('relAno');
     mkMes('relMes');
@@ -297,7 +299,7 @@ const APP = {
         STATE.pg=1; self.renderContas();
       };
     });
-    ['searchReceitas','filtroMesReceitas','filtroTipoReceitas'].forEach(id=>{
+    ['searchReceitas','filtroAnoReceitas','filtroMesReceitas','filtroTipoReceitas'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{ STATE.pgReceitas=1; self.renderReceitas(); };
     });

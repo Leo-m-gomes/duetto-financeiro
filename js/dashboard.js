@@ -28,12 +28,14 @@ Object.assign(APP, {
     const baseContas = filtrarContas(CACHE.contas);
     const contas = resp ? filtrarPorResp(baseContas, resp) : baseContas.map(c=>({...c}));
 
-    // Receita dos MESMOS meses das despesas: período (mesIni..mesFim), ano completo ou o mês.
-    // Antes, com período ativo, somava só o mês do seletor e o Saldo saía errado.
+    // Receita dos MESMOS meses e anos das despesas: período (mesIni..mesFim do ano dele), ano
+    // completo ou o mês. Outras receitas são por ano; com "Todos os anos" soma os anos com
+    // movimento (o salário vale para qualquer ano e não pode ser somado sem limite).
     const mesesCalc = p
       ? Array.from({length:p.mesFim-p.mesIni+1},(_,i)=>p.mesIni+i)
       : todosMeses ? Array.from({length:12},(_,i)=>i) : [mes];
-    const recCent = mesesCalc.reduce((s,m)=>s+centavos(CACHE.getReceitaMes(m, resp)),0);
+    const anosCalc = p ? [p.ano] : (todosAnos ? CACHE.anosComDados() : [ano]);
+    const recCent = anosCalc.reduce((s,a)=>s+mesesCalc.reduce((t,m)=>t+centavos(CACHE.getReceitaMes(a, m, resp)),0),0);
     const recMes  = recCent/100;
 
     const totPCent= contas.reduce((s,c)=>s+centavos(vEfetivo(c)),0);
@@ -177,8 +179,15 @@ Object.assign(APP, {
       if(semMes.length > 0) chips.push({cls:'insight-warn', text:`🔁 ${semMes.length} conta${semMes.length>1?'s recorrentes':'recorrente'} sem registro neste mês`});
     }
 
+    // 6. Receitas antigas sem ano confirmado: a receita do Dashboard usa o ano inferido
+    const semAno = CACHE.receitasSemAno().length;
+    if(semAno) chips.push({cls:'insight-warn', acao:"APP.goPage('receitas')",
+      text:`📅 ${semAno} receita${semAno>1?'s':''} antiga${semAno>1?'s':''} sem ano confirmado: revise em Receitas`});
+
     el.innerHTML = chips.length
-      ? chips.map(c=>`<span class="insight-chip ${c.cls}">${c.text}</span>`).join('')
+      ? chips.map(c=>c.acao
+          ? `<span class="insight-chip ${c.cls}" role="button" tabindex="0" style="cursor:pointer" onclick="${c.acao}" onkeydown="if(event.key==='Enter')${c.acao}">${c.text}</span>`
+          : `<span class="insight-chip ${c.cls}">${c.text}</span>`).join('')
       : '';
   },
 
@@ -305,11 +314,11 @@ Object.assign(APP, {
   },
 
   chartFluxo(baseContas, resp){
-    // O gráfico Receita×Despesa SEMPRE mostra os 12 meses do ano selecionado
-    // Ignora filtro de mês específico — usa todos os dados do ano
+    // O gráfico Receita×Despesa SEMPRE mostra os 12 meses do ano selecionado (ou do ano do
+    // período personalizado, quando ativo). Ignora o filtro de mês.
     resp = (resp !== undefined) ? resp : STATE.resp;
     const anoVal = document.getElementById('filtroAnoDash')?.value || 'todos';
-    const ano    = anoVal === 'todos' ? null : parseInt(anoVal);
+    const ano    = STATE.periodoDash ? STATE.periodoDash.ano : (anoVal === 'todos' ? null : parseInt(anoVal));
 
     // Usa TODAS as contas do ano (não só o mês filtrado)
     const contasAno = ano
@@ -323,7 +332,9 @@ Object.assign(APP, {
       return filtrado.reduce((s,c)=>s+vEfetivo(c),0);
     });
 
-    const rec=Array.from({length:12},(_,m)=>CACHE.getReceitaMes(m, resp));
+    // Receita do ano selecionado; "Todos os anos" soma o mês em cada ano com movimento
+    const anosRec = ano ? [ano] : CACHE.anosComDados();
+    const rec=Array.from({length:12},(_,m)=>anosRec.reduce((s,a)=>s+CACHE.getReceitaMes(a, m, resp),0));
     const mesAtual = new Date().getMonth();
     const anoAtualNum = new Date().getFullYear();
     const dark = document.documentElement.classList.contains('dark');

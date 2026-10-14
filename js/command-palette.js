@@ -12,7 +12,7 @@
  *     termo > contém o termo > outros campos; depois atrasadas antes de
  *     pendentes; depois vencimento mais próximo de hoje.
  *     Enter abre a conta; Shift+Enter abre o pagamento.
- *   • Outras receitas: Enter abre a edição.
+ *   • Outras receitas (por ano; o ano entra na busca): Enter abre a edição.
  *   • Ações rápidas e navegação entre telas (telas de admin só para o admin).
  *
  * SOMENTE LEITURA: este módulo não grava nada. Toda ação delega para APP.*,
@@ -136,7 +136,11 @@ const CMD = (() => {
   function buscarReceitas(q){
     const termos = termosDe(q);
     if(!termos.length) return [];
-    return CACHE.outras.filter(r => casa(`${r.desc} ${r.resp || 'Ambos'}`, termos)).slice(0, MAX_RECEITAS);
+    // Receitas são por ano: o ano entra na busca e as mais recentes aparecem primeiro
+    return CACHE.outras
+      .filter(r => casa(`${r.desc} ${r.resp || 'Ambos'} ${CACHE.anoReceita(r)}`, termos))
+      .sort((a, b) => CACHE.anoReceita(b) - CACHE.anoReceita(a))
+      .slice(0, MAX_RECEITAS);
   }
 
   // ── ITENS ──
@@ -173,7 +177,7 @@ const CMD = (() => {
     const quando = meses.length === 12 ? 'todos os meses' : `${meses.length} ${meses.length === 1 ? 'mês' : 'meses'}`;
     const valor = meses.length ? r.valores[meses[0]] : 0;
     return {
-      html: linha({ic:'receita', titulo:esc(r.desc), sub:esc(`${r.resp || 'Ambos'} · ${quando}`), meta:`<span class="money">${fmt(valor)}</span>`}),
+      html: linha({ic:'receita', titulo:esc(r.desc), sub:esc(`${r.resp || 'Ambos'} · ${CACHE.anoReceita(r)} · ${quando}`), meta:`<span class="money">${fmt(valor)}</span>`}),
       run:  () => APP.openReceita(r.id),
     };
   }
