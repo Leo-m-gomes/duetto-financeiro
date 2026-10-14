@@ -80,7 +80,7 @@
 /* ── PAGINATION ── (linhas 214-216) */
 .table-pagination{display:flex;align-items:center;justify-content:center;gap:4px;padding:10px;border-top:1px solid var(--border)}
 .pg-btn{width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface);border:1px solid var(--border);border-radius:6px;color:var(--t3);font-size:11px;cursor:pointer;transition:.15s}
-.pg-btn:hover,.pg-btn.active{background:var(--palm);border-color:var(--palm);color:var(--on-palm)}
+.pg-btn:hover,.pg-btn.active{background:var(--palm);border-color:var(--palm);color:#fff}
 
 /* ── REC-TABLE (Receitas) ── (linhas 222-232) */
 .rec-table{width:100%;border-collapse:collapse;font-size:11.5px}
