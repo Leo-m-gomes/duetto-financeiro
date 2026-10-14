@@ -5,7 +5,7 @@
   Layout tabular com filtros, totalizadores, tabela paginada com
   ordenação e gráfico. Substitui a versão matricial 12 colunas.
 
-  IDs: searchReceitas, filtroAnoReceitas, filtroMesReceitas, recSemAnoAviso,
+  IDs: searchReceitas, filtroAnoReceitas, filtroMesReceitas, periodoBadgeReceitas, recSemAnoAviso,
        filtroTipoReceitas, totalReceitas, totalSalarios, totalOutras,
        receitasInfo, tblReceitas, tbodyReceitas, pgReceitas, canvasReceitas.
 
@@ -33,6 +33,8 @@
         <select class="filter-select" id="filtroAnoReceitas" aria-label="Ano"></select>
         <select class="filter-select" id="filtroMesReceitas" aria-label="Mês"></select>
         <select class="filter-select" id="filtroTipoReceitas"><option value="">Todas as receitas</option><option value="salario">Salários</option><option value="outra">Outras Receitas</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('receitas')">📅 Período</button>
+        <span id="periodoBadgeReceitas" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid var(--palm-border);border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('receitas')" title="Clique para remover"></span>
         <button class="btn btn-primary btn-sm mob-action-btn" onclick="APP.openReceita()"><svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg> Nova Receita</button>
         <button class="btn btn-secondary btn-sm mob-action-btn" onclick="APP.openSalariosModal()">👥 Gerenciar Salários</button>
       </div>
