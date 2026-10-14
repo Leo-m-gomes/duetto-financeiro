@@ -6,8 +6,9 @@ Object.assign(APP, {
   // ============================================================
   renderSalario(){
     document.getElementById('salCards').innerHTML=CACHE.salarios.map(s=>{
-      const hist=[...s.historico].sort((a,b)=>b.mesInicio-a.mesInicio);const atual=hist[0];
-      const histRows=hist.map(h=>`<div class="hist-item"><span class="mes">A partir de ${MESES_F[h.mesInicio]}</span><span>${fmt(h.salario)}</span><span class="pos" style="font-weight:600">${fmt(h.liquido)}</span><button class="action-btn del" onclick="APP.deleteSalHist('${s.id}',${h.mesInicio})" style="width:20px;height:20px;font-size:10px">✕</button></div>`).join('');
+      // Histórico do mais recente para o mais antigo; o cartão mostra o salário vigente hoje
+      const hist=CACHE.historicoSalario(s).reverse();const atual=CACHE.getSalarioVigente(s)||hist[0];
+      const histRows=hist.map(h=>{const a=CACHE.anoInicioSalario(h);return`<div class="hist-item"><span class="mes">A partir de ${MESES_F[h.mesInicio]}/${a}${h===atual?' · vigente':''}</span><span>${fmt(h.salario)}</span><span class="pos" style="font-weight:600">${fmt(h.liquido)}</span><button class="action-btn del" onclick="APP.deleteSalHist('${s.id}',${a},${h.mesInicio})" style="width:20px;height:20px;font-size:10px">✕</button></div>`;}).join('');
       return`<div class="sal-card"><div class="sal-card-head"><h4>👤 ${s.nome} ${s.pessoa?`<span style="font-size:11px;background:rgba(255,255,255,.25);padding:2px 8px;border-radius:99px;font-family:var(--font-b);font-weight:600">${s.pessoa}</span>`:''}</h4><div style="display:flex;gap:5px"><button class="action-btn edit" onclick="APP.openSalario('${s.id}')" style="background:rgba(255,255,255,.2);border-color:rgba(255,255,255,.3);color:#fff">✏</button><button class="action-btn del" onclick="APP.deletePessoa('${s.id}')" style="background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.2);color:rgba(255,255,255,.7)">✕</button></div></div><div class="sal-card-body"><div class="sal-row"><span>Nº Dependentes</span><span>${atual.deps}</span></div><div class="sal-row"><span>Salário Bruto</span><span>${fmt(atual.salario)}</span></div>${atual.bonificacao?`<div class="sal-row"><span>Bonificação</span><span>${fmt(atual.bonificacao)}</span></div>`:''}<div class="sal-row ded" style="cursor:pointer" onclick="APP.openCalculoDetalhe('${s.id}')" title="Ver cálculo"><span>(-) INSS</span><span>${fmt(atual.inss)}</span></div><div class="sal-row ded" style="cursor:pointer" onclick="APP.openCalculoDetalhe('${s.id}')" title="Ver cálculo"><span>(-) IR</span><span>${fmt(atual.ir)}</span></div><div class="sal-row total"><span>Salário Líquido</span><span>${fmt(atual.liquido)}</span></div><div style="text-align:center;padding:6px 0 2px"><a href="#" onclick="event.preventDefault();APP.openCalculoDetalhe('${s.id}')" style="font-size:11px;color:var(--blue);text-decoration:none;font-weight:600">📊 Ver cálculo detalhado</a></div></div>${hist.length>0?`<div class="sal-hist"><div class="sal-hist-toggle" onclick="this.nextElementSibling.classList.toggle('open')">📅 Histórico (${hist.length}) ▾</div><div class="sal-hist-body">${histRows}</div></div>`:''}</div>`;
     }).join('')||'<div style="color:var(--t4);padding:20px">Nenhuma pessoa cadastrada. Clique em "Novo Salário" para começar.</div>';
 
@@ -29,6 +30,7 @@ Object.assign(APP, {
     ['sNome','sSal','sBon','sINSS','sIR','sLiq','sPessoa'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
     document.getElementById('sDeps').value=0;document.getElementById('sBon').value=0;
     document.getElementById('sMesInicio').value=new Date().getMonth();
+    const sAno=document.getElementById('sAnoInicio');if(sAno)sAno.value=new Date().getFullYear();
     document.getElementById('sNome').disabled=false;
     if(pessoaId){
       const s=CACHE.salarios.find(x=>x.id===pessoaId);
@@ -36,7 +38,7 @@ Object.assign(APP, {
         document.getElementById('sNome').value=s.nome;
         document.getElementById('sNome').disabled=true;
         if(document.getElementById('sPessoa'))document.getElementById('sPessoa').value=s.pessoa||'';
-        const h=[...s.historico].sort((a,b)=>b.mesInicio-a.mesInicio)[0];
+        const h=CACHE.getSalarioVigente(s);
         setMoneyValue(document.getElementById('sSal'),h.salario);
         setMoneyValue(document.getElementById('sBon'),h.bonificacao);
         document.getElementById('sDeps').value=h.deps||0;
@@ -66,17 +68,22 @@ Object.assign(APP, {
     const bon=parseMoney(document.getElementById('sBon').value);
     const deps=parseInt(document.getElementById('sDeps').value)||0;
     const mes=parseInt(document.getElementById('sMesInicio').value);
+    const anoIni=parseInt(document.getElementById('sAnoInicio')?.value)||new Date().getFullYear();
     if(!sal)return this.toast('Informe o salário','error');
     const inss=CACHE.calcINSS(sal+bon);const ir=CACHE.calcIR(sal+bon,inss,deps);
     const liq=parseFloat((sal+bon-inss-ir).toFixed(2));
-    const histEntry={mesInicio:mes,deps,salario:sal,bonificacao:bon,inss,ir,liquido:liq,updatedBy:STATE.usuario,updatedAt:today()};
+    const histEntry={anoInicio:anoIni,mesInicio:mes,deps,salario:sal,bonificacao:bon,inss,ir,liquido:liq,updatedBy:STATE.usuario,updatedAt:today()};
 
     if(STATE.editSalPessoa){
       const s=CACHE.salarios.find(x=>x.id===STATE.editSalPessoa);
       if(s){
-        const hist=s.historico.filter(h=>h.mesInicio!==mes);hist.push(histEntry);hist.sort((a,b)=>a.mesInicio-b.mesInicio);
+        // Substitui a entrada do mesmo mês/ano de início e grava o ano das entradas antigas
+        // (o mesmo que CACHE.anoInicioSalario já usava), sem mudar seus valores
+        const hist=this._historicoComAno(s).filter(h=>!(h.anoInicio===anoIni&&h.mesInicio===mes));
+        hist.push(histEntry);
+        hist.sort((a,b)=>(a.anoInicio*12+a.mesInicio)-(b.anoInicio*12+b.mesInicio));
         await FS.saveSalario(STATE.editSalPessoa,{...s,historico:hist,pessoa:pessoa||s.pessoa});
-        this.toast(`Salário atualizado a partir de ${MESES_F[mes]}`,'success');
+        this.toast(`Salário atualizado a partir de ${MESES_F[mes]}/${anoIni}`,'success');
       }
     } else {
       if(!nome)return this.toast('Nome é obrigatório','error');
@@ -89,11 +96,16 @@ Object.assign(APP, {
     document.getElementById('sNome').disabled=false;STATE.editSalPessoa=null;
   },
 
-  async deleteSalHist(pessoaId,mes){
+  /** Histórico com `anoInicio` explícito em todas as entradas (antigas recebem o ano inferido). */
+  _historicoComAno(s){
+    return (s.historico||[]).map(h=>Number.isInteger(h.anoInicio)?{...h}:{...h,anoInicio:CACHE.anoInicioSalario(h)});
+  },
+
+  async deleteSalHist(pessoaId,ano,mes){
     const s=CACHE.salarios.find(x=>x.id===pessoaId);
     if(!s||s.historico.length<=1){this.toast('Mantenha ao menos um registro','error');return;}
-    if(!confirm(`Remover salário de ${MESES_F[mes]}?`))return;
-    const hist=s.historico.filter(h=>h.mesInicio!==mes);
+    if(!confirm(`Remover salário de ${MESES_F[mes]}/${ano}?`))return;
+    const hist=this._historicoComAno(s).filter(h=>!(h.anoInicio===ano&&h.mesInicio===mes));
     await FS.saveSalario(pessoaId,{...s,historico:hist});
     this.toast('Registro removido','success');
     this.renderSalario();
@@ -117,7 +129,7 @@ Object.assign(APP, {
   openCalculoDetalhe(pessoaId){
     const s = CACHE.salarios.find(x => x.id === pessoaId);
     if(!s) return;
-    const h = [...s.historico].sort((a,b) => b.mesInicio - a.mesInicio)[0];
+    const h = CACHE.getSalarioVigente(s);
     if(!h) return;
 
     const tab = CACHE.tabelas || DEFAULT_TABELAS;

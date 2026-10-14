@@ -214,6 +214,18 @@ const FS = {
   async addOutra(data){ await fbDb.collection('outras_receitas').add({...data,createdAt:firebase.firestore.FieldValue.serverTimestamp()}); },
   async updateOutra(id,data){ await fbDb.collection('outras_receitas').doc(id).update(data); },
   async deleteOutra(id){ await fbDb.collection('outras_receitas').doc(id).delete(); },
+  /**
+   * Grava o `ano` de receitas cadastradas antes do controle por ano. Só acrescenta o campo:
+   * valores, descrição e responsável não são tocados.
+   * @param {{id:string, ano:number}[]} pares
+   */
+  async definirAnoOutras(pares){
+    for(let i=0;i<pares.length;i+=400){
+      const batch = fbDb.batch();
+      pares.slice(i,i+400).forEach(({id,ano})=>batch.update(fbDb.collection('outras_receitas').doc(id),{ano}));
+      await batch.commit();
+    }
+  },
 
   // ── CATEGORIAS ──
   async addCat(nome){ const ref=await fbDb.collection('categorias').add({nome}); return ref.id; },

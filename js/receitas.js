@@ -5,58 +5,73 @@ Object.assign(APP, {
   // RECEITAS (Redesign v2 — layout tabular padrão Contas)
   // ============================================================
 
+  /** Anos do filtro da tela Receitas: o ano escolhido ou, em "Todos os anos", os anos com movimento. */
+  _anosReceitas(){
+    const v = document.getElementById('filtroAnoReceitas')?.value || String(new Date().getFullYear());
+    return v==='todos' ? CACHE.anosComDados() : [parseInt(v)];
+  },
+
   renderReceitas(){
     const search = (document.getElementById('searchReceitas')?.value||'').toLowerCase();
     const mesVal = document.getElementById('filtroMesReceitas')?.value||'todos';
     const resp   = STATE.resp;   // filtro global do topbar
     const tipo   = document.getElementById('filtroTipoReceitas')?.value||'';
     const mesFiltro = mesVal==='todos' ? null : parseInt(mesVal);
+    const anos   = this._anosReceitas();
+    const variosAnos = anos.length > 1;
+    const meses  = mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
 
-    // ── Build unified data ──
+    // ── Build unified data ── (ordem = ano*12+mês, para ordenar por período entre anos)
     let data = [];
 
-    // Salários: 1 linha por pessoa por mês
+    // Salários: 1 linha por pessoa por mês de cada ano (salário vale para todos os anos)
     if(tipo!=='outra'){
-      const meses = mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
       for(const s of CACHE.salarios){
         if(resp && s.pessoa!==resp) continue;
-        for(const m of meses){
-          const h = CACHE.getSalarioMes(s,m);
-          if(!h||!h.liquido) continue;
-          data.push({
-            tipo:'salario', desc:'Salário — '+s.nome, resp:s.pessoa||'',
-            mes:m, valor:h.liquido, updatedBy:'', readOnly:true, id:'sal_'+s.id+'_'+m
-          });
+        for(const a of anos){
+          for(const m of meses){
+            const h = CACHE.getSalarioMes(s, a, m);
+            if(!h||!h.liquido) continue;
+            data.push({
+              tipo:'salario', desc:'Salário — '+s.nome, resp:s.pessoa||'',
+              ano:a, mes:m, ordem:a*12+m, valor:h.liquido, updatedBy:'', readOnly:true, id:'sal_'+s.id+'_'+a+'_'+m
+            });
+          }
         }
       }
     }
 
-    // Outras Receitas: 1 linha por receita por mês com valor > 0
+    // Outras Receitas: só as do(s) ano(s) filtrado(s); 1 linha por mês com valor > 0
     if(tipo!=='salario'){
-      const meses = mesFiltro!==null ? [mesFiltro] : Array.from({length:12},(_,i)=>i);
       for(const r of CACHE.outras){
+        const a = CACHE.anoReceita(r);
+        if(!anos.includes(a)) continue;
         // Mesma regra do Dashboard: receita "Ambos" vale metade para Leo e metade para Pri
         const fatia = fatiaReceita(r, resp);
         if(!fatia) continue;
         for(const m of meses){
-          if(!r.valores[m]) continue;
+          const v = (r.valores||[])[m];
+          if(!v) continue;
           data.push({
             tipo:'outra', desc:r.desc, resp:r.resp||'',
-            mes:m, valor:r.valores[m]*fatia, _split:fatia<1, updatedBy:r.updatedBy||'',
-            readOnly:false, id:r.id
+            ano:a, mes:m, ordem:a*12+m, valor:v*fatia, _split:fatia<1, updatedBy:r.updatedBy||'',
+            readOnly:false, id:r.id, semAno:!Number.isInteger(r.ano)
           });
         }
       }
     }
 
-    // Busca textual
+    // Busca textual (inclui mês e ano)
     if(search){
       data = data.filter(d =>
         d.desc.toLowerCase().includes(search) ||
         d.resp.toLowerCase().includes(search) ||
-        MESES[d.mes].toLowerCase().includes(search)
+        MESES[d.mes].toLowerCase().includes(search) ||
+        String(d.ano).includes(search)
       );
     }
+
+    this._avisoReceitasSemAno();
 
     // ── Totalizadores ──
     const totalSal = data.filter(d=>d.tipo==='salario').reduce((s,d)=>s+d.valor,0);
@@ -94,7 +109,7 @@ Object.assign(APP, {
         '<td data-label="Tipo">'+tipoBadge+'</td>'+
         '<td data-label="Descrição" style="font-weight:600;color:var(--t1)">'+r.desc+'</td>'+
         '<td data-label="Responsável">'+respChip+'</td>'+
-        '<td data-label="Mês">'+MESES[r.mes]+'</td>'+
+        '<td data-label="Mês">'+MESES[r.mes]+(variosAnos?' '+r.ano:'')+(r.semAno?' <span class="badge" style="background:var(--yellow-lt);color:var(--yellow);font-size:9px" title="Cadastrada antes do controle por ano: ano ainda não confirmado">ano?</span>':'')+'</td>'+
         '<td data-label="Valor" class="money pos" style="text-align:right">'+fmt(r.valor)+'</td>'+
         '<td data-label="Por">'+auditChip+'</td>'+
         '<td data-label="Ações" style="white-space:nowrap">'+acoes+'</td></tr>';
@@ -113,15 +128,19 @@ Object.assign(APP, {
     }
 
     // ── Gráfico ──
-    this.renderRecChart(resp);
+    this.renderRecChart(resp, anos);
     this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
   // ── CHART (preservado do original) ──
-  renderRecChart(filtroResp=''){
+  /**
+   * Resumo anual empilhado (salários + outras receitas) dos anos filtrados.
+   * Com vários anos ("Todos os anos"), cada mês soma o mesmo mês de todos eles.
+   */
+  renderRecChart(filtroResp='', anos=[new Date().getFullYear()]){
     const sals=CACHE.salarios.filter(s=>!filtroResp||s.pessoa===filtroResp);
-    const salVals=Array.from({length:12},(_,m)=>{let t=0;sals.forEach(s=>{const h=CACHE.getSalarioMes(s,m);t+=h?h.liquido:0;});return t;});
-    const outVals=Array.from({length:12},(_,m)=>CACHE.outras.reduce((s,r)=>s+(r.valores[m]||0)*fatiaReceita(r,filtroResp),0));
+    const salVals=Array.from({length:12},(_,m)=>{let t=0;anos.forEach(a=>sals.forEach(s=>{const h=CACHE.getSalarioMes(s,a,m);t+=h?h.liquido:0;}));return t;});
+    const outVals=Array.from({length:12},(_,m)=>CACHE.outras.reduce((s,r)=>anos.includes(CACHE.anoReceita(r))?s+((r.valores||[])[m]||0)*fatiaReceita(r,filtroResp):s,0));
     const dark = document.documentElement.classList.contains('dark');
 
     const salColor    = dark ? 'rgba(0,100,55,.75)'    : 'rgba(0,100,55,.82)';
@@ -238,23 +257,42 @@ Object.assign(APP, {
   },
 
   // ── RECEITA MODAL (com suporte a edição) ──
+  // Outras receitas são por ano: o ano é obrigatório e os 12 valores mensais valem só nele.
   openReceita(id){
     STATE.editReceitaId=id||null;
+    STATE.recOriginal=null;
     ['rDesc','rValor'].forEach(fid=>{const e=document.getElementById(fid);if(e)e.value='';});
     const rResp=document.getElementById('rResp');if(rResp)rResp.value='';
     const rMesIni=document.getElementById('rMesIni');if(rMesIni)rMesIni.value='-1';
     const rMesFim=document.getElementById('rMesFim');if(rMesFim)rMesFim.value='-1';
+    const rAno=document.getElementById('rAno');
+    if(rAno){
+      if(!rAno.options.length) for(let a=2019;a<=2035;a++) rAno.appendChild(new Option(a,a));
+      // Nova receita: ano filtrado na tela Receitas (ou o atual)
+      const filtro=document.getElementById('filtroAnoReceitas')?.value;
+      rAno.value=String(/^\d{4}$/.test(filtro||'') ? filtro : new Date().getFullYear());
+    }
 
     if(id){
       const r=CACHE.outras.find(x=>x.id===id);
       if(r){
+        const valores=(r.valores||[]).slice(0,12);
         document.getElementById('rDesc').value=r.desc;
         if(rResp)rResp.value=r.resp||'';
+        if(rAno)rAno.value=String(CACHE.anoReceita(r));
         let ini=-1,fim=-1;
-        for(let m=0;m<12;m++){if(r.valores[m]){if(ini===-1)ini=m;fim=m;}}
+        for(let m=0;m<12;m++){if(valores[m]){if(ini===-1)ini=m;fim=m;}}
         if(rMesIni)rMesIni.value=ini;
         if(rMesFim)rMesFim.value=fim;
-        if(ini!==-1){const rv=document.getElementById('rValor');if(rv)setMoneyValue(rv,r.valores[ini]);}
+        const val = ini!==-1 ? valores[ini] : 0;
+        if(ini!==-1){const rv=document.getElementById('rValor');if(rv)setMoneyValue(rv,val);}
+        // Guarda os valores originais: se o usuário não mexer em valor nem meses (ex.: só
+        // troca o ano ou a descrição), os valores de cada mês são mantidos como estão.
+        const naFaixa = ini===-1 ? [] : valores.slice(ini, fim+1);
+        STATE.recOriginal = {
+          valores, ini, fim, valCent:centavos(val),
+          variado: naFaixa.some(v=>centavos(v)!==centavos(val)),
+        };
       }
     }
 
@@ -272,11 +310,16 @@ Object.assign(APP, {
   rAtualizarPeriodoInfo(){
     const ini=parseInt(document.getElementById('rMesIni')?.value??'-1');
     const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
+    const ano=document.getElementById('rAno')?.value||'';
+    const de=ano?' de '+ano:'';
     const el=document.getElementById('rPeriodoInfo');if(!el)return;
-    if(ini===-1)el.textContent='O valor será aplicado em todos os meses (Jan–Dez).';
-    else if(fim===-1||fim===ini)el.textContent='O valor será aplicado somente em '+MESES_F[ini]+'.';
-    else if(fim<ini)el.textContent='⚠️ Mês final deve ser igual ou posterior ao inicial.';
-    else el.textContent='O valor será aplicado de '+MESES_F[ini]+' a '+MESES_F[fim]+' ('+(fim-ini+1)+' meses).';
+    let txt;
+    if(ini===-1)txt='O valor será aplicado em todos os meses (Jan a Dez'+de+').';
+    else if(fim===-1||fim===ini)txt='O valor será aplicado somente em '+MESES_F[ini]+de+'.';
+    else if(fim<ini)txt='⚠️ Mês final deve ser igual ou posterior ao inicial.';
+    else txt='O valor será aplicado de '+MESES_F[ini]+' a '+MESES_F[fim]+de+' ('+(fim-ini+1)+' meses).';
+    if(STATE.recOriginal?.variado) txt+=' Esta receita tem valores diferentes por mês: eles são mantidos se você não alterar o valor nem os meses.';
+    el.textContent=txt;
   },
 
   async saveReceita(){
@@ -285,21 +328,85 @@ Object.assign(APP, {
     const val=parseMoney(document.getElementById('rValor').value);
     const ini=parseInt(document.getElementById('rMesIni')?.value??'-1');
     const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
+    const ano=parseInt(document.getElementById('rAno')?.value);
     if(!desc)return this.toast('Informe a descrição','error');
+    if(!ano||ano<2019||ano>2035)return this.toast('Informe o ano da receita (2019 a 2035)','error');
     if(ini!==-1&&fim!==-1&&fim<ini)return this.toast('Mês final deve ser igual ou posterior ao inicial','error');
-    const valores=Array(12).fill(0);
-    if(ini===-1){valores.fill(val);}
-    else{const mesF=(fim===-1||fim<ini)?ini:fim;for(let m=ini;m<=mesF;m++)valores[m]=val;}
+
+    // Edição sem mudar valor nem meses: mantém os valores originais de cada mês
+    const orig=STATE.editReceitaId?STATE.recOriginal:null;
+    const intacto=orig && orig.ini===ini && orig.fim===fim && orig.valCent===centavos(val);
+    let valores;
+    if(intacto){
+      valores=orig.valores.slice();
+      while(valores.length<12) valores.push(0);
+    } else {
+      if(orig?.variado && !confirm('Esta receita tem valores diferentes por mês. Ao salvar com o novo valor ou período, todos os meses do período ficarão com o mesmo valor. Continuar?')) return;
+      valores=Array(12).fill(0);
+      if(ini===-1){valores.fill(val);}
+      else{const mesF=(fim===-1||fim<ini)?ini:fim;for(let m=ini;m<=mesF;m++)valores[m]=val;}
+    }
 
     if(STATE.editReceitaId){
-      await FS.updateOutra(STATE.editReceitaId,{desc,resp,valores,updatedBy:STATE.usuario,updatedAt:today()});
+      await FS.updateOutra(STATE.editReceitaId,{desc,resp,ano,valores,updatedBy:STATE.usuario,updatedAt:today()});
       this.toast('Receita atualizada ✅','success');
       STATE.editReceitaId=null;
     }else{
-      await FS.addOutra({desc,resp,valores,createdBy:STATE.usuario,createdAt:today()});
-      this.toast('"'+desc+'" criada ✅','success');
+      await FS.addOutra({desc,resp,ano,valores,createdBy:STATE.usuario,createdAt:today()});
+      this.toast('"'+desc+'" criada para '+ano+' ✅','success');
     }
+    STATE.recOriginal=null;
     APP.closeModal('ovReceita');
+  },
+
+  // ── RECEITAS ANTERIORES AO CONTROLE POR ANO ──
+  // Receitas sem `ano` continuam valendo (no ano inferido por CACHE.anoReceita) até o usuário
+  // confirmar. A confirmação só acrescenta o campo `ano`: nenhum valor é alterado.
+  _avisoReceitasSemAno(){
+    const el=document.getElementById('recSemAnoAviso');
+    if(!el) return;
+    const n=CACHE.receitasSemAno().length;
+    el.style.display = n ? 'block' : 'none';
+    if(n) el.innerHTML=`⚠️ <strong>${n} receita${n>1?'s':''} cadastrada${n>1?'s':''} antes do controle por ano.</strong> Até você confirmar, o sistema usa o ano da última alteração. Clique para revisar e gravar o ano.`;
+  },
+
+  abrirAnosReceitas(){
+    const lista=CACHE.receitasSemAno().sort((a,b)=>String(a.desc).localeCompare(String(b.desc),'pt'));
+    const tbody=document.getElementById('recAnosBody');
+    if(!tbody) return;
+    if(!lista.length){ this.toast('Todas as receitas já têm ano','info'); return; }
+    const anos=Array.from({length:17},(_,i)=>2019+i);
+    tbody.innerHTML=lista.map(r=>{
+      const valores=r.valores||[];
+      const meses=valores.map((v,i)=>v?MESES[i]:null).filter(Boolean);
+      const total=valores.reduce((s,v)=>s+centavos(v),0)/100;
+      const anoSug=CACHE.anoReceita(r);
+      return `<tr>
+        <td style="font-weight:600;white-space:normal">${this._escHtml(r.desc)}</td>
+        <td>${this._escHtml(r.resp||'Ambos')}</td>
+        <td style="font-size:11px;color:var(--t3);white-space:normal">${meses.length===12?'Jan a Dez':meses.join(', ')||'—'}</td>
+        <td class="money" style="text-align:right">${fmt(total)}</td>
+        <td><select class="filter-select rec-ano-sel" data-id="${r.id}" style="min-width:90px">${anos.map(a=>`<option value="${a}"${a===anoSug?' selected':''}>${a}</option>`).join('')}</select></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('ovRecAnos').classList.add('open');
+  },
+
+  async salvarAnosReceitas(){
+    const pares=[...document.querySelectorAll('#recAnosBody .rec-ano-sel')].map(s=>({id:s.dataset.id, ano:parseInt(s.value)}));
+    if(!pares.length) return APP.closeModal('ovRecAnos');
+    if(pares.some(p=>!p.ano||p.ano<2019||p.ano>2035)) return this.toast('Ano inválido','error');
+    const btn=document.getElementById('btnSalvarRecAnos');
+    if(btn) btn.disabled=true;
+    try{
+      await FS.definirAnoOutras(pares);
+      APP.closeModal('ovRecAnos');
+      this.toast(`Ano gravado em ${pares.length} receita${pares.length>1?'s':''} ✅`,'success');
+    }catch(e){
+      this.toast('Erro ao gravar: '+(e.message||e),'error');
+    }finally{
+      if(btn) btn.disabled=false;
+    }
   },
 
   async deleteOutra(id){

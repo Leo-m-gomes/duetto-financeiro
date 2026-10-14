@@ -45,7 +45,7 @@ Object.assign(APP, {
       } else if (col === 'data') {
         va = a.data || '';
         vb = b.data || '';
-      } else if (col === 'vPagar' || col === 'vPago' || col === 'valor' || col === 'mes') {
+      } else if (col === 'vPagar' || col === 'vPago' || col === 'valor' || col === 'mes' || col === 'ordem') {
         va = Number(a[col] || 0);
         vb = Number(b[col] || 0);
       } else if (col === 'forma') {
