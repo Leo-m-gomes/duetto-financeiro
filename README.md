@@ -521,6 +521,7 @@ Somente admin.
 * **Tipos:** Anotação ou Ação. **Ação exige prazo e responsável**; anotação nunca grava prazo/responsável.
 * **Status:** Ativa ou Concluída. "Em atraso" **não é gravado**: é calculado (ação ativa com prazo antes de hoje).
 * **Itens:** descrição (obrigatória), data, nota, valor previsto e valor realizado em **centavos inteiros**. Em nota já salva, o item é gravado na hora.
+* **Tabela de itens (Notas Adicionais) no modal:** ordenada por **data crescente**; itens sem data ficam no fim e, na mesma data, vale a ordem de cadastro. A ordenação é só de exibição: o array `itens` é gravado na ordem de cadastro e cada linha abre o item pelo índice original (editar a data reposiciona a linha ao salvar).
 * **Permissões:** ver seção 5 (admin, autor, responsável "Leo & Pri").
 * **Filtros:** autor, tipo, status efetivo, busca (título, descrição e itens, sem acento) e período (aplica só a ações; ação sem prazo some com período ativo).
 * Visualização em grade (Kanban) ou lista com colunas configuráveis por usuário.
@@ -595,6 +596,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-14 | **Modal de nota:** tabela de Notas Adicionais ordenada por data (crescente, sem data no fim; só exibição, a gravação não muda). Espaçamento: sem o recuo extra acima de "Dados Cadastrais", totais 12px abaixo da tabela e alinhados às bordas dela (sai a faixa de fundo atrás dos cartões; cores dos cartões mantidas), linhas da tabela mais compactas e rolagem horizontal da tabela também em telas de até 375px (antes a coluna Realizado era cortada). |
 | 2026-10-14 | **Revertido o ajuste geral de contraste** (token `--on-palm`, `--t3`/`--t4` mais claros, botões primários, abas, Pareto, cartão de salário, Notas e textos da barra voltam como eram). Mantidos: correção do botão "Limpar seleção" no modo escuro e a correção dos modais (clique no fundo só fecha se começar e terminar no fundo; Duplicatas não trava o Salvar). |
 | 2026-10-14 | **Modo escuro legível e modais estáveis:** novo token `--on-palm` para texto sobre a cor do tema (botão primário, barra de seleção, Pareto, abas, paginação, cartão de salário); "Limpar seleção" deixa de ficar ilegível (1,1:1). `--t3`/`--t4` do escuro sobem para 62%/48%. Modais deixam de fechar ao selecionar texto arrastando para fora (clique no fundo só fecha se começar e terminar no fundo); clique no fundo do modal de Duplicatas não trava mais o Salvar. |
 | 2026-10-14 | **Receita por ano:** outras receitas passam a ter `ano` (cadastro com ano obrigatório, filtro de ano na tela Receitas, edição que preserva os valores mês a mês). Salário vale para todos os anos com vigência por mês e ano (`anoInicio`): o valor atual segue nos anos seguintes. Dashboard (KPI Receita, gráfico Receita × Despesa, insight), Receitas (lista, totais, gráfico), busca rápida, backup Excel e selo do topbar usam o ano. Receitas antigas sem ano continuam valendo no ano da última alteração, com aviso e modal para confirmar (grava só o `ano`). |

@@ -440,11 +440,9 @@
 .nt-icon-btn:hover{background:var(--palm-50);color:var(--palm)}
 .nt-icon-btn.del:hover{color:var(--red);background:var(--red-lt)}
 
-.nt-totals{
-  display:grid;
-  background:linear-gradient(180deg,var(--surface-2) 0%,var(--bg) 100%);
-  border-top:1px solid var(--border);
-}
+/* Totais: dois cartões logo abaixo da tabela, alinhados às bordas dela
+   (sem faixa de fundo própria). Espaçamento nos blocos @media. */
+.nt-totals{display:grid}
 .nt-total-card{
   background:var(--surface);
   border:1px solid var(--border);
@@ -864,13 +862,14 @@
   .nt-fg label{font-size:9.5px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:9px 11px;font-size:12.5px}
   .nt-form-section-title{font-size:10px;margin-top:14px;padding-bottom:7px;margin-bottom:10px}
+  .nt-modal-body>.nt-form-section-title:first-child{margin-top:0}
   .nt-form-section-title::before{width:14px;margin-right:7px}
-  .nt-items-wrap{margin-top:8px}
+  .nt-items-wrap{margin-top:8px;overflow-x:auto}
   .nt-items-table th,.nt-items-table td{padding:8px 9px;font-size:11px}
   .nt-items-table input{padding:5px 6px;font-size:11.5px}
   .nt-icon-btn{width:26px;height:26px;font-size:13px}
   .nt-row-actions{gap:3px}
-  .nt-totals{grid-template-columns:1fr;gap:8px;padding:10px}
+  .nt-totals{grid-template-columns:1fr;gap:8px;margin-top:8px}
   .nt-total-card{padding:11px}
   .nt-total-card label{font-size:9.5px}
   .nt-total-card .v{font-size:17px;margin-top:5px}
@@ -977,6 +976,7 @@
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:10px 12px;font-size:13px}
   .nt-form-section-title{font-size:10.5px;margin-top:16px;padding-bottom:8px;margin-bottom:12px}
+  .nt-modal-body>.nt-form-section-title:first-child{margin-top:0}
   .nt-form-section-title::before{width:16px;margin-right:8px}
   .nt-items-wrap{margin-top:10px;overflow-x:auto}
   .nt-items-table{min-width:560px}
@@ -984,7 +984,7 @@
   .nt-items-table input{padding:6px 7px;font-size:12px}
   .nt-icon-btn{width:28px;height:28px;font-size:13px}
   .nt-row-actions{gap:4px}
-  .nt-totals{grid-template-columns:1fr 1fr;gap:10px;padding:12px}
+  .nt-totals{grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
   .nt-total-card{padding:13px}
   .nt-total-card label{font-size:10px}
   .nt-total-card .v{font-size:19px;margin-top:6px}
@@ -1091,13 +1091,15 @@
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:10px 13px;font-size:13px}
   .nt-form-section-title{font-size:11px;margin-top:18px;padding-bottom:9px;margin-bottom:14px}
+  .nt-modal-body>.nt-form-section-title:first-child{margin-top:0}
   .nt-form-section-title::before{width:18px;margin-right:9px}
   .nt-items-wrap{margin-top:12px}
   .nt-items-table th,.nt-items-table td{padding:10px 13px;font-size:12px}
+  .nt-items-table td{padding-top:8px;padding-bottom:8px}
   .nt-items-table input{padding:6px 8px;font-size:12.5px}
-  .nt-icon-btn{width:30px;height:30px;font-size:14px}
+  .nt-icon-btn{width:28px;height:28px;font-size:14px}
   .nt-row-actions{gap:4px}
-  .nt-totals{grid-template-columns:1fr 1fr;gap:12px;padding:14px}
+  .nt-totals{grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
   .nt-total-card{padding:15px}
   .nt-total-card label{font-size:10px}
   .nt-total-card .v{font-size:21px;margin-top:6px}
@@ -1201,13 +1203,15 @@
   .nt-fg label{font-size:10px}
   .nt-fg input,.nt-fg select,.nt-fg textarea{padding:11px 14px;font-size:13px}
   .nt-form-section-title{font-size:11px;margin-top:22px;padding-bottom:10px;margin-bottom:16px}
+  .nt-modal-body>.nt-form-section-title:first-child{margin-top:0}
   .nt-form-section-title::before{width:20px;margin-right:10px}
   .nt-items-wrap{margin-top:12px}
   .nt-items-table th,.nt-items-table td{padding:11px 15px;font-size:12.5px}
+  .nt-items-table td{padding-top:9px;padding-bottom:9px}
   .nt-items-table input{padding:7px 10px;font-size:12.5px}
-  .nt-icon-btn{width:32px;height:32px;font-size:15px}
+  .nt-icon-btn{width:28px;height:28px;font-size:15px}
   .nt-row-actions{gap:5px}
-  .nt-totals{grid-template-columns:1fr 1fr;gap:14px;padding:18px}
+  .nt-totals{grid-template-columns:1fr 1fr;gap:14px;margin-top:12px}
   .nt-total-card{padding:18px}
   .nt-total-card label{font-size:10px}
   .nt-total-card .v{font-size:24px;margin-top:7px}
@@ -1379,7 +1383,6 @@
 .dark .nt-icon-btn.del:hover{color:var(--red);background:rgba(255,69,58,.12)}
 
 /* ── Totais ── */
-.dark .nt-totals{background:var(--surface-2);border-color:var(--border)}
 .dark .nt-total-card{background:var(--surface);border-color:var(--border)}
 .dark .nt-total-card label{color:var(--t4)}
 .dark .nt-total-card .v{color:var(--palm)}
