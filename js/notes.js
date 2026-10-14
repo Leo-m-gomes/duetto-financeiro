@@ -993,7 +993,9 @@ function ntRenderItems(){
     : null;
   const canEdit = editingNote ? ntCanEdit(editingNote, STATE.usuario) : true;
 
-  tbody.innerHTML = items.map((it, idx) => `
+  // Ordenação só de exibição: data-idx continua apontando para o índice
+  // original em draftItems, então edição/remoção não dependem da ordem.
+  tbody.innerHTML = ntItensOrdenadosPorData(items).map(({it, idx}) => `
     <tr data-idx="${idx}">
       <td class="readonly">${ntEscape(it.descricao) || '<span style="color:var(--t4)">(sem descrição)</span>'}</td>
       <td class="readonly">${it.data ? ntFmtDate(it.data) : '...'}</td>
@@ -1017,6 +1019,27 @@ function ntRenderItems(){
   });
 
   ntRecalcTotals();
+}
+
+/**
+ * Itens na ordem de exibição da tabela: data crescente (YYYY-MM-DD compara
+ * como texto), itens sem data no fim e, em empate, a ordem de cadastro.
+ * Não altera o array recebido.
+ * @param {Array} items draftItems
+ * @returns {Array<{it:object, idx:number}>} idx = índice original em items
+ */
+function ntItensOrdenadosPorData(items){
+  return items
+    .map((it, idx) => ({it, idx}))
+    .sort((a, b) => {
+      const da = a.it.data || '', db = b.it.data || '';
+      if(da !== db){
+        if(!da) return 1;
+        if(!db) return -1;
+        return da < db ? -1 : 1;
+      }
+      return a.idx - b.idx;
+    });
 }
 
 function ntRecalcTotals(){
