@@ -2045,7 +2045,8 @@ function ntBindEvents(){
     b.addEventListener('click', () => ntCloseOverlay(b.dataset.ntClose));
   });
   document.querySelectorAll('.nt-modal-overlay, .nt-submodal-overlay').forEach(ov => {
-    ov.addEventListener('click', e => { if(e.target === ov) ntCloseOverlay(ov.id); });
+    // Só fecha com clique que começa e termina no fundo (selecionar texto arrastando não fecha)
+    ligarFecharNoFundo(ov, () => ntCloseOverlay(ov.id));
   });
 
   // Mudança de tipo no formulário ajusta UX (campos prazo/responsável).

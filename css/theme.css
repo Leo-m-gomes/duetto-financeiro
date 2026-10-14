@@ -61,6 +61,10 @@
   --palm-border: #c6e8d4;
   --palm-grad:   #d4efdf;
   --orange-border: #fed7aa;
+  /* Texto sobre fundo --palm (botão primário, barra de seleção, cabeçalhos verdes).
+     Claro: branco sobre verde escuro. Escuro: verde quase preto sobre o verde Apple
+     (branco ali dava ~1,9:1). Tema Pri escuro: style.css. */
+  --on-palm: #fff;
   --font-d:'Playfair Display',Georgia,serif;
   --font-b:'DM Sans',system-ui,sans-serif;
   --transition: .2s cubic-bezier(.4,0,.2,1);
@@ -117,8 +121,8 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   /* Texto, hierarquia clara em branco/cinza */
   --t1: #f2f2f7;        /* primário, quase branco Apple */
   --t2: #ebebf5cc;      /* secundário */
-  --t3: #ebebf566;      /* terciário, cinza médio */
-  --t4: #ebebf53d;      /* placeholder, labels */
+  --t3: #ebebf59e;      /* terciário (62%): ~5,5:1 sobre --surface. Era 40% (~3:1) */
+  --t4: #ebebf57a;      /* placeholder, labels (48%): ~4:1. Era 24% (~2:1, ilegível) */
 
   /* Sombras mais profundas */
   --shadow-sm:0 1px 4px rgba(0,0,0,.5);
@@ -130,6 +134,8 @@ body{font-family:var(--font-b);background:var(--bg);color:var(--t1);display:flex
   --palm-grad:   rgba(50,215,75,.15);
   --orange-border: rgba(255,159,10,.3);
   --green-border: rgba(50,215,75,.25);
+
+  --on-palm: #04240c;   /* texto sobre --palm */
 
   /* Manter cores funcionais vibrantes mas ligeiramente dessaturadas */
   --palm:    #32d74b;   /* verde Apple */

@@ -31,7 +31,7 @@
   --rail-hover:  var(--hover);
   --brand-a:     var(--palm);
   --brand-b:     var(--palm-md);
-  --brand-ink:   #fff;
+  --brand-ink:   var(--on-palm);
   --tb-field:    var(--bg);
   --tb-ring:     var(--bg);
   --id-leo: #006437; --id-leo-ink: #fff;
@@ -42,13 +42,11 @@
   --rail-border: rgba(255,255,255,.06);
   --rail-fg:     rgba(235,235,245,.5);
   --rail-hover:  rgba(255,255,255,.05);
-  --brand-ink:   #04240c;
   --tb-field:    rgba(255,255,255,.05);
   --tb-ring:     #28282a;
   --id-leo: #32d74b; --id-leo-ink: #04240c;
   --id-pri: #e879f9; --id-pri-ink: #2c0634;
 }
-.dark.theme-pri{ --brand-ink:#2c0634; }
 
 /* Utilitário: texto só para leitores de tela */
 .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
@@ -235,9 +233,6 @@
 #topbarBtns .tb-icon:hover{background:color-mix(in srgb,var(--t1) 6%,transparent);color:var(--t1);border-color:transparent}
 #topbarBtns .tb-icon svg{width:16px;height:16px;stroke-width:2}
 #topbarBtns .btn-primary{height:34px;padding:0 15px;font-weight:700}
-/* Verde Apple do modo escuro pede texto escuro (branco fica abaixo de 2:1) */
-.dark #topbarBtns .btn-primary{color:#04240c}
-.dark.theme-pri #topbarBtns .btn-primary{color:#fff}
 
 
 /* ─────────────────────────────────────────────────────────────────────────
@@ -318,8 +313,7 @@
 .cmdk-ic svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .cmdk-main{flex:1;min-width:0}
 .cmdk-title{display:block;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cmdk-sub{display:block;margin-top:1px;font-size:11px;color:var(--t4);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.dark .cmdk-sub{color:var(--t3)}
+.cmdk-sub{display:block;margin-top:1px;font-size:11px;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .cmdk-meta{display:flex;align-items:center;gap:8px;flex-shrink:0;font-size:12px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums}
 .cmdk-tag{padding:1px 8px;border-radius:999px;font-size:10px;font-weight:700;white-space:nowrap}
 .cmdk-tag.atr {background:var(--orange-lt);color:var(--orange)}

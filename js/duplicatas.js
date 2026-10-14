@@ -166,11 +166,15 @@ const DUP = {
         ov.classList.remove('open');
         btnSim.onclick=btnNao.onclick=null;
         ov.querySelectorAll('[data-dup-close]').forEach(b=>b.onclick=null);
+        ov._aoFecharNoFundo=null;
         resolve(val);
       };
       btnSim.onclick=()=>fechar(true);
       btnNao.onclick=()=>fechar(false);
       ov.querySelectorAll('[data-dup-close]').forEach(b=>b.onclick=()=>fechar(false));
+      // Clique no fundo = "não cadastrar". Antes o fundo só escondia o modal e a gravação
+      // ficava esperando uma resposta que nunca vinha (botão Salvar travado em carregamento).
+      ov._aoFecharNoFundo=()=>fechar(false);
       ov.classList.add('open');
     });
   },
