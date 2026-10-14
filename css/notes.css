@@ -543,7 +543,7 @@
 }
 .nt-viewmode button:hover{color:var(--palm)}
 .nt-viewmode button.active{
-  background:var(--palm);color:var(--on-palm);
+  background:var(--palm);color:#fff;
   border-radius:var(--r-full);
   box-shadow:0 1px 2px rgba(0,100,55,.25), inset 0 1px 0 rgba(255,255,255,.12);
 }
@@ -687,7 +687,7 @@
              border-color .15s var(--ease);
 }
 .nt-periodo-badge.show{display:inline-flex}
-.nt-periodo-badge:hover{background:var(--palm);color:var(--on-palm);border-color:var(--palm);box-shadow:0 2px 6px rgba(0,100,55,.20)}
+.nt-periodo-badge:hover{background:var(--palm);color:#fff;border-color:var(--palm);box-shadow:0 2px 6px rgba(0,100,55,.20)}
 .nt-periodo-info{
   background:var(--blue-lt);
   border:1px solid var(--blue-100);
@@ -1294,7 +1294,7 @@
 .dark .nt-viewmode{background:var(--surface-sunken);border-color:var(--border)}
 .dark .nt-viewmode button{color:var(--t3)}
 .dark .nt-viewmode button:hover{color:var(--palm)}
-.dark .nt-viewmode button.active{background:var(--palm);color:var(--on-palm)}
+.dark .nt-viewmode button.active{background:var(--palm);color:#000}
 
 /* ── KPIs ── */
 .dark .nt-kpi{background:var(--surface);border-color:var(--border)}
@@ -1331,7 +1331,7 @@
 .dark .nt-list-wrap{background:var(--surface);border-color:var(--border)}
 .dark .nt-list-table thead th{background:var(--surface-2);color:var(--t3);border-color:var(--border)}
 .dark .nt-list-table thead th.sortable:hover{background:var(--palm-50);color:var(--palm)}
-.dark .nt-list-table thead th.sortable.active .sort-arrow{background:var(--palm);color:var(--on-palm)}
+.dark .nt-list-table thead th.sortable.active .sort-arrow{background:var(--palm);color:#000}
 .dark .nt-list-table tbody tr{border-color:var(--border-soft)}
 .dark .nt-list-table tbody tr:nth-child(2n){background:var(--surface-2)}
 .dark .nt-list-table tbody tr:hover{background:var(--palm-50);box-shadow:inset 3px 0 0 var(--palm)}
