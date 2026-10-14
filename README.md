@@ -176,9 +176,16 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 * **Claro/escuro:** classe `dark` em `<html>`, salvo em `localStorage.dt_dark`. Gráficos são redesenhados ao trocar (Canvas não lê variáveis CSS sozinho).
 * **Tema Pri (rosa):** classe `theme-pri` aplicada **quando o filtro de responsável é "Pri"**; `theme-leo` quando é "Leo". É só visual (troca `--palm` e derivados).
 * Cores de identidade (avatares L/P) não mudam com o tema.
+* **Texto sobre a cor do tema** usa o token `--on-palm` (branco no claro; verde quase preto no escuro; roxo escuro no escuro com tema Pri). Vale para botão primário, barra de seleção de contas, cabeçalho do Pareto, abas e paginação ativas, cartão de salário e contadores. No escuro com tema Pri o botão primário é magenta escuro com texto branco.
+* **Hierarquia de texto no escuro:** `--t3` = 62% e `--t4` = 48% de opacidade (antes 40% e 24%, que davam 3:1 e 2:1). Meta: nenhum texto abaixo de 3:1.
 * **Modo privacidade** (ícone de olho): borra valores monetários (`.money`, KPIs, totais). **Não é salvo**: sempre começa desligado.
 
-### 4.5 Responsivo
+### 4.5 Modais
+
+* Fecham no **X**, nos botões de cancelar ou com clique no fundo escuro. O clique no fundo só fecha quando o botão do mouse é **pressionado e solto no fundo** (`ligarFecharNoFundo`, em `js/ui-modals.js`). Selecionar texto arrastando de dentro da caixa para fora (ou o contrário) não fecha o modal nem perde o que foi digitado. Vale para todos os modais do app e de Notas.
+* Modal que espera uma decisão (Duplicatas) trata o clique no fundo como "não cadastrar" (`ov._aoFecharNoFundo`), liberando o botão Salvar.
+
+### 4.6 Responsivo
 
 | Largura | Comportamento |
 |---|---|
@@ -589,6 +596,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-14 | **Modo escuro legível e modais estáveis:** novo token `--on-palm` para texto sobre a cor do tema (botão primário, barra de seleção, Pareto, abas, paginação, cartão de salário); "Limpar seleção" deixa de ficar ilegível (1,1:1). `--t3`/`--t4` do escuro sobem para 62%/48%. Modais deixam de fechar ao selecionar texto arrastando para fora (clique no fundo só fecha se começar e terminar no fundo); clique no fundo do modal de Duplicatas não trava mais o Salvar. |
 | 2026-10-14 | **Receita por ano:** outras receitas passam a ter `ano` (cadastro com ano obrigatório, filtro de ano na tela Receitas, edição que preserva os valores mês a mês). Salário vale para todos os anos com vigência por mês e ano (`anoInicio`): o valor atual segue nos anos seguintes. Dashboard (KPI Receita, gráfico Receita × Despesa, insight), Receitas (lista, totais, gráfico), busca rápida, backup Excel e selo do topbar usam o ano. Receitas antigas sem ano continuam valendo no ano da última alteração, com aviso e modal para confirmar (grava só o `ano`). |
 | 2026-10-13 | **Atrasadas:** o aviso "N contas em atraso" de Contas passa a respeitar o filtro de responsável (antes contava sempre todas) e mostra o valor pendente, igual ao Dashboard. Corrigido o clique no aviso, que recarregava a tela e perdia o filtro "atrasado"; agora o aviso de Contas, o banner do Dashboard e a busca rápida abrem a mesma lista de atrasadas. |
 | 2026-10-12 | **Novo shell (proposta "Trilho"):** trilho de navegação fixo de 76px substitui a sidebar de 230px (sem recolher); topbar com trilha da tela, selo de período, busca rápida Ctrl K / ⌘K / "/" (`js/command-palette.js`), filtro de responsável em avatares e ações secundárias só com ícone; novo `css/shell.css`; tema Pri derivado de tokens no trilho e na bottom nav; `.main` com `min-width:0` (fim da rolagem horizontal entre 769 e ~1200px na tela Contas). Criado este README com a regra de atualização obrigatória. |

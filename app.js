@@ -216,7 +216,11 @@ const APP = {
       if(el) el.addEventListener(event, handler);
     };
     document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>APP.closeModal(b.dataset.close)));
-    document.querySelectorAll('.modal-overlay').forEach(ov=>ov.addEventListener('click',e=>{if(e.target===ov)APP.closeModal(ov.id);}));
+    // Clique no fundo fecha só se começar e terminar no fundo (ver ligarFecharNoFundo).
+    // Modal com decisão pendente (ex.: duplicatas) define ov._aoFecharNoFundo para responder "não".
+    document.querySelectorAll('.modal-overlay').forEach(ov=>ligarFecharNoFundo(ov,()=>{
+      if(typeof ov._aoFecharNoFundo==='function') ov._aoFecharNoFundo(); else APP.closeModal(ov.id);
+    }));
     safeBind('btnLimparConta', 'click', ()=>this.clearConta());
     safeBind('btnSalvarConta', 'click', ()=>this.saveConta());
     safeBind('fVP',            'input', ()=>this.calcTotal());

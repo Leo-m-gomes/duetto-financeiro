@@ -1,5 +1,27 @@
 "use strict";
 
+/**
+ * Fecha um overlay de modal com clique no fundo, mas só quando o clique COMEÇA e TERMINA
+ * no fundo. O navegador dispara "click" no ancestral comum de onde o botão foi pressionado e
+ * solto: selecionar texto arrastando de dentro da caixa para fora (ou o contrário) gerava um
+ * click no fundo e fechava o modal, perdendo o que foi digitado. Usado por todos os modais
+ * (app.js → modals, notes.js). Idempotente.
+ * @param {HTMLElement} ov     o overlay (.modal-overlay, .nt-modal-overlay...)
+ * @param {Function}    fechar ação de fechar
+ */
+function ligarFecharNoFundo(ov, fechar){
+  if(!ov || ov._fecharNoFundoLigado) return;
+  ov._fecharNoFundoLigado = true;
+  let comecouNoFundo = false, terminouNoFundo = false;
+  ov.addEventListener('pointerdown', e => { comecouNoFundo = e.target === ov; terminouNoFundo = false; });
+  ov.addEventListener('pointerup',   e => { terminouNoFundo = e.target === ov; });
+  ov.addEventListener('click', e => {
+    if(e.target === ov && comecouNoFundo && terminouNoFundo) fechar();
+    comecouNoFundo = terminouNoFundo = false;
+  });
+}
+window.ligarFecharNoFundo = ligarFecharNoFundo;
+
 Object.assign(APP, {
 
   closeModal(id) {
