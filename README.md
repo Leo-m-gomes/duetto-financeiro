@@ -212,7 +212,7 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | Itens Upload/Config da navegação só aparecem para Leo | `APP.boot` |
 | Notas: admin edita/exclui qualquer nota; autor edita a própria; nota com responsável "Leo & Pri" libera os dois | `notes.js` → `ntCanEdit` |
 | Todo acesso (abertura do app) é registrado | coleção `logs_acesso` |
-| EAC: os dois usuários salvam linha de base, classificam exclusões e editam grupos (autor registrado em `eac_log`); ninguém edita ou apaga uma LB salva | `js/eac-gestao.js`, `FS.salvarLB` |
+| EAC: **só o admin** salva linha de base, classifica contas excluídas e altera grupos (criar, renomear, ordenar, excluir, mover categorias). Pri consulta tudo em modo leitura. Ninguém edita ou apaga uma LB salva | `APP.eacPodeAlterar`, `FS._exigirAdminEac` |
 
 * Login por popup Google; se o navegador bloquear o popup, cai para redirect.
 * Sair pede confirmação.
@@ -511,7 +511,7 @@ Ano entre 2019 e 2035, mês final ≥ mês inicial, sempre dentro de um único a
 
 ### 10.6 EAC (planejado × comprometido × realizado)
 
-Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Visão sempre do **ano escolhido** (abre no vigente); anos anteriores ficam para consulta, somente leitura. A tela não cadastra contas; as únicas gravações (linha de base, classificação de excluídas e grupos) são feitas em modais e passam por `FS.*` com registro em `eac_log`. Tudo é somado em **centavos inteiros**.
+Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Visão sempre do **ano escolhido** (abre no vigente); anos anteriores ficam para consulta, somente leitura. A tela não cadastra contas; as únicas gravações (linha de base, classificação de excluídas e grupos) são feitas em modais, **somente pelo administrador (Leo)**, e passam por `FS.*` com registro em `eac_log`. Para a Pri a tela é somente leitura: vê tudo, inclusive histórico e comparação de revisões, grupos e excluídas, sem botões de alteração. Tudo é somado em **centavos inteiros**.
 
 | Coluna | Cálculo |
 |---|---|
@@ -538,15 +538,16 @@ Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Vis
 * **Rev 0** é sempre geral. Janeiro é o mês de salvá-la (aviso laranja em janeiro, vermelho depois). Salva fora de janeiro (ou de dezembro do ano anterior) fica marcada **fora do prazo**. Em dezembro dá para preparar a Rev 0 do ano seguinte (o seletor mostra o próximo ano).
 * **Rev 1 em diante:** geral ou por categoria (as escolhidas recebem as contas de hoje; as demais copiam a revisão anterior, inclusive a verba). Justificativa obrigatória.
 * **Verba mensal por categoria:** valor para gastos variáveis ainda não cadastrados (mercado, restaurante, cartão). Entra no Planejado; na ponte, as contas novas aparecem descontadas da verba.
-* Ano encerrado não recebe LB. Abas: Histórico (total e diferença de cada revisão), Salvar nova revisão (prévia do total antes de salvar) e Comparar revisões (diferença por categoria). Os dois usuários podem salvar.
+* Ano encerrado não recebe LB. Abas: Histórico (total e diferença de cada revisão), Salvar nova revisão (prévia do total antes de salvar) e Comparar revisões (diferença por categoria). Só o administrador salva; para a Pri a aba "Salvar nova revisão" não aparece.
 
 **Contas da LB que foram excluídas (modal "Excluídas")**
 * Lista as contas da foto vigente que não existem mais, com quem excluiu e quando (lido da lixeira).
 * **Cancelada:** a despesa deixou de existir; continua no Planejado e vira economia. **Indevida:** cadastro errado ou duplicado; sai do Planejado e das listas, sem economia falsa. Sem classificação conta como cancelada, e a tela avisa "N a classificar".
-* A classificação fica em `eac_exclusoes`, fora da lixeira: apagar de vez da lixeira não muda a LB nem a classificação. Conta restaurada volta ao Comprometido e a classificação deixa de valer.
-* **Exclusão em Contas** (conta, parcela ou parcelamento) de um ano com LB abre o modal "Excluir conta", que pergunta se é despesa cancelada ou cadastro indevido e grava a classificação; anos sem LB mantêm o `confirm` de sempre.
+* Só o administrador classifica; a Pri vê a lista sem os botões. A classificação fica em `eac_exclusoes`, fora da lixeira: apagar de vez da lixeira não muda a LB nem a classificação. Conta restaurada volta ao Comprometido e a classificação deixa de valer.
+* **Exclusão em Contas** (conta, parcela ou parcelamento) de um ano com LB, feita pelo administrador, abre o modal "Excluir conta", que pergunta se é despesa cancelada ou cadastro indevido e grava a classificação. Anos sem LB, ou exclusão feita pela Pri, mantêm o `confirm` de sempre; nesse caso a conta fica "a classificar" até o administrador decidir na EAC.
 
-**Grupos de categorias (modal "Grupos", também em Gerenciar Categorias → "Organizar grupos (EAC)")**
+**Grupos de categorias (modal "Grupos", também em Gerenciar Categorias → "Organizar grupos (EAC)", botão só do administrador)**
+* Só o administrador altera grupos; para a Pri o modal mostra a estrutura em modo leitura.
 * Sem nenhum grupo, o modal oferece uma sugestão inicial (8 grupos com as categorias padrão que existirem).
 * Criar (nome obrigatório, até 40 caracteres, único sem diferenciar maiúsculas; "Sem grupo" é reservado), renomear, ordenar (setas, define a numeração 1.x), excluir (confirmação no modal; categorias vão para "Sem grupo") e mover categorias (seleção múltipla + "Mover para" ou arrastar).
 * Categoria nova cadastrada em Contas entra em "Sem grupo"; com valor no ano aparece no fim da tabela e a tela avisa. Categorias ficam em ordem alfabética dentro do grupo.
@@ -636,7 +637,7 @@ Somente admin.
 * **Salários não recalculam** ao mudar as tabelas fiscais (9.3).
 * **Moeda** só muda a formatação, sem conversão.
 * **Usuários extras** em Configurações não recebem acesso sem mudar `ALLOWED_EMAILS` e as regras do Firestore.
-* **Regras do Firestore para a EAC:** as coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes` e `eac_log` precisam de leitura e escrita para os dois e-mails, e `categorias` precisa aceitar o campo `grupoId`. Recomendado: `eac_lb` e `eac_lb_itens` sem update/delete (LB imutável) e `eac_log` só com create. Sem as regras, a tela abre, mas salvar LB, classificar e mexer em grupos falham.
+* **Regras do Firestore para a EAC:** as coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes` e `eac_log` precisam de leitura para os dois e-mails e **escrita só para o e-mail do administrador**; `eac_lb` e `eac_lb_itens` só com create (LB imutável) e `eac_log` só com create. Em `categorias`, mudar o campo `grupoId` deve ser permitido só ao administrador (os dois continuam editando o nome). A trava do app (`FS._exigirAdminEac`) é só do lado do cliente: a proteção real é a regra. Sem as regras, a tela abre, mas salvar LB, classificar e mexer em grupos falham.
 * **EAC:** a ponte compara cada conta pelo ID; contas recriadas com ID novo (ex.: excluir e cadastrar de novo) aparecem como exclusão + conta nova. Uma LB muito grande (mais de ~180 mil contas) não cabe numa gravação. O Realizado da Curva S é por mês de vencimento, não pela data do pagamento.
 * **Sem modo offline** (não há service worker) e **sem restauração** a partir do backup.
 * Categoria/forma em uso detectada só por ID: contas legadas com nome (`cat`/`forma`) não bloqueiam a exclusão.
@@ -651,6 +652,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-15 | **EAC só o administrador altera:** salvar linha de base, classificar contas excluídas e criar, renomear, ordenar, excluir grupos ou mover categorias passam a ser exclusivos do admin (interface, funções e `FS._exigirAdminEac`). Pri vê a EAC em modo leitura; quando ela exclui uma conta de ano com LB, a conta fica "a classificar" para o admin. Regras recomendadas do Firestore ajustadas. |
 | 2026-10-15 | **Nova tela EAC** (trilho entre Relatório e Notas; bottom nav entre Notas e Relatório; busca rápida): planejado (linha de base) × comprometido × realizado × desvio por grupo e categoria em tabela EAP recolhível; cards de receita × despesa por mês (régua de 12 meses) e do ano, desvio e ritmo; ponte do desvio e Curva S em SVG; modo "só a tabela" (tecla F). Linhas de base imutáveis por ano (Rev 0 em janeiro, revisões gerais ou por categoria com justificativa, verba mensal, comparação com a Rev 0). Contas excluídas classificadas como cancelada ou indevida (também ao excluir em Contas). Grupos de categorias editáveis em modal. Novas coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes`, `eac_log` e campo `categorias.grupoId`; backup atualizado. |
 | 2026-10-14 | **Receitas com filtro de Período:** botão 📅 Período na tela Receitas (mesmo modal de Contas/Dashboard/Relatório: ano + mês inicial + mês final). Com período ativo, lista e totais usam só esses meses e ignoram Ano/Mês; selo verde remove o filtro; mudar Ano ou Mês limpa o período; o período continua ao sair e voltar para a tela; selo do topbar e ano padrão da nova receita seguem o período. `js/ui-period.js` passa a usar o mapa `PERIODO_TELAS`. |
 | 2026-10-14 | **Modal de nota:** tabela de Notas Adicionais ordenada por data (crescente, sem data no fim; só exibição, a gravação não muda). Espaçamento: sem o recuo extra acima de "Dados Cadastrais", totais 12px abaixo da tabela e alinhados às bordas dela (sai a faixa de fundo atrás dos cartões; cores dos cartões mantidas), linhas da tabela mais compactas e rolagem horizontal da tabela também em telas de até 375px (antes a coluna Realizado era cortada). |

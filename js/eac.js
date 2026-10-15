@@ -56,6 +56,9 @@ Object.assign(APP, {
   // DADOS: anos, linhas de base e itens
   // ══════════════════════════════════════════════════════════════════════
 
+  /** Só o administrador (Leo) altera a EAC: salva linha de base, classifica excluídas e mexe nos grupos. */
+  eacPodeAlterar(){ return (typeof SEC!=='undefined' && SEC.isAdmin && SEC.isAdmin()) || STATE.usuario==='Leo'; },
+
   /** Revisões de LB de um ano, da Rev 0 à vigente. */
   eacLBs(ano){ return CACHE.lbs.filter(l=>l.ano===ano).sort((a,b)=>a.rev-b.rev); },
   eacLBVigente(ano){ const l=this.eacLBs(ano); return l[l.length-1]||null; },
@@ -356,18 +359,20 @@ Object.assign(APP, {
   _eacRenderBanner(ano, sit, T){
     const b = [], hoje = new Date();
     const btn = (txt, js, cls='btn-secondary') => `<button type="button" class="btn ${cls} btn-sm" onclick="${js}">${txt}</button>`;
+    const adm = this.eacPodeAlterar();
+    const salvar0 = adm ? btn('Salvar Rev 0',"APP.eacAbrirLB('salvar')",'btn-primary') : '<span class="eac-pill neu">Só o administrador salva a linha de base</span>';
     if(sit==='atual' && T.semLB){
       b[hoje.getMonth()===0?'push':'unshift'](hoje.getMonth()===0
-        ? `<div class="eac-banner warn" role="status"><span class="eac-grow"><b>Linha de base de ${ano} pendente.</b> Janeiro é o mês de salvar a Rev 0. Gere as recorrentes do ano antes; sem LB, a coluna Planejado fica vazia e o desvio não é calculado.</span>${btn('Salvar Rev 0',"APP.eacAbrirLB('salvar')",'btn-primary')}</div>`
-        : `<div class="eac-banner bad" role="alert"><span class="eac-grow"><b>Sem linha de base em ${ano}.</b> A Rev 0 deveria ter sido salva em janeiro. Salve agora: ela fica marcada como fora do prazo e passa a valer a partir de hoje.</span>${btn('Salvar Rev 0',"APP.eacAbrirLB('salvar')",'btn-primary')}</div>`);
+        ? `<div class="eac-banner warn" role="status"><span class="eac-grow"><b>Linha de base de ${ano} pendente.</b> Janeiro é o mês de salvar a Rev 0. Gere as recorrentes do ano antes; sem LB, a coluna Planejado fica vazia e o desvio não é calculado.</span>${salvar0}</div>`
+        : `<div class="eac-banner bad" role="alert"><span class="eac-grow"><b>Sem linha de base em ${ano}.</b> A Rev 0 deveria ter sido salva em janeiro. Salve agora: ela fica marcada como fora do prazo e passa a valer a partir de hoje.</span>${salvar0}</div>`);
     }
     if(sit==='encerrado') b.push(`<div class="eac-banner warn"><span class="eac-grow"><b>${ano} encerrado.</b> Consulta somente leitura${T.semLB?'; o ano não teve linha de base.':`: resultado final contra a Rev ${T.calc.lb.rev}.`}</span></div>`);
-    if(sit==='futuro') b.push(`<div class="eac-banner info"><span class="eac-grow"><b>Preparação de ${ano}.</b> Em dezembro dá para salvar a Rev 0 do ano seguinte. Gere as recorrentes de ${ano} antes de salvar.</span>${T.semLB?btn('Salvar Rev 0',"APP.eacAbrirLB('salvar')",'btn-primary'):''}</div>`);
+    if(sit==='futuro') b.push(`<div class="eac-banner info"><span class="eac-grow"><b>Preparação de ${ano}.</b> Em dezembro dá para salvar a Rev 0 do ano seguinte. Gere as recorrentes de ${ano} antes de salvar.</span>${T.semLB?salvar0:''}</div>`);
     if(sit==='atual' && hoje.getMonth()===11 && !this.eacLBs(ano+1).length)
       b.push(`<div class="eac-banner info"><span class="eac-grow"><b>Dezembro:</b> já dá para preparar a linha de base de ${ano+1}.</span>${btn('Preparar Rev 0 de '+(ano+1),`APP.eacSetAno(${ano+1})`)}</div>`);
     const pend = this.eacExcluidas(ano).filter(e=>!e.cls).length;
     if(pend && sit!=='encerrado')
-      b.push(`<div class="eac-banner warn"><span class="eac-grow"><b>${pend} conta${pend>1?'s':''} da LB ${pend>1?'foram excluídas e aguardam':'foi excluída e aguarda'} classificação.</b> Enquanto não classificadas, contam como economia. Cadastro errado ou duplicado deve ser marcado como indevido para sair do cálculo.</span>${btn('Classificar','APP.eacAbrirExcluidas()')}</div>`);
+      b.push(`<div class="eac-banner warn"><span class="eac-grow"><b>${pend} conta${pend>1?'s':''} da LB ${pend>1?'foram excluídas e aguardam':'foi excluída e aguarda'} classificação${adm?'':' do administrador'}.</b> Enquanto não classificadas, contam como economia. Cadastro errado ou duplicado deve ser marcado como indevido para sair do cálculo.</span>${btn(adm?'Classificar':'Ver excluídas','APP.eacAbrirExcluidas()')}</div>`);
     document.getElementById('eacBanner').innerHTML = b.join('');
   },
 

@@ -251,6 +251,15 @@ const FS = {
     }catch(e){ console.warn('Log EAC error:', e); }
   },
 
+  /**
+   * EAC: toda alteração (linha de base, classificação de excluídas, grupos) é do administrador.
+   * Trava do lado do cliente; a regra do Firestore deve repetir a restrição (README, seção 15).
+   */
+  _exigirAdminEac(){
+    const ok = (typeof SEC!=='undefined' && SEC.isAdmin && SEC.isAdmin()) || STATE.usuario==='Leo';
+    if(!ok) throw new Error('Somente o administrador pode alterar a EAC');
+  },
+
   /** Grava em lotes de 400 operações (limite do Firestore: 500 por lote). */
   async _emLotes(ops){
     for(let i=0;i<ops.length;i+=400){
@@ -261,6 +270,7 @@ const FS = {
   },
 
   async addGrupo(nome, ordem, cor){
+    this._exigirAdminEac();
     const ref = await fbDb.collection('categoria_grupos').add({
       nome, ordem, cor, createdBy:STATE.usuario, createdAt:firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -269,6 +279,7 @@ const FS = {
   },
 
   async renomearGrupo(id, nomeAntes, nome){
+    this._exigirAdminEac();
     await fbDb.collection('categoria_grupos').doc(id).update({
       nome, updatedBy:STATE.usuario, updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
     });
@@ -277,12 +288,14 @@ const FS = {
 
   /** Regrava a ordem (0..n-1) na sequência recebida de IDs. */
   async ordenarGrupos(ids){
+    this._exigirAdminEac();
     await this._emLotes(ids.map((id,i)=>b=>b.update(fbDb.collection('categoria_grupos').doc(id),{ordem:i})));
     await this._logEac('grupo_ordem', 'Ordem dos grupos alterada', {ordem:ids});
   },
 
   /** Exclui o grupo e devolve as categorias dele para "Sem grupo" (valores não mudam). */
   async excluirGrupo(id, nome, catIds){
+    this._exigirAdminEac();
     const del = firebase.firestore.FieldValue.delete();
     await this._emLotes([
       b=>b.delete(fbDb.collection('categoria_grupos').doc(id)),
@@ -293,6 +306,7 @@ const FS = {
 
   /** Move categorias para um grupo (grupoId null = "Sem grupo"). */
   async moverCategorias(catIds, grupoId, destino){
+    this._exigirAdminEac();
     const val = grupoId || firebase.firestore.FieldValue.delete();
     await this._emLotes(catIds.map(c=>b=>b.update(fbDb.collection('categorias').doc(c),{grupoId:val})));
     const nomes = catIds.map(c=>CACHE.getCatNome(c)).join(', ');
@@ -301,6 +315,7 @@ const FS = {
 
   /** Cria vários grupos de uma vez com as categorias de cada um (sugestão inicial). */
   async criarGruposIniciais(lista){
+    this._exigirAdminEac();
     const ops = [];
     lista.forEach(g=>{
       const ref = fbDb.collection('categoria_grupos').doc();
@@ -319,6 +334,7 @@ const FS = {
    * @param {Array}  itens [{id, conta, catId, resp, mes, vCent}]
    */
   async salvarLB(cab, itens){
+    this._exigirAdminEac();
     const id  = `${cab.ano}-r${cab.rev}`;
     const ref = fbDb.collection('eac_lb').doc(id);
     const lotes = [];
@@ -354,6 +370,7 @@ const FS = {
    * @param {Array} regs [{contaId, ano, conta, catId, resp, vCent}]
    */
   async classificarExclusoes(regs, classificacao){
+    this._exigirAdminEac();
     if(!regs.length) return;
     await this._emLotes(regs.map(r=>b=>b.set(fbDb.collection('eac_exclusoes').doc(r.contaId),{
       ...r, classificacao, definidoPor:STATE.usuario, definidoEmIso:new Date().toISOString(),
