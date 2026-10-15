@@ -43,6 +43,13 @@ Object.assign(APP, {
   _eacAbrirOv(id){ document.getElementById(id)?.classList.add('open'); },
   _eacSet(id, html){ const el = document.getElementById(id); if(el) el.innerHTML = html; },
 
+  /** Ações que alteram a EAC são só do administrador: avisa e devolve false para os demais. */
+  _eacExigirAdmin(){
+    if(this.eacPodeAlterar()) return true;
+    this.toast('Somente o administrador pode alterar a EAC','error');
+    return false;
+  },
+
   _eacFarol(n){
     if(n.dev==null) return '<span class="eac-pill neu">Sem LB</span>';
     if(!n.plan && n.dev>0) return '<span class="eac-pill bad">Fora do plano</span>';
@@ -163,7 +170,7 @@ Object.assign(APP, {
 
   eacAbrirLB(aba){
     const lbs = this.eacLBs(EAC_ST.ano), vig = lbs[lbs.length-1];
-    Object.assign(EAC_LB, {aba:aba||'hist', escopo:'geral', just:'', a:lbs[0]?.rev||0, b:vig?.rev||0, salvando:false});
+    Object.assign(EAC_LB, {aba:(aba==='salvar' && !this.eacPodeAlterar()) ? 'hist' : (aba||'hist'), escopo:'geral', just:'', a:lbs[0]?.rev||0, b:vig?.rev||0, salvando:false});
     EAC_LB.sel = new Set();
     // Verba inicial: a da LB vigente (o usuário ajusta antes de salvar)
     EAC_LB.verbas = {};
@@ -178,8 +185,8 @@ Object.assign(APP, {
   eacLBRender(){
     const ano = EAC_ST.ano, lbs = this.eacLBs(ano);
     this._eacSet('eacLBTitulo', `Linhas de base ${ano}`);
-    this._eacSet('eacLBSub', `<span>A revisão recomeça em 0 a cada ano</span><span class="eac-pill neu">Revisões imutáveis</span>${lbs.length?'':'<span class="eac-pill bad">Rev 0 pendente</span>'}`);
-    const abas = [['hist','Histórico'],['salvar','Salvar nova revisão'],['comp','Comparar revisões']];
+    this._eacSet('eacLBSub', `<span>A revisão recomeça em 0 a cada ano</span><span class="eac-pill neu">Revisões imutáveis</span>${lbs.length?'':'<span class="eac-pill bad">Rev 0 pendente</span>'}${this.eacPodeAlterar()?'':'<span class="eac-pill warn">Somente leitura: só o administrador salva revisões</span>'}`);
+    const abas = [['hist','Histórico'], ...(this.eacPodeAlterar()?[['salvar','Salvar nova revisão']]:[]), ['comp','Comparar revisões']];
     const corpo = {hist:()=>this._eacLBHist(ano), salvar:()=>this._eacLBSalvarHtml(ano), comp:()=>this._eacLBComp(ano)}[EAC_LB.aba]();
     this._eacSet('eacLBBody', `<div class="eac-tabs" role="tablist">${abas.map(([k,l])=>`<button type="button" role="tab" aria-selected="${EAC_LB.aba===k}" onclick="APP.eacLBAba('${k}')">${l}</button>`).join('')}</div>${corpo}`);
     if(EAC_LB.aba==='salvar') bindAllMoneyInputs(document.getElementById('eacLBBody'));
@@ -226,6 +233,7 @@ Object.assign(APP, {
   },
 
   _eacLBSalvarHtml(ano){
+    if(!this.eacPodeAlterar()) return '<p class="eac-note" style="padding:16px 0">Somente o administrador salva linhas de base.</p>';
     const sit = this.eacSituacao(ano), lbs = this.eacLBs(ano), vig = lbs[lbs.length-1], prox = lbs.length, esc = v=>this._escHtml(v);
     if(sit==='encerrado') return `<p class="eac-note" style="padding:16px 0">${ano} está encerrado. Linhas de base só podem ser salvas para o ano vigente.</p>`;
     if(sit==='futuro' && prox>0) return `<p class="eac-note" style="padding:16px 0">A Rev 0 de ${ano} já existe. As revisões seguintes ficam liberadas quando ${ano} começar.</p>`;
@@ -305,7 +313,7 @@ Object.assign(APP, {
   },
 
   async eacLBSalvar(){
-    if(EAC_LB.salvando) return;
+    if(EAC_LB.salvando || !this._eacExigirAdmin()) return;
     const ano = EAC_ST.ano, sit = this.eacSituacao(ano), lbs = this.eacLBs(ano), rev = lbs.length;
     const just = (document.getElementById('eacLBJust')?.value||'').trim();
     if(sit==='encerrado') return this.toast('Ano encerrado: não é possível salvar linha de base','error');
@@ -382,19 +390,19 @@ Object.assign(APP, {
 
   eacExclRender(){
     const ano = EAC_ST.ano, esc = v=>this._escHtml(v), lista = this.eacExcluidas(ano);
-    const fechado = this.eacSituacao(ano)==='encerrado';
+    const fechado = this.eacSituacao(ano)==='encerrado', adm = this.eacPodeAlterar(), bloqueado = fechado || !adm;
     const lb = this.eacLBVigente(ano);
     const lix = new Map((eacLixeira||[]).map(l=>[l.origemId, l]));
     const quando = l => l ? ` · excluída${l.excluidoEm?' em '+new Date(l.excluidoEm).toLocaleDateString('pt-BR'):''}${l.excluidoPor?' por '+esc(l.excluidoPor):''}` : (eacLixeira ? ' · apagada da lixeira' : '');
-    this._eacSet('eacExclSub', `<span>${ano}${lb?' · LB Rev '+lb.rev:''}</span><span class="eac-pill neu">Valores da casa, sem filtro de responsável</span>`);
+    this._eacSet('eacExclSub', `<span>${ano}${lb?' · LB Rev '+lb.rev:''}</span><span class="eac-pill neu">Valores da casa, sem filtro de responsável</span>${adm?'':'<span class="eac-pill warn">Somente leitura</span>'}`);
     if(!lb){ this._eacSet('eacExclBody', `<p class="eac-note">${ano} não tem linha de base: não há contas planejadas para acompanhar.</p>`); return; }
     if(!EAC_ST.itens.has(lb.id)){ this._eacSet('eacExclBody', '<p class="eac-note">Carregando a linha de base…</p>'); return; }
     const indev = eacSoma(lista.filter(e=>e.cls==='indevida').map(e=>e.vCent)), eco = eacSoma(lista.filter(e=>e.cls!=='indevida').map(e=>e.vCent));
     const linha = e => `<div class="eac-li${e.cls==='indevida'?' ign':''}"><div class="eac-grow"><div class="t">${esc(e.conta||'(sem descrição)')}</div><div class="s">${esc(e.catId.startsWith('?')?e.catId.slice(1):CACHE.getCatNome(e.catId))} · ${esc(e.resp||'')} · vencia em ${MESES_F[e.mes]}${quando(lix.get(e.id))}</div></div>
       <span class="v money">${eacFmt(e.vCent)}</span>
       <div class="eac-cls" role="group" aria-label="Classificação de ${esc(e.conta)}">
-        <button type="button" class="c" aria-pressed="${e.cls==='cancelada'}" ${fechado?'disabled':''} onclick="APP.eacClassificar('${e.id}','cancelada')">Cancelada</button>
-        <button type="button" class="i" aria-pressed="${e.cls==='indevida'}" ${fechado?'disabled':''} onclick="APP.eacClassificar('${e.id}','indevida')">Indevida</button></div>
+        <button type="button" class="c" aria-pressed="${e.cls==='cancelada'}" ${bloqueado?'disabled':''} onclick="APP.eacClassificar('${e.id}','cancelada')">Cancelada</button>
+        <button type="button" class="i" aria-pressed="${e.cls==='indevida'}" ${bloqueado?'disabled':''} onclick="APP.eacClassificar('${e.id}','indevida')">Indevida</button></div>
       ${e.cls?'':'<span class="eac-pill warn">a classificar</span>'}</div>`;
     const naLB = new Set(EAC_ST.itens.get(lb.id).map(i=>i.id));
     const fora = (eacLixeira||[]).filter(l=>eacAnoDe(l.data)===ano && !naLB.has(l.origemId)).slice(0,30);
@@ -404,10 +412,11 @@ Object.assign(APP, {
       <div class="eac-summary"><span>Economia por exclusão</span><b class="money" style="color:var(--green)">${eacFmtSig(-eco)}</b><span>Ignorado (indevidas)</span><b class="money">${eacFmt(indev)}</b></div>
       <div class="eac-sec"><h4>Estavam na linha de base <span class="eac-pill neu">${lista.length}</span></h4>${lista.length?`<div class="eac-list">${lista.map(linha).join('')}</div>`:'<p class="eac-note">Nenhuma conta da linha de base foi excluída.</p>'}</div>
       ${eacLixeira===null?'<p class="eac-note">Lendo a lixeira…</p>':fora.length?`<div class="eac-sec"><h4>Excluídas que não estavam na LB <span class="eac-pill neu">sem efeito no cálculo</span></h4><div class="eac-list">${fora.map(l=>`<div class="eac-li"><div class="eac-grow"><div class="t">${esc(l.conta||'')}</div><div class="s">${esc(CACHE.resolveCat(l.catId||l.cat))}${quando(l)}</div></div><span class="v money" style="color:var(--t4)">${fmt(l.vPagar)}</span></div>`).join('')}</div></div>`:''}
-      <p class="eac-note">A classificação fica separada da lixeira: apagar a conta de vez da lixeira não muda a LB nem a classificação. Se a conta for restaurada, ela volta para o Comprometido e a classificação deixa de valer.${fechado?' Ano encerrado: somente leitura.':''}</p>`);
+      <p class="eac-note">A classificação fica separada da lixeira: apagar a conta de vez da lixeira não muda a LB nem a classificação. Se a conta for restaurada, ela volta para o Comprometido e a classificação deixa de valer.${fechado?' Ano encerrado: somente leitura.':!adm?' Somente o administrador classifica as exclusões.':''}</p>`);
   },
 
   async eacClassificar(id, cls){
+    if(!this._eacExigirAdmin()) return;
     const e = this.eacExcluidas(EAC_ST.ano).find(x=>x.id===id);
     if(!e || e.cls===cls) return;
     try{
@@ -422,7 +431,9 @@ Object.assign(APP, {
    * @returns {Promise<{classificacao:string|null, motivo?:string}|null>} null = desistiu
    */
   confirmarExclusaoConta(contas, pergunta){
-    const comLB = contas.some(c=>CACHE.lbs.some(l=>l.ano===eacAnoDe(c.data)));
+    // Classificar é decisão do administrador: para os demais, confirm de sempre e a conta fica
+    // "a classificar" na EAC até o administrador decidir.
+    const comLB = this.eacPodeAlterar() && contas.some(c=>CACHE.lbs.some(l=>l.ano===eacAnoDe(c.data)));
     const ov = document.getElementById('ovExcluirConta');
     if(!comLB || !ov) return Promise.resolve(confirm(pergunta) ? {classificacao:null} : null);
     return new Promise(resolve=>{
@@ -444,7 +455,7 @@ Object.assign(APP, {
 
   /** Grava a classificação das contas excluídas que são de anos com LB (falha só avisa). */
   async eacRegistrarExclusao(contas, cls){
-    if(!cls) return;
+    if(!cls || !this.eacPodeAlterar()) return;
     const regs = contas.filter(c=>CACHE.lbs.some(l=>l.ano===eacAnoDe(c.data)))
       .map(c=>({contaId:c.id, ano:eacAnoDe(c.data), conta:c.conta||'', catId:this._eacCatId(c), resp:c.resp||'', vCent:centavos(c.vPagar)}));
     try{ await FS.classificarExclusoes(regs, cls); }
@@ -490,21 +501,21 @@ Object.assign(APP, {
   },
 
   eacGruposRender(focoSel){
-    const esc = v=>this._escHtml(v), grupos = this._eacGrupos(), sem = this._eacSemGrupo(), oc = EAC_GRP.ocupado ? 'disabled' : '';
+    const esc = v=>this._escHtml(v), grupos = this._eacGrupos(), sem = this._eacSemGrupo(), oc = EAC_GRP.ocupado ? 'disabled' : '', adm = this.eacPodeAlterar();
     const body = document.getElementById('eacGrpBody');
     const rolagem = body?.scrollTop || 0;
     // A seleção só guarda categorias que ainda existem
     EAC_GRP.sel.forEach(id=>{ if(!CACHE.cats.some(c=>c.id===id)) EAC_GRP.sel.delete(id); });
-    const chip = c => `<button type="button" class="eac-gchip" draggable="true" data-eac-gcat="${c.id}" aria-pressed="${EAC_GRP.sel.has(c.id)}" ${oc} onclick="APP.eacGrpSelecionar('${c.id}')" title="Clique para selecionar; arraste para outro grupo">${esc(c.nome)}</button>`;
+    const chip = c => !adm ? `<span class="eac-gchip eac-gchip-ro">${esc(c.nome)}</span>` : `<button type="button" class="eac-gchip" draggable="true" data-eac-gcat="${c.id}" aria-pressed="${EAC_GRP.sel.has(c.id)}" ${oc} onclick="APP.eacGrpSelecionar('${c.id}')" title="Clique para selecionar; arraste para outro grupo">${esc(c.nome)}</button>`;
     const catsDe = g => CACHE.getAllCats().filter(c=>c.grupoId===g.id);
     const card = (g,i) => {
       const cs = catsDe(g), ed = EAC_GRP.edit===g.id, del = EAC_GRP.del===g.id;
       return `<div class="eac-gcard" data-eac-gdrop="${g.id}" style="--gc:${eacCor(g.cor)}">
         <div class="eac-gc-h">
-          <div class="eac-gord"><button type="button" class="eac-ibtn" ${i===0?'disabled':oc} aria-label="Subir ${esc(g.nome)}" onclick="APP.eacGrpMover('${g.id}',-1)">${eacIco(EAC_IC.up)}</button><button type="button" class="eac-ibtn" ${i===grupos.length-1?'disabled':oc} aria-label="Descer ${esc(g.nome)}" onclick="APP.eacGrpMover('${g.id}',1)">${eacIco(EAC_IC.down)}</button></div>
+          ${adm?`<div class="eac-gord"><button type="button" class="eac-ibtn" ${i===0?'disabled':oc} aria-label="Subir ${esc(g.nome)}" onclick="APP.eacGrpMover('${g.id}',-1)">${eacIco(EAC_IC.up)}</button><button type="button" class="eac-ibtn" ${i===grupos.length-1?'disabled':oc} aria-label="Descer ${esc(g.nome)}" onclick="APP.eacGrpMover('${g.id}',1)">${eacIco(EAC_IC.down)}</button></div>`:''}
           <span class="eac-gcode">1.${i+1}</span>
           ${ed ? `<input id="eacGrpRen" value="${esc(EAC_GRP.novoNome??g.nome)}" maxlength="40" aria-label="Novo nome de ${esc(g.nome)}" onkeydown="if(event.key==='Enter'){event.preventDefault();APP.eacGrpRenomearSalvar('${g.id}')}if(event.key==='Escape'){event.preventDefault();APP.eacGrpCancelar()}"><button type="button" class="btn btn-primary btn-sm" ${oc} onclick="APP.eacGrpRenomearSalvar('${g.id}')">Salvar</button><button type="button" class="btn btn-ghost btn-sm" onclick="APP.eacGrpCancelar()">Cancelar</button>`
-               : `<span class="eac-gname">${esc(g.nome)}</span><span class="eac-pill neu">${cs.length} cat.</span><button type="button" class="eac-ibtn" ${oc} aria-label="Renomear ${esc(g.nome)}" title="Renomear" onclick="APP.eacGrpRenomear('${g.id}')">${eacIco(EAC_IC.pen)}</button><button type="button" class="eac-ibtn del" ${oc} aria-label="Excluir ${esc(g.nome)}" title="Excluir grupo" onclick="APP.eacGrpExcluir('${g.id}')">${eacIco(EAC_IC.lixo)}</button>`}
+               : `<span class="eac-gname">${esc(g.nome)}</span><span class="eac-pill neu">${cs.length} cat.</span>${adm?`<button type="button" class="eac-ibtn" ${oc} aria-label="Renomear ${esc(g.nome)}" title="Renomear" onclick="APP.eacGrpRenomear('${g.id}')">${eacIco(EAC_IC.pen)}</button><button type="button" class="eac-ibtn del" ${oc} aria-label="Excluir ${esc(g.nome)}" title="Excluir grupo" onclick="APP.eacGrpExcluir('${g.id}')">${eacIco(EAC_IC.lixo)}</button>`:''}`}
         </div>
         ${ed && EAC_GRP.erro ? `<p class="eac-gerr" role="alert" style="margin:0 12px 8px 14px">${esc(EAC_GRP.erro)}</p>` : ''}
         ${del ? `<div class="eac-gconf" role="alert"><span class="eac-grow">${cs.length?`As ${cs.length} categorias de ${esc(g.nome)} vão para "Sem grupo". Nenhum valor muda.`:`Excluir o grupo ${esc(g.nome)}?`}</span><button type="button" class="btn btn-ghost btn-sm" onclick="APP.eacGrpCancelar()">Cancelar</button><button type="button" class="btn btn-danger btn-sm" id="eacGrpDelOk" ${oc} onclick="APP.eacGrpExcluirOk('${g.id}')">Excluir grupo</button></div>` : ''}
@@ -512,15 +523,16 @@ Object.assign(APP, {
     };
     const k = EAC_GRP.sel.size;
     const opts = [...grupos.map(g=>[g.id,g.nome]), [EAC_SEM_GRUPO,'Sem grupo']].map(([id,n])=>`<option value="${id}">${esc(n)}</option>`).join('');
-    const barra = k
+    const barra = !adm ? '' : k
       ? `<div class="eac-gmove" role="region" aria-label="Mover categorias selecionadas"><span>${k} selecionada${k>1?'s':''}</span><label for="eacGrpDest">Mover para</label><select class="filter-select" id="eacGrpDest">${opts}</select><button type="button" class="btn btn-primary btn-sm" ${oc} onclick="APP.eacGrpMoverSel()">Mover</button><button type="button" class="btn btn-ghost btn-sm" onclick="APP.eacGrpLimparSel()">Limpar seleção</button></div>`
       : '<p class="eac-ghint">Clique nas categorias para selecionar várias e mover de uma vez, ou arraste uma categoria para outro grupo.</p>';
-    const sug = !grupos.length ? this._eacSugestao() : [];
+    const sug = adm && !grupos.length ? this._eacSugestao() : [];
     const sugHtml = sug.length ? `<div class="eac-sec"><h4>Sugestão inicial <button type="button" class="btn btn-primary btn-sm" ${oc} onclick="APP.eacGrpAplicarSugestao()">Aplicar sugestão</button></h4><div class="eac-list">${sug.map(g=>`<div class="eac-li"><i class="eac-dot" style="background:${eacCor(g.cor)}"></i><div class="eac-grow"><div class="t">${esc(g.nome)}</div><div class="s">${g.catIds.map(id=>esc(CACHE.getCatNome(id))).join(', ')}</div></div></div>`).join('')}</div><p class="eac-note" style="margin-top:6px">Depois de aplicar, dá para renomear, mover categorias e criar outros grupos.</p></div>` : '';
-    this._eacSet('eacGrpSub', `<span>Estrutura 1.x da tabela EAC</span><span class="eac-pill neu">${grupos.length} grupo${grupos.length===1?'':'s'} · ${CACHE.cats.length} categorias</span>`);
+    this._eacSet('eacGrpSub', `<span>Estrutura 1.x da tabela EAC</span><span class="eac-pill neu">${grupos.length} grupo${grupos.length===1?'':'s'} · ${CACHE.cats.length} categorias</span>${adm?'':'<span class="eac-pill warn">Somente leitura</span>'}`);
     this._eacSet('eacGrpBody', `
       ${sugHtml}
-      <div class="eac-sec"><h4>Novo grupo</h4><div class="eac-gnew"><input id="eacGrpNovo" maxlength="40" placeholder="Ex.: Viagens" value="${esc(EAC_GRP.novo)}" aria-label="Nome do novo grupo" ${EAC_GRP.erro&&!EAC_GRP.edit?'aria-invalid="true" aria-describedby="eacGrpErr"':''} oninput="EAC_GRP.novo=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();APP.eacGrpAdicionar()}"><button type="button" class="btn btn-primary" ${oc} onclick="APP.eacGrpAdicionar()">Adicionar grupo</button></div>${EAC_GRP.erro&&!EAC_GRP.edit?`<p class="eac-gerr" id="eacGrpErr" role="alert">${esc(EAC_GRP.erro)}</p>`:''}</div>
+      ${adm?'':`<p class="eac-ghint">Somente leitura: só o administrador cria, renomeia, ordena e exclui grupos e move categorias.${grupos.length?'':' Ainda não há grupos.'}</p>`}
+      <div class="eac-sec" ${adm?'':'hidden'}><h4>Novo grupo</h4><div class="eac-gnew"><input id="eacGrpNovo" maxlength="40" placeholder="Ex.: Viagens" value="${esc(EAC_GRP.novo)}" aria-label="Nome do novo grupo" ${EAC_GRP.erro&&!EAC_GRP.edit?'aria-invalid="true" aria-describedby="eacGrpErr"':''} oninput="EAC_GRP.novo=this.value" onkeydown="if(event.key==='Enter'){event.preventDefault();APP.eacGrpAdicionar()}"><button type="button" class="btn btn-primary" ${oc} onclick="APP.eacGrpAdicionar()">Adicionar grupo</button></div>${EAC_GRP.erro&&!EAC_GRP.edit?`<p class="eac-gerr" id="eacGrpErr" role="alert">${esc(EAC_GRP.erro)}</p>`:''}</div>
       ${barra}
       <div class="eac-gcards">${grupos.map(card).join('')}
         <div class="eac-gcard sem" data-eac-gdrop="${EAC_SEM_GRUPO}" style="--gc:var(--t4)"><div class="eac-gc-h"><span class="eac-gname">Sem grupo</span><span class="eac-pill neu">${sem.length} cat.</span></div>
@@ -535,6 +547,7 @@ Object.assign(APP, {
 
   /** Executa uma gravação de grupos com o modal travado; o listener redesenha ao concluir. */
   async _eacGrpExec(fn, ok, focoSel){
+    if(!this._eacExigirAdmin()) return;
     EAC_GRP.ocupado = true; this.eacGruposRender();
     try{ await fn(); if(ok) this.toast(ok,'success'); }
     catch(err){ console.error('[EAC] grupos', err); this.toast('Não foi possível salvar: '+(err.message||err),'error'); }
@@ -542,6 +555,7 @@ Object.assign(APP, {
   },
 
   eacGrpAdicionar(){
+    if(!this._eacExigirAdmin()) return;
     const nome = document.getElementById('eacGrpNovo')?.value || '';
     EAC_GRP.novo = nome; EAC_GRP.edit = null;
     EAC_GRP.erro = this._eacNomeGrupoValido(nome);
@@ -554,7 +568,7 @@ Object.assign(APP, {
     this._eacGrpExec(()=>FS.addGrupo(nome.trim(), ordem, cor), `Grupo "${nome.trim()}" criado`, '#eacGrpNovo');
   },
 
-  eacGrpRenomear(id){ Object.assign(EAC_GRP, {edit:id, del:null, erro:'', novoNome:null}); this.eacGruposRender(); },
+  eacGrpRenomear(id){ if(!this._eacExigirAdmin()) return; Object.assign(EAC_GRP, {edit:id, del:null, erro:'', novoNome:null}); this.eacGruposRender(); },
   eacGrpCancelar(){ Object.assign(EAC_GRP, {edit:null, del:null, erro:'', novoNome:null}); this.eacGruposRender(); },
   eacGrpRenomearSalvar(id){
     const g = CACHE.grupos.find(x=>x.id===id), v = document.getElementById('eacGrpRen')?.value || '';
@@ -567,13 +581,14 @@ Object.assign(APP, {
   },
 
   eacGrpMover(id, delta){
+    if(!this._eacExigirAdmin()) return;
     const ids = this._eacGrupos().map(g=>g.id), i = ids.indexOf(id), j = i+delta;
     if(i<0 || j<0 || j>=ids.length) return;
     [ids[i], ids[j]] = [ids[j], ids[i]];
     this._eacGrpExec(()=>FS.ordenarGrupos(ids), '', `[aria-label^="${delta<0?'Subir':'Descer'}"]`);
   },
 
-  eacGrpExcluir(id){ Object.assign(EAC_GRP, {del:id, edit:null, erro:''}); this.eacGruposRender('#eacGrpDelOk'); },
+  eacGrpExcluir(id){ if(!this._eacExigirAdmin()) return; Object.assign(EAC_GRP, {del:id, edit:null, erro:''}); this.eacGruposRender('#eacGrpDelOk'); },
   eacGrpExcluirOk(id){
     const g = CACHE.grupos.find(x=>x.id===id);
     if(!g) return;
@@ -583,12 +598,12 @@ Object.assign(APP, {
     this._eacGrpExec(()=>FS.excluirGrupo(id, g.nome, cats), `Grupo "${g.nome}" excluído`+(cats.length?`; ${cats.length} categoria(s) em "Sem grupo"`:''));
   },
 
-  eacGrpSelecionar(id){ EAC_GRP.sel.has(id) ? EAC_GRP.sel.delete(id) : EAC_GRP.sel.add(id); this.eacGruposRender(`[data-eac-gcat="${id}"]`); },
+  eacGrpSelecionar(id){ if(!this._eacExigirAdmin()) return; EAC_GRP.sel.has(id) ? EAC_GRP.sel.delete(id) : EAC_GRP.sel.add(id); this.eacGruposRender(`[data-eac-gcat="${id}"]`); },
   eacGrpLimparSel(){ EAC_GRP.sel.clear(); this.eacGruposRender(); },
   eacGrpMoverSel(){ this._eacMoverCats([...EAC_GRP.sel], document.getElementById('eacGrpDest')?.value); },
 
   _eacMoverCats(ids, dest){
-    if(!dest) return;
+    if(!dest || !this._eacExigirAdmin()) return;
     const mover = ids.filter(id=>this._eacGrupoDaCat(id)!==dest);
     EAC_GRP.sel.clear();
     if(!mover.length){ this.toast('As categorias já estavam nesse grupo','info'); return this.eacGruposRender(); }
@@ -611,7 +626,7 @@ Object.assign(APP, {
     const zona = e => e.target.closest?.('[data-eac-gdrop]');
     body.addEventListener('dragstart', e=>{
       const ch = e.target.closest?.('[data-eac-gcat]');
-      if(!ch || EAC_GRP.ocupado) return;
+      if(!ch || EAC_GRP.ocupado || !this.eacPodeAlterar()) return;
       const id = ch.dataset.eacGcat, ids = EAC_GRP.sel.has(id) ? [...EAC_GRP.sel] : [id];
       e.dataTransfer.setData('text/plain', ids.join(','));
       e.dataTransfer.effectAllowed = 'move';

@@ -276,6 +276,8 @@
 .eac-gc-b{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 12px 14px;min-height:44px;align-content:flex-start}
 .eac-gchip{display:inline-flex;align-items:center;padding:5px 11px;border-radius:99px;border:1px solid var(--border2);background:var(--surface);font-family:var(--font-b);font-size:12px;font-weight:600;color:var(--t2);cursor:grab}
 .eac-gchip:hover{border-color:var(--palm)}
+.eac-gchip-ro{cursor:default}
+.eac-gchip-ro:hover{border-color:var(--border2)}
 .eac-gchip[aria-pressed="true"]{background:var(--palm);border-color:var(--palm);color:var(--eac-on-palm)}
 .eac-gempty{font-size:11.5px;color:var(--t4);padding:6px 0}
 .eac-gconf{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 12px 12px 14px;padding:8px 10px;border-radius:9px;background:var(--red-lt);border:1px solid var(--eac-red-bd);font-size:12px;color:var(--t1)}
