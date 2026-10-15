@@ -31,6 +31,8 @@
     ovPeriodo      Filtro por período (Ano + Mês Início + Mês Fim)
     ovRecorrentes  Geração de contas recorrentes
     ovPagMassa     Pagamento em massa de múltiplas contas
+    ovEacDetalhe, ovEacLB, ovEacExcl, ovEacGrupos   Modais da tela EAC (js/eac-gestao.js)
+    ovExcluirConta Motivo da exclusão de conta de ano com linha de base
 
   ATENÇÃO PARA INTEGRAÇÃO:
    • Quando este fragmento é injetado em <div id="appModals"></div>, o
@@ -294,7 +296,7 @@
       </div>
       <div style="max-height:360px;overflow-y:auto;border:1px solid var(--border);border-radius:var(--r-sm)" id="gerenciarLista"></div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovGerenciar">Fechar</button></div>
+    <div class="modal-footer"><button class="btn btn-secondary" id="gBtnGrupos" style="margin-right:auto" onclick="APP.closeModal('ovGerenciar');APP.eacAbrirGrupos()">Organizar grupos (EAC)</button><button class="btn btn-ghost" data-close="ovGerenciar">Fechar</button></div>
   </div>
 </div>
 
@@ -511,5 +513,54 @@
       <button class="btn btn-ghost" data-close="ovPagMassa">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.confirmarPagamentoMassa()" id="btnConfirmarMassa">✅ Confirmar todos</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ EAC (js/eac-gestao.js): conteúdo montado pelo JS ══ -->
+<div class="modal-overlay" id="ovEacDetalhe">
+  <div class="modal modal-xl eac-modal" role="dialog" aria-modal="true" aria-labelledby="eacDetTitulo">
+    <div class="modal-header"><div><h2 id="eacDetTitulo">Detalhe</h2><div class="eac-m-sub" id="eacDetSub"></div></div><button class="modal-close" data-close="ovEacDetalhe" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body" id="eacDetBody"></div>
+    <div class="modal-footer" id="eacDetFooter"></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovEacLB">
+  <div class="modal modal-xl eac-modal" role="dialog" aria-modal="true" aria-labelledby="eacLBTitulo">
+    <div class="modal-header"><div><h2 id="eacLBTitulo">Linhas de base</h2><div class="eac-m-sub" id="eacLBSub"></div></div><button class="modal-close" data-close="ovEacLB" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body" id="eacLBBody"></div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovEacLB">Fechar</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovEacExcl">
+  <div class="modal modal-xl eac-modal" role="dialog" aria-modal="true" aria-labelledby="eacExclTitulo">
+    <div class="modal-header"><div><h2 id="eacExclTitulo">Contas da LB que foram excluídas</h2><div class="eac-m-sub" id="eacExclSub"></div></div><button class="modal-close" data-close="ovEacExcl" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body" id="eacExclBody"></div>
+    <div class="modal-footer"><button class="btn btn-primary" data-close="ovEacExcl">Concluir</button></div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="ovEacGrupos">
+  <div class="modal modal-xl eac-modal" role="dialog" aria-modal="true" aria-labelledby="eacGrpTitulo">
+    <div class="modal-header"><div><h2 id="eacGrpTitulo">Grupos de categorias</h2><div class="eac-m-sub" id="eacGrpSub"></div></div><button class="modal-close" data-close="ovEacGrupos" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body" id="eacGrpBody"></div>
+    <div class="modal-footer"><button class="btn btn-primary" data-close="ovEacGrupos">Concluir</button></div>
+  </div>
+</div>
+
+<!-- Exclusão de conta de um ano com linha de base: pergunta o motivo (APP.confirmarExclusaoConta) -->
+<div class="modal-overlay" id="ovExcluirConta">
+  <div class="modal modal-md eac-modal" role="dialog" aria-modal="true" aria-labelledby="eacExcTitulo">
+    <div class="modal-header"><h2 id="eacExcTitulo">Excluir conta</h2><button class="modal-close" data-eac-exc-cancelar aria-label="Cancelar">&times;</button></div>
+    <div class="modal-body">
+      <p id="eacExcPergunta" style="font-size:13.5px;font-weight:600;color:var(--t1)"></p>
+      <p class="eac-note">Este ano tem linha de base na EAC. Por que a conta está saindo?</p>
+      <div class="eac-radio" role="radiogroup" aria-label="Motivo da exclusão">
+        <button type="button" class="eac-rc" role="radio" aria-checked="false" data-eac-exc="cancelada"><span class="o"></span><span><b>Despesa cancelada</b><span>Deixou de existir. Conta como economia contra o planejado.</span></span></button>
+        <button type="button" class="eac-rc" role="radio" aria-checked="false" data-eac-exc="indevida"><span class="o"></span><span><b>Cadastro indevido</b><span>Erro ou duplicada. Sai do planejado e não entra na EAC.</span></span></button>
+      </div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-eac-exc-cancelar>Cancelar</button><button class="btn btn-danger" id="eacExcOk" disabled>Excluir</button></div>
   </div>
 </div>

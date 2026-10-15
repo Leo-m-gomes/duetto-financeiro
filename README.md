@@ -1,6 +1,6 @@
 # Duetto Financeiro
 
-Sistema financeiro familiar de Leo e Pri: contas a pagar, receitas, salários, relatórios, notas e importação de faturas de cartão. Aplicação web estática (sem build) com Firebase (Google Login + Firestore) e dados sincronizados em tempo real entre os dois usuários.
+Sistema financeiro familiar de Leo e Pri: contas a pagar, receitas, salários, relatórios, EAC (planejado × realizado do ano), notas e importação de faturas de cartão. Aplicação web estática (sem build) com Firebase (Google Login + Firestore) e dados sincronizados em tempo real entre os dois usuários.
 
 ---
 
@@ -115,7 +115,10 @@ js/
   lixeira.js          Lixeira de contas
   gerenciar.js        Categorias e formas de pagamento
   command-palette.js  Busca rápida e ações (Ctrl K / ⌘K / "/")
-views/                Fragmentos HTML de cada tela + modals.html (todos os modais)
+  eac.js              Tela EAC: cálculo (planejado, comprometido, realizado, ponte do desvio) e render
+  eac-gestao.js       Modais da EAC: detalhe da linha, linhas de base, excluídas, grupos; pergunta na exclusão
+css/eac.css           Tela EAC e seus modais
+views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
 
 `views/salario.html` e `views/backup.html` existem: a rota `backup` está registrada (admin), `salario` não tem rota (legado; salários são geridos pelo modal "Gerenciar salários").
@@ -124,19 +127,19 @@ views/                Fragmentos HTML de cada tela + modals.html (todos os modai
 
 1. `index.html` carrega os scripts **em ordem** (a ordem importa: módulos usam globais dos anteriores): firebase-config → fin-state → fin-cache → security → fin-db → router → notes → app → ui-* → features → command-palette.
 2. `security.js` observa o login. E-mail fora da lista → tela "Acesso negado". E-mail permitido → grava acesso em `logs_acesso`, roda `seedIfEmpty()` e liga os listeners.
-3. Os listeners (`onSnapshot`) preenchem o `CACHE`. Quando 5 coleções ficam prontas (contas, salarios, outras, cats, formas), `APP.onCacheReady()` mostra o app e roda `APP.boot()`.
+3. Os listeners (`onSnapshot`) preenchem o `CACHE`. Quando 5 coleções ficam prontas (contas, salarios, outras, cats, formas), `APP.onCacheReady()` mostra o app e roda `APP.boot()`. Os listeners da EAC (`categoria_grupos`, `eac_lb`, `eac_exclusoes`) não entram nessa contagem: o app abre sem esperar por eles e, se a regra do Firestore negar a leitura, só há aviso no console.
 4. `boot()` injeta `views/modals.html`, liga navegação/topbar/filtros e abre o Dashboard.
 
 ### 3.3 Dados em tempo real
 
 * Toda leitura de tela é síncrona sobre o `CACHE` (sem consulta ao Firestore por render).
 * Qualquer alteração no Firestore (por qualquer um dos dois usuários) dispara o listener, atualiza o `CACHE` e redesenha a tela atual (`APP.renderPage`).
-* Exceções que leem direto do Firestore sob demanda: logs, logs de acesso, lixeira, importações, cartões e backup.
+* Exceções que leem direto do Firestore sob demanda: logs, logs de acesso, lixeira (também no modal de excluídas da EAC), importações, cartões, backup e as contas de cada linha de base (`eac_lb_itens`, lidas uma vez por revisão e guardadas em memória, pois a LB não muda).
 
 ### 3.4 Roteamento
 
 * `ROUTER.navigate(page)` busca `views/<page>.html` (com cache em memória), injeta em `#appMain`, marca o item ativo na navegação (`.active` + `aria-current`), atualiza o título e chama `APP.renderPage(page)`.
-* Rotas: `dashboard`, `contas`, `receitas`, `relatorio`, `notas`, `upload` (admin), `backup` (admin), `config` (admin).
+* Rotas: `dashboard`, `contas`, `receitas`, `relatorio`, `eac`, `notas`, `upload` (admin), `backup` (admin), `config` (admin).
 
 ---
 
@@ -144,7 +147,7 @@ views/                Fragmentos HTML de cada tela + modals.html (todos os modai
 
 ### 4.1 Trilho de navegação (desktop, acima de 768px)
 
-* Coluna fixa de **76px** (`--sw` em `theme.css`) com ícone e rótulo curto. Ordem e grupos: **Dashboard, Contas, Receitas** · **Relatório, Notas** · **Upload, Config** (o último grupo e seu divisor só aparecem para o admin).
+* Coluna fixa de **76px** (`--sw` em `theme.css`) com ícone e rótulo curto. Ordem e grupos: **Dashboard, Contas, Receitas** · **Relatório, EAC, Notas** · **Upload, Config** (o último grupo e seu divisor só aparecem para o admin).
 * O item ativo tem fundo na cor do tema e indicador luminoso na borda esquerda.
 * Base do trilho: botão de modo claro/escuro (lua/sol) e avatar do usuário logado (inicial; verde para Leo, rosa para Pri).
 * A largura é fixa (não existe mais "recolher menu"). A chave antiga `dt_sb_collapsed` é apagada no boot.
@@ -154,8 +157,8 @@ views/                Fragmentos HTML de cada tela + modals.html (todos os modai
 `[Duetto / Tela  selo de período] · [busca Ctrl K] · [filtro de responsável | ações da tela | privacidade | sair]`
 
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
-  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Some em Notas, Upload, Backup e Config.
-* **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
+  `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Na EAC mostra o ano e a LB vigente (`2026 · LB Rev 2` ou `2026 · sem LB`). Some em Notas, Upload, Backup e Config.
+* **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório, EAC e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
 * **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Gerar recorrentes, Exportar CSV. Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
 ### 4.3 Busca rápida (Ctrl K / ⌘K / "/")
@@ -168,7 +171,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
   Valor exibido: pendente mostra o que falta pagar (`vPendente`); paga mostra o valor pago (`vEfetivo`).
 * **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
 * **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes, Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
-* **Ir para:** telas do app (Upload e Config só para o admin).
+* **Ir para:** telas do app, incluindo EAC (Upload e Config só para o admin).
 * **Teclado:** ↑/↓ ou Tab navegam, Enter abre, **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
 
 ### 4.4 Temas
@@ -209,6 +212,7 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | Itens Upload/Config da navegação só aparecem para Leo | `APP.boot` |
 | Notas: admin edita/exclui qualquer nota; autor edita a própria; nota com responsável "Leo & Pri" libera os dois | `notes.js` → `ntCanEdit` |
 | Todo acesso (abertura do app) é registrado | coleção `logs_acesso` |
+| EAC: os dois usuários salvam linha de base, classificam exclusões e editam grupos (autor registrado em `eac_log`); ninguém edita ou apaga uma LB salva | `js/eac-gestao.js`, `FS.salvarLB` |
 
 * Login por popup Google; se o navegador bloquear o popup, cai para redirect.
 * Sair pede confirmação.
@@ -247,7 +251,12 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 |---|---|
 | `salarios` | `{nome, pessoa:'Leo'\|'Pri', historico:[{anoInicio, mesInicio:0-11, deps, salario, bonificacao, inss, ir, liquido, updatedBy, updatedAt}], createdBy}`. Entradas antigas podem não ter `anoInicio` (ver 9.3) |
 | `outras_receitas` | `{desc, resp:''\|'Leo'\|'Pri', ano, valores:[12 números, Jan..Dez do ano], createdBy, createdAt, updatedBy, updatedAt}`. `resp:''` = **Ambos**. Receitas antigas podem não ter `ano` (ver 9.1) |
-| `categorias` | `{nome}` (nome único, sem diferenciar maiúsculas) |
+| `categorias` | `{nome, grupoId?}` (nome único, sem diferenciar maiúsculas). `grupoId` liga ao grupo da EAC; sem ele a categoria fica em "Sem grupo" |
+| `categoria_grupos` | `{nome, ordem, cor, createdBy, createdAt, updatedBy?, updatedAt?}`. Grupos da tabela EAC; `ordem` define a numeração 1.x; `cor` é uma chave da paleta (`cat-1`..`cat-6`, `eac-g7`, `eac-g8`) |
+| `eac_lb` | Linha de base (revisão), ID `<ano>-r<rev>`: `{ano, rev, escopo:'geral'\|'categorias', catIds, justificativa, criadaPor, criadaEm, criadaEmIso, foraDoPrazo, base, totalCent, qtdContas, lotes, porCat:{catId:{mesesCent[12], verbaMesCent, qtd, totalCent}}}`. **Imutável**: o sistema não edita nem apaga |
+| `eac_lb_itens` | Contas da foto de cada LB em lotes de até 400, ID `<lbId>-<n>`: `{lbId, ano, rev, lote, itens:[{id, conta, catId, resp, mes, vCent}]}` |
+| `eac_exclusoes` | Classificação de conta excluída, ID = ID da conta: `{contaId, ano, conta, catId, resp, vCent, classificacao:'cancelada'\|'indevida', definidoPor, definidoEm, definidoEmIso}` |
+| `eac_log` | Auditoria da EAC: `{evento:'lb_salva'\|'exclusao_classificada'\|'grupo_criado'\|'grupo_renomeado'\|'grupo_excluido'\|'grupo_ordem'\|'categoria_movida', usuario, detalhes, timestamp, ...}` |
 | `formas` | `{nome}` (formas de pagamento; nome único) |
 | `config/tabelas` | `{ir:[{de,ate,al,ded}], inss:[{de,ate,al,ded}], dedDep, tetoINSS, vigencia}` |
 | `config/usuarios` | `{lista:[{nome,email,role,adicionadoPor,em}]}` (informativo) |
@@ -500,6 +509,49 @@ Ano entre 2019 e 2035, mês final ≥ mês inicial, sempre dentro de um único a
 
 ---
 
+### 10.6 EAC (planejado × comprometido × realizado)
+
+Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Visão sempre do **ano escolhido** (abre no vigente); anos anteriores ficam para consulta, somente leitura. A tela não cadastra contas; as únicas gravações (linha de base, classificação de excluídas e grupos) são feitas em modais e passam por `FS.*` com registro em `eac_log`. Tudo é somado em **centavos inteiros**.
+
+| Coluna | Cálculo |
+|---|---|
+| Planejado | LB vigente do ano: `vPagar` de cada conta da foto (por mês de vencimento e categoria) + verba mensal × 12. Contas da LB excluídas e classificadas como **indevidas** saem do valor. Com "Comparar com LB original (Rev 0)", usa a Rev 0 |
+| Comprometido | Σ `vEfetivo` das contas com vencimento no ano (pago com juros/desconto; em aberto pelo valor atual), incluindo contas novas |
+| Realizado | Σ `vPago` das contas do ano (inclui a parte já paga de compartilhadas) |
+| Desvio | Comprometido − Planejado. > 0 gasto acima do plano (vermelho); < 0 economia (verde). % = Desvio ÷ Planejado; categoria sem planejado mostra "novo" |
+
+* **Filtro de responsável:** mesma regra do Dashboard (compartilhada ÷2 para Leo ou Pri). Vale para a LB porque cada conta da foto guarda o responsável; a verba conta como compartilhada.
+* **Tabela EAP:** 1 Consolidado (destaque verde), 1.x Grupo (tinta da cor do grupo, faixa lateral) e 1.x.y Categoria (recuada, com linha-guia). Seta recolhe/expande (← e → no teclado); segmentado "Nível" mostra 1, 2 ou 3 níveis; ordem EAP ou "Maior desvio". Categorias sem valor no ano não aparecem. O clique no nome abre o detalhe.
+* **Farol:** desvio ≤ 0 dentro do plano; até 5% atenção; acima de 5% (ou gasto sem planejado) acima do plano (`EAC_FAROL_PCT`).
+* **Ponte do desvio** (fecha exatamente em centavos): Planejado [+ Revisões, quando comparando com a Rev 0] + Contas novas além da verba + Reajustes de valor + Juros e multas + Descontos + Exclusões e saídas do ano + Troca de categoria = Comprometido. Cada conta da foto é cruzada pelo ID com a conta atual:
+  * conta que não existe mais: exclusão (economia), salvo se indevida;
+  * vencimento movido para outro ano: saída;
+  * categoria trocada: sai da antiga e entra na nova;
+  * `vPagar` diferente da foto: reajuste; `vEfetivo` diferente de `vPagar`: juros (+) ou desconto (−);
+  * conta do ano que não está na foto: conta nova.
+* **Cards:** receita × despesa comprometida do mês escolhido (régua de 12 meses, abre no mês atual; o clique escolhe o mês) e do ano; desvio do ano; ritmo de execução (% pago × % do ano decorrido). Receita = `CACHE.getReceitaMes`.
+* **Curva S:** acumulados de planejado, comprometido e pago (por mês de vencimento) com a marca de hoje.
+* **Só a tabela:** botão na barra da tabela ou tecla **F** esconde régua, cards, gráficos e avisos; **Esc** ou F volta. Fica ligado enquanto o app estiver aberto; não é salvo.
+
+**Linhas de base (modal "Linhas de base")**
+* Cada revisão é uma foto completa e **imutável** (ID `<ano>-r<rev>` gravado em transação: duas pessoas não criam o mesmo número). A numeração recomeça em **Rev 0 a cada ano**.
+* **Rev 0** é sempre geral. Janeiro é o mês de salvá-la (aviso laranja em janeiro, vermelho depois). Salva fora de janeiro (ou de dezembro do ano anterior) fica marcada **fora do prazo**. Em dezembro dá para preparar a Rev 0 do ano seguinte (o seletor mostra o próximo ano).
+* **Rev 1 em diante:** geral ou por categoria (as escolhidas recebem as contas de hoje; as demais copiam a revisão anterior, inclusive a verba). Justificativa obrigatória.
+* **Verba mensal por categoria:** valor para gastos variáveis ainda não cadastrados (mercado, restaurante, cartão). Entra no Planejado; na ponte, as contas novas aparecem descontadas da verba.
+* Ano encerrado não recebe LB. Abas: Histórico (total e diferença de cada revisão), Salvar nova revisão (prévia do total antes de salvar) e Comparar revisões (diferença por categoria). Os dois usuários podem salvar.
+
+**Contas da LB que foram excluídas (modal "Excluídas")**
+* Lista as contas da foto vigente que não existem mais, com quem excluiu e quando (lido da lixeira).
+* **Cancelada:** a despesa deixou de existir; continua no Planejado e vira economia. **Indevida:** cadastro errado ou duplicado; sai do Planejado e das listas, sem economia falsa. Sem classificação conta como cancelada, e a tela avisa "N a classificar".
+* A classificação fica em `eac_exclusoes`, fora da lixeira: apagar de vez da lixeira não muda a LB nem a classificação. Conta restaurada volta ao Comprometido e a classificação deixa de valer.
+* **Exclusão em Contas** (conta, parcela ou parcelamento) de um ano com LB abre o modal "Excluir conta", que pergunta se é despesa cancelada ou cadastro indevido e grava a classificação; anos sem LB mantêm o `confirm` de sempre.
+
+**Grupos de categorias (modal "Grupos", também em Gerenciar Categorias → "Organizar grupos (EAC)")**
+* Sem nenhum grupo, o modal oferece uma sugestão inicial (8 grupos com as categorias padrão que existirem).
+* Criar (nome obrigatório, até 40 caracteres, único sem diferenciar maiúsculas; "Sem grupo" é reservado), renomear, ordenar (setas, define a numeração 1.x), excluir (confirmação no modal; categorias vão para "Sem grupo") e mover categorias (seleção múltipla + "Mover para" ou arrastar).
+* Categoria nova cadastrada em Contas entra em "Sem grupo"; com valor no ano aparece no fim da tabela e a tela avisa. Categorias ficam em ordem alfabética dentro do grupo.
+* A LB guarda categorias, não grupos: reagrupar não altera valores e vale também para anos anteriores.
+
 ## 11. Importação de planilhas (Upload Cards)
 
 Somente admin.
@@ -535,7 +587,7 @@ Somente admin.
 
 ### 13.1 Lixeira de contas
 
-* Excluir conta move para `lixeira` em transação (com quem, quando e motivo) e registra log.
+* Excluir conta move para `lixeira` em transação (com quem, quando e motivo) e registra log. Em ano com linha de base, o motivo é "despesa cancelada (EAC)" ou "cadastro indevido (EAC)" e a classificação vai para `eac_exclusoes` (ver 10.6).
 * Restaurar (Configurações → Excluídos) recria com o **mesmo ID** original e registra log `restauracao`.
 * Exclusão permanente e "esvaziar lixeira" pedem **dupla confirmação** e são irreversíveis.
 
@@ -553,7 +605,7 @@ Somente admin.
 
 ### 13.4 Backup (admin)
 
-* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso`. **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
+* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log`. O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
 * **JSON** (versão 2): timestamps serializados como `{__tipo:'timestamp', iso, seconds, nanoseconds}`; `meta` com data, autor, contagem e falhas.
 * **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos, salários por período (mês e ano de início) e outras receitas com Ano e "Ano confirmado" (Não = ano ainda inferido).
 * Coleção que falhar não derruba o backup: entra em `meta.falhas` e o usuário é avisado.
@@ -584,6 +636,8 @@ Somente admin.
 * **Salários não recalculam** ao mudar as tabelas fiscais (9.3).
 * **Moeda** só muda a formatação, sem conversão.
 * **Usuários extras** em Configurações não recebem acesso sem mudar `ALLOWED_EMAILS` e as regras do Firestore.
+* **Regras do Firestore para a EAC:** as coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes` e `eac_log` precisam de leitura e escrita para os dois e-mails, e `categorias` precisa aceitar o campo `grupoId`. Recomendado: `eac_lb` e `eac_lb_itens` sem update/delete (LB imutável) e `eac_log` só com create. Sem as regras, a tela abre, mas salvar LB, classificar e mexer em grupos falham.
+* **EAC:** a ponte compara cada conta pelo ID; contas recriadas com ID novo (ex.: excluir e cadastrar de novo) aparecem como exclusão + conta nova. Uma LB muito grande (mais de ~180 mil contas) não cabe numa gravação. O Realizado da Curva S é por mês de vencimento, não pela data do pagamento.
 * **Sem modo offline** (não há service worker) e **sem restauração** a partir do backup.
 * Categoria/forma em uso detectada só por ID: contas legadas com nome (`cat`/`forma`) não bloqueiam a exclusão.
 * A busca rápida (Ctrl K) não pesquisa Notas e não abre com modal aberto.
@@ -597,6 +651,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-15 | **Nova tela EAC** (trilho entre Relatório e Notas; bottom nav entre Notas e Relatório; busca rápida): planejado (linha de base) × comprometido × realizado × desvio por grupo e categoria em tabela EAP recolhível; cards de receita × despesa por mês (régua de 12 meses) e do ano, desvio e ritmo; ponte do desvio e Curva S em SVG; modo "só a tabela" (tecla F). Linhas de base imutáveis por ano (Rev 0 em janeiro, revisões gerais ou por categoria com justificativa, verba mensal, comparação com a Rev 0). Contas excluídas classificadas como cancelada ou indevida (também ao excluir em Contas). Grupos de categorias editáveis em modal. Novas coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes`, `eac_log` e campo `categorias.grupoId`; backup atualizado. |
 | 2026-10-14 | **Receitas com filtro de Período:** botão 📅 Período na tela Receitas (mesmo modal de Contas/Dashboard/Relatório: ano + mês inicial + mês final). Com período ativo, lista e totais usam só esses meses e ignoram Ano/Mês; selo verde remove o filtro; mudar Ano ou Mês limpa o período; o período continua ao sair e voltar para a tela; selo do topbar e ano padrão da nova receita seguem o período. `js/ui-period.js` passa a usar o mapa `PERIODO_TELAS`. |
 | 2026-10-14 | **Modal de nota:** tabela de Notas Adicionais ordenada por data (crescente, sem data no fim; só exibição, a gravação não muda). Espaçamento: sem o recuo extra acima de "Dados Cadastrais", totais 12px abaixo da tabela e alinhados às bordas dela (sai a faixa de fundo atrás dos cartões; cores dos cartões mantidas), linhas da tabela mais compactas e rolagem horizontal da tabela também em telas de até 375px (antes a coluna Realizado era cortada). |
 | 2026-10-14 | **Revertido o ajuste geral de contraste** (token `--on-palm`, `--t3`/`--t4` mais claros, botões primários, abas, Pareto, cartão de salário, Notas e textos da barra voltam como eram). Mantidos: correção do botão "Limpar seleção" no modo escuro e a correção dos modais (clique no fundo só fecha se começar e terminar no fundo; Duplicatas não trava o Salvar). |

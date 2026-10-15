@@ -6,6 +6,8 @@ Object.assign(APP, {
     STATE.gerenciarTipo=tipo;
     document.getElementById('titleGerenciar').textContent=tipo==='cat'?'Gerenciar Categorias':'Gerenciar Formas de Pagamento';
     document.getElementById('gNovoNome').value='';
+    const btnGrupos=document.getElementById('gBtnGrupos');   // grupos da EAC: só para categorias
+    if(btnGrupos) btnGrupos.style.display=tipo==='cat'?'':'none';
     this.renderGerenciarLista();
     document.getElementById('ovGerenciar').classList.add('open');
     setTimeout(()=>document.getElementById('gNovoNome').focus(),100);

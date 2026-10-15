@@ -238,7 +238,130 @@ const FS = {
   async deleteForma(id){ await fbDb.collection('formas').doc(id).delete(); },
 
   // ── TABELAS ──
-  async saveTabelas(data){ await fbDb.collection('config').doc('tabelas').set(data); }
+  async saveTabelas(data){ await fbDb.collection('config').doc('tabelas').set(data); },
+
+  // ── EAC: GRUPOS DE CATEGORIAS, LINHAS DE BASE E EXCLUSÕES ──
+  // Toda escrita da tela EAC passa por aqui e registra em eac_log. Falha no log não bloqueia.
+  async _logEac(evento, detalhes, extras){
+    try{
+      await fbDb.collection('eac_log').add({
+        evento, usuario:STATE.usuario, detalhes:detalhes||'',
+        timestamp:firebase.firestore.FieldValue.serverTimestamp(), ...extras,
+      });
+    }catch(e){ console.warn('Log EAC error:', e); }
+  },
+
+  /** Grava em lotes de 400 operações (limite do Firestore: 500 por lote). */
+  async _emLotes(ops){
+    for(let i=0;i<ops.length;i+=400){
+      const batch = fbDb.batch();
+      ops.slice(i,i+400).forEach(fn=>fn(batch));
+      await batch.commit();
+    }
+  },
+
+  async addGrupo(nome, ordem, cor){
+    const ref = await fbDb.collection('categoria_grupos').add({
+      nome, ordem, cor, createdBy:STATE.usuario, createdAt:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await this._logEac('grupo_criado', `Grupo "${nome}" criado`, {grupoId:ref.id});
+    return ref.id;
+  },
+
+  async renomearGrupo(id, nomeAntes, nome){
+    await fbDb.collection('categoria_grupos').doc(id).update({
+      nome, updatedBy:STATE.usuario, updatedAt:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await this._logEac('grupo_renomeado', `"${nomeAntes}" → "${nome}"`, {grupoId:id});
+  },
+
+  /** Regrava a ordem (0..n-1) na sequência recebida de IDs. */
+  async ordenarGrupos(ids){
+    await this._emLotes(ids.map((id,i)=>b=>b.update(fbDb.collection('categoria_grupos').doc(id),{ordem:i})));
+    await this._logEac('grupo_ordem', 'Ordem dos grupos alterada', {ordem:ids});
+  },
+
+  /** Exclui o grupo e devolve as categorias dele para "Sem grupo" (valores não mudam). */
+  async excluirGrupo(id, nome, catIds){
+    const del = firebase.firestore.FieldValue.delete();
+    await this._emLotes([
+      b=>b.delete(fbDb.collection('categoria_grupos').doc(id)),
+      ...catIds.map(c=>b=>b.update(fbDb.collection('categorias').doc(c),{grupoId:del})),
+    ]);
+    await this._logEac('grupo_excluido', `Grupo "${nome}" excluído; ${catIds.length} categoria(s) em "Sem grupo"`, {grupoId:id});
+  },
+
+  /** Move categorias para um grupo (grupoId null = "Sem grupo"). */
+  async moverCategorias(catIds, grupoId, destino){
+    const val = grupoId || firebase.firestore.FieldValue.delete();
+    await this._emLotes(catIds.map(c=>b=>b.update(fbDb.collection('categorias').doc(c),{grupoId:val})));
+    const nomes = catIds.map(c=>CACHE.getCatNome(c)).join(', ');
+    await this._logEac('categoria_movida', `${nomes} → ${destino}`, {grupoId:grupoId||null, catIds});
+  },
+
+  /** Cria vários grupos de uma vez com as categorias de cada um (sugestão inicial). */
+  async criarGruposIniciais(lista){
+    const ops = [];
+    lista.forEach(g=>{
+      const ref = fbDb.collection('categoria_grupos').doc();
+      ops.push(b=>b.set(ref,{nome:g.nome, ordem:g.ordem, cor:g.cor, createdBy:STATE.usuario, createdAt:firebase.firestore.FieldValue.serverTimestamp()}));
+      g.catIds.forEach(c=>ops.push(b=>b.update(fbDb.collection('categorias').doc(c),{grupoId:ref.id})));
+    });
+    await this._emLotes(ops);
+    await this._logEac('grupo_criado', `Sugestão inicial aplicada: ${lista.length} grupos`, {});
+  },
+
+  /**
+   * Salva uma revisão de linha de base. O ID fixo "<ano>-r<rev>" e a transação impedem duas
+   * revisões com o mesmo número. As contas da foto vão para eac_lb_itens em lotes de 400.
+   * Revisões são imutáveis: não existe método para editar ou apagar.
+   * @param {Object} cab   cabeçalho (ano, rev, escopo, catIds, justificativa, totalCent, porCat...)
+   * @param {Array}  itens [{id, conta, catId, resp, mes, vCent}]
+   */
+  async salvarLB(cab, itens){
+    const id  = `${cab.ano}-r${cab.rev}`;
+    const ref = fbDb.collection('eac_lb').doc(id);
+    const lotes = [];
+    for(let i=0;i<itens.length;i+=400) lotes.push(itens.slice(i,i+400));
+    if(lotes.length > 450) throw new Error('Linha de base grande demais para uma gravação');
+    await fbDb.runTransaction(async tx=>{
+      const snap = await tx.get(ref);
+      if(snap.exists) throw new Error(`A Rev ${cab.rev} de ${cab.ano} acabou de ser salva. Feche o modal e abra de novo.`);
+      tx.set(ref, {...cab, lotes:lotes.length, criadaEm:firebase.firestore.FieldValue.serverTimestamp()});
+      lotes.forEach((l,n)=>tx.set(fbDb.collection('eac_lb_itens').doc(`${id}-${n}`), {lbId:id, ano:cab.ano, rev:cab.rev, lote:n, itens:l}));
+    });
+    const escopo = cab.escopo==='geral' ? 'geral' : `${cab.catIds.length} categoria(s)`;
+    await this._logEac('lb_salva', `Rev ${cab.rev} de ${cab.ano} (${escopo})${cab.justificativa?': '+cab.justificativa:''}`,
+      {ano:cab.ano, rev:cab.rev, lbId:id, totalCent:cab.totalCent});
+    return id;
+  },
+
+  /** Lixeira de contas (para mostrar quem excluiu e quando na EAC). */
+  async lerLixeira(){
+    const snap = await fbDb.collection('lixeira').get();
+    return snap.docs.map(d=>({_lid:d.id, ...d.data()}));
+  },
+
+  /** Contas que formaram uma linha de base (lidas sob demanda; a LB não muda depois de salva). */
+  async lerItensLB(lbId){
+    const snap = await fbDb.collection('eac_lb_itens').where('lbId','==',lbId).get();
+    return snap.docs.map(d=>d.data()).sort((a,b)=>a.lote-b.lote).flatMap(d=>d.itens||[]);
+  },
+
+  /**
+   * Classifica contas excluídas: 'cancelada' (economia) ou 'indevida' (cadastro errado, sai do
+   * Planejado). Fica em eac_exclusoes (ID = ID da conta), separado da lixeira.
+   * @param {Array} regs [{contaId, ano, conta, catId, resp, vCent}]
+   */
+  async classificarExclusoes(regs, classificacao){
+    if(!regs.length) return;
+    await this._emLotes(regs.map(r=>b=>b.set(fbDb.collection('eac_exclusoes').doc(r.contaId),{
+      ...r, classificacao, definidoPor:STATE.usuario, definidoEmIso:new Date().toISOString(),
+      definidoEm:firebase.firestore.FieldValue.serverTimestamp(),
+    })));
+    await this._logEac('exclusao_classificada', `${regs.map(r=>r.conta).join(', ')} → ${classificacao}`,
+      {contaIds:regs.map(r=>r.contaId), classificacao});
+  },
 };
 
 
@@ -274,6 +397,7 @@ function setupListeners(){
       CACHE.markReady('cats');
       if(_canReRender()){
         if(STATE.page==='contas') APP.renderContas();
+        APP.eacAoMudarDados?.();   // grupo da categoria mudou: tabela EAC e modal de grupos
         const ov=document.getElementById('ovGerenciar');
         if(ov&&ov.classList.contains('open')&&STATE.gerenciarTipo==='cat') APP.renderGerenciarLista();
       }
@@ -286,7 +410,15 @@ function setupListeners(){
     }),
     fbDb.collection('config').doc('tabelas').onSnapshot(snap=>{
       CACHE.tabelas=snap.exists?snap.data():DEFAULT_TABELAS;
-    })
+    }),
+    // EAC: coleções pequenas, fora do markReady (o app abre sem esperar por elas).
+    // Erro (ex.: regra do Firestore ainda sem a coleção) só avisa no console.
+    ...[['categoria_grupos','grupos'],['eac_lb','lbs'],['eac_exclusoes','eacExcl']].map(([col,chave])=>
+      fbDb.collection(col).onSnapshot(snap=>{
+        CACHE[chave]=snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(_canReRender()) APP.eacAoMudarDados?.();
+      }, err=>console.warn(`[EAC] ${col}:`, err.message))
+    )
   );
 }
 

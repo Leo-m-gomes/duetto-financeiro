@@ -22,6 +22,10 @@ const CACHE = {
   cats:     [],
   formas:   [],
   tabelas:  null,
+  // EAC (não bloqueiam o boot: chegam depois e redesenham a tela EAC)
+  grupos:   [],   // categoria_grupos: {id, nome, ordem, cor}
+  lbs:      [],   // eac_lb: cabeçalhos das linhas de base (os itens ficam em eac_lb_itens, lidos sob demanda)
+  eacExcl:  [],   // eac_exclusoes: classificação das contas da LB que foram excluídas
   _ready:   new Set(),
 
   markReady(key){
