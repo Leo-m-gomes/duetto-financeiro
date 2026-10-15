@@ -158,7 +158,7 @@ const APP = {
     if(page==='receitas'){ show('btnNovaReceita'); show('btnGerenciarSalarios'); }
 
     // Filtro global de responsável: desativado nas telas que não o usam (Notas, Upload, Backup)
-    const usaResp = ['dashboard','contas','receitas','relatorio','config'].includes(page);
+    const usaResp = ['dashboard','contas','receitas','relatorio','eac','config'].includes(page);
     const grupo = document.getElementById('respGlobal');
     const sel   = document.getElementById('respGlobalSelect');
     const dica  = usaResp ? 'Filtrar por responsável' : 'O filtro de responsável não se aplica a esta tela';
@@ -197,6 +197,12 @@ const APP = {
       case 'contas':    txt = rotulo(STATE.periodoContas, val('filtroAnoContas'), val('filtroMesContas')); break;
       case 'relatorio': txt = rotulo(STATE.periodo, val('relAno'), val('relMes')); break;
       case 'receitas':  txt = rotulo(STATE.periodoReceitas, val('filtroAnoReceitas'), val('filtroMesReceitas')); break;
+      case 'eac': {
+        const ano = typeof EAC_ST!=='undefined' ? EAC_ST.ano : null;
+        const lb  = ano ? this.eacLBVigente(ano) : null;
+        txt = ano ? `${ano} · ${lb ? 'LB Rev '+lb.rev : 'sem LB'}` : '';
+        break;
+      }
     }
     el.textContent = txt;
     el.hidden = !txt;
@@ -359,6 +365,7 @@ const APP = {
         },
         receitas:  ()=>this.renderReceitas(),
         relatorio: ()=>this.renderRelatorio(),
+        eac:       ()=>this.renderEAC(),
         upload:    ()=>this.upRenderHistorico(),
         backup:    ()=>this.renderBackup(),
         config:    ()=>this.renderConfig(),
@@ -390,6 +397,7 @@ const APP = {
       contas:    ()=>{ STATE.pg=1; this.renderContas(); this.atualizarBarraPagamento?.(); },
       receitas:  ()=>{ STATE.pgReceitas=1; this.renderReceitas(); },
       relatorio: ()=>this.renderRelatorio(),
+      eac:       ()=>this.renderEAC(),
       config:    ()=>{
         // Logs só recarregam se a aba estiver visível (cada carga lê o Firestore)
         if(document.getElementById('cfgLogBody')?.offsetParent) this.cfgCarregarLog();

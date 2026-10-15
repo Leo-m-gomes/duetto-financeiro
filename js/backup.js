@@ -50,6 +50,7 @@ Object.assign(APP, {
     'notes','notes_trash',            // Notas e lixeira de Notas
     'lixeira',                        // lixeira de Contas
     'logs','notes_log','activity_log','logs_acesso',  // históricos de auditoria
+    'categoria_grupos','eac_lb','eac_lb_itens','eac_exclusoes','eac_log',  // EAC
   ],
 
   /**
@@ -192,7 +193,8 @@ Object.assign(APP, {
         dados.outras_receitas.map(r=>[r._id,r.desc,r.resp,Number.isInteger(r.ano)?r.ano:anoOutra(r._id),Number.isInteger(r.ano)?'Sim':'Não',...(r.valores||Array(12).fill(0))]),
         [24,32,12,8,14,...Array(12).fill(10)]);
 
-      addAba('Categorias',['ID','Nome'],dados.categorias.map(c=>[c._id,c.nome]),[24,28]);
+      const grupos=dados.categoria_grupos||[];
+      addAba('Categorias',['ID','Nome','Grupo (EAC)'],dados.categorias.map(c=>[c._id,c.nome,grupos.find(g=>g._id===c.grupoId)?.nome||'']),[24,28,24]);
       addAba('Formas de Pagamento',['ID','Nome'],dados.formas.map(f=>[f._id,f.nome]),[24,28]);
       addAba('Cartões',['ID','Nome','Bandeira','Criado por'],dados.cartoes.map(c=>[c._id,c.nome,c.bandeira||'',c.createdBy||'']),[24,28,16,14]);
 
@@ -221,6 +223,13 @@ Object.assign(APP, {
       this._bkAbaGenerica(wb,'Histórico Notas',dados.notes_log);
       this._bkAbaGenerica(wb,'Histórico Atividades',dados.activity_log);
       this._bkAbaGenerica(wb,'Acessos',dados.logs_acesso);
+
+      // EAC: grupos, linhas de base (cabeçalho e contas da foto), exclusões classificadas e log
+      this._bkAbaGenerica(wb,'EAC Grupos',grupos);
+      this._bkAbaGenerica(wb,'EAC Linhas de base',dados.eac_lb||[]);
+      this._bkAbaGenerica(wb,'EAC Itens LB',(dados.eac_lb_itens||[]).flatMap(d=>(d.itens||[]).map(i=>({lbId:d.lbId,...i}))));
+      this._bkAbaGenerica(wb,'EAC Exclusões',dados.eac_exclusoes||[]);
+      this._bkAbaGenerica(wb,'EAC Histórico',dados.eac_log||[]);
 
       // Meta
       addAba('Meta',['Campo','Valor'],[

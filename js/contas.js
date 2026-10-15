@@ -220,10 +220,16 @@ Object.assign(APP, {
     }
   },
 
+  // Exclusão: em ano com linha de base, confirmarExclusaoConta pergunta se é cancelamento ou
+  // cadastro indevido (EAC); nos demais anos, o confirm de sempre.
   async deleteConta(id){
     const c=CACHE.contas.find(x=>x.id===id);
-    if(!c||!confirm(`Excluir "${c.conta}"?`))return;
-    await FS.deleteConta(id);this.toast('Conta excluída','success');
+    if(!c)return;
+    const r=await this.confirmarExclusaoConta([c],`Excluir "${c.conta}"?`);
+    if(!r)return;
+    await FS.deleteConta(id,r.motivo);
+    await this.eacRegistrarExclusao([c],r.classificacao);
+    this.toast('Conta excluída','success');
   },
 
   // Baixa integral segura: em conta "Leo & Pri" com uma parte já paga
@@ -290,14 +296,20 @@ Object.assign(APP, {
     this.openParcelas(STATE.parcGrupo);
   },
   async parcsDeleteOne(id){
-    if(!confirm('Excluir esta parcela?'))return;
-    await FS.deleteConta(id);this.toast('Parcela excluída','success');
+    const c=CACHE.contas.find(x=>x.id===id);
+    const r=await this.confirmarExclusaoConta(c?[c]:[],'Excluir esta parcela?');
+    if(!r)return;
+    await FS.deleteConta(id,r.motivo);
+    if(c) await this.eacRegistrarExclusao([c],r.classificacao);
+    this.toast('Parcela excluída','success');
     this.openParcelas(STATE.parcGrupo);
   },
   async parcsDeleteAll(){
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
-    if(!confirm(`Excluir TODAS as ${parcs.length} parcelas?\n\nEsta ação não pode ser desfeita.`))return;
-    await Promise.all(parcs.map(c=>FS.deleteConta(c.id)));
+    const r=await this.confirmarExclusaoConta(parcs,`Excluir TODAS as ${parcs.length} parcelas?\n\nEsta ação não pode ser desfeita.`);
+    if(!r)return;
+    await Promise.all(parcs.map(c=>FS.deleteConta(c.id,r.motivo)));
+    await this.eacRegistrarExclusao(parcs,r.classificacao);
     APP.closeModal('ovParcelas');
     this.toast('Parcelamento excluído','success');
   },

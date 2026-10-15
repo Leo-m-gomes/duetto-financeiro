@@ -52,6 +52,7 @@ const CMD = (() => {
     notas:   '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/>',
     rel:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     upload:  '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>',
+    eac:     '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
     config:  '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>',
   };
   const svg  = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
@@ -68,6 +69,7 @@ const CMD = (() => {
     {page:'contas',    titulo:'Contas',        ic:'conta'},
     {page:'receitas',  titulo:'Receitas',      ic:'receita'},
     {page:'relatorio', titulo:'Relatório',     ic:'rel'},
+    {page:'eac',       titulo:'EAC',           ic:'eac'},
     {page:'notas',     titulo:'Notas e Ações', ic:'notas'},
     {page:'upload',    titulo:'Upload Cards',  ic:'upload', admin:true},
     {page:'config',    titulo:'Configurações', ic:'config', admin:true},

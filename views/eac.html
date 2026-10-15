@@ -1,0 +1,117 @@
+<!--
+═══════════════════════════════════════════════════════════════════════════
+  DUETTO FINANCEIRO, view eac.html
+═══════════════════════════════════════════════════════════════════════════
+  Tela EAC: planejado (linha de base) × comprometido × realizado do ano.
+  Fragmento carregado pelo router.js em #appMain. Sem <script>: o conteúdo
+  é desenhado por APP.renderEAC (js/eac.js); os modais ficam em
+  views/modals.html e são preenchidos por js/eac-gestao.js.
+
+  IDs consultados pelo JS:
+    eacAno, eacLbChip, eacLbRev, eacLbTxt, eacLbSub, eacCmpCur, eacCmpRev0,
+    eacBtnExcl, eacExclTxt, eacBanner, eacStrip, eacKpis, eacBridge,
+    eacBridgeBase, eacCurve, eacRitmo, eacTblSub, eacBtnFoco, eacTbody.
+  O modo "só a tabela" é a classe .eac-foco em #eacContent.
+═══════════════════════════════════════════════════════════════════════════
+-->
+
+<div class="page" id="page-eac">
+  <div class="page-inner eac-page" id="eacContent">
+
+    <!-- CABEÇALHO: ano, linha de base, comparação e ações -->
+    <div class="eac-head">
+      <select class="filter-select" id="eacAno" aria-label="Ano da EAC" onchange="APP.eacSetAno(this.value)"></select>
+      <button type="button" class="eac-lb-chip" id="eacLbChip" onclick="APP.eacAbrirLB('hist')" aria-haspopup="dialog">
+        <span class="eac-lb-rev" id="eacLbRev">Rev 0</span>
+        <span class="eac-lb-txt"><span id="eacLbTxt">Linha de base</span><small id="eacLbSub"></small></span>
+      </button>
+      <div class="eac-cmp">Comparar com
+        <div class="eac-seg" role="group" aria-label="Linha de base usada no Planejado">
+          <button type="button" id="eacCmpCur" aria-pressed="true" onclick="APP.eacSetCmp('cur')">LB vigente</button>
+          <button type="button" id="eacCmpRev0" aria-pressed="false" onclick="APP.eacSetCmp('rev0')">LB original (Rev 0)</button>
+        </div>
+      </div>
+      <span class="eac-grow"></span>
+      <button type="button" class="btn btn-secondary btn-sm" id="eacBtnExcl" onclick="APP.eacAbrirExcluidas()" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg><span id="eacExclTxt">Excluídas</span>
+      </button>
+      <button type="button" class="btn btn-primary btn-sm" onclick="APP.eacAbrirLB('hist')" aria-haspopup="dialog">
+        <svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg>Linhas de base
+      </button>
+    </div>
+
+    <!-- AVISOS (LB pendente, exclusões a classificar, ano encerrado) -->
+    <div id="eacBanner"></div>
+
+    <!-- RÉGUA DO ANO: receita × despesa por mês; o clique escolhe o mês dos cards -->
+    <section class="eac-strip-card" aria-labelledby="eacHStrip">
+      <div class="eac-strip-top">
+        <h3 id="eacHStrip">Receitas × despesas mês a mês</h3>
+        <div class="eac-leg">
+          <span><i class="eac-dot" style="background:var(--palm)"></i>Receita</span>
+          <span><i class="eac-dot" style="background:var(--t3)"></i>Despesa comprometida</span>
+          <span><i class="eac-dot" style="background:var(--red)"></i>Despesa acima da receita</span>
+          <span>Clique no mês para ver nos cards</span>
+        </div>
+      </div>
+      <div class="eac-strip" id="eacStrip"></div>
+    </section>
+
+    <!-- CARDS -->
+    <div class="eac-kpis" id="eacKpis"></div>
+
+    <!-- GRÁFICOS -->
+    <div class="eac-charts">
+      <section class="eac-card">
+        <div class="eac-card-h"><div><h3>Ponte do desvio</h3><p>Do planejado ao comprometido: o que mudou e por quê</p></div><span class="eac-pill neu" id="eacBridgeBase"></span></div>
+        <div class="eac-card-b"><div class="eac-svgwrap" id="eacBridge"></div></div>
+      </section>
+      <section class="eac-card">
+        <div class="eac-card-h"><div><h3>Curva S do ano</h3><p>Acumulado mês a mês até dezembro</p></div><span class="eac-pill info" id="eacRitmo"></span></div>
+        <div class="eac-card-b">
+          <div class="eac-svgwrap" id="eacCurve"></div>
+          <div class="eac-legend"><span><i style="background:var(--t3)"></i>Planejado (LB)</span><span><i style="background:var(--blue)"></i>Comprometido</span><span><i style="background:var(--palm)"></i>Pago (por mês de vencimento)</span><span><i style="background:var(--orange)"></i>Hoje</span></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- TABELA EAP: 1 consolidado, 1.x grupo, 1.x.y categoria -->
+    <section class="eac-card eac-tbl-card" aria-labelledby="eacHTbl">
+      <div class="eac-card-h">
+        <div><h3 id="eacHTbl">EAC por grupo e categoria</h3><p id="eacTblSub">Clique no nome de qualquer linha para ver o detalhe</p></div>
+        <div class="eac-tools">
+          <span class="eac-lab">Nível</span>
+          <div class="eac-seg" role="group" aria-label="Nível de detalhe">
+            <button type="button" data-eac-nivel="1" aria-pressed="false" onclick="APP.eacSetNivel(1)">1 Consolidado</button>
+            <button type="button" data-eac-nivel="2" aria-pressed="false" onclick="APP.eacSetNivel(2)">2 Grupos</button>
+            <button type="button" data-eac-nivel="3" aria-pressed="true" onclick="APP.eacSetNivel(3)">3 Categorias</button>
+          </div>
+          <div class="eac-seg" role="group" aria-label="Ordenação">
+            <button type="button" data-eac-ordem="eap" aria-pressed="true" onclick="APP.eacSetOrdem('eap')">Ordem EAP</button>
+            <button type="button" data-eac-ordem="dev" aria-pressed="false" onclick="APP.eacSetOrdem('dev')">Maior desvio</button>
+          </div>
+          <span class="eac-tsep" aria-hidden="true"></span>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="APP.eacAbrirGrupos()" aria-haspopup="dialog" title="Renomear, criar e organizar grupos">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>Grupos
+          </button>
+          <button type="button" class="btn btn-secondary btn-sm" id="eacBtnFoco" aria-pressed="false" aria-keyshortcuts="F" onclick="APP.eacSetFoco(!EAC_ST.foco)" title="Ocultar cards e gráficos (tecla F)">
+            <svg viewBox="0 0 24 24"></svg><span>Só a tabela</span>
+          </button>
+        </div>
+      </div>
+      <div class="eac-tbl-wrap">
+        <table class="eac-eap">
+          <thead><tr><th>EAP</th><th>Descrição</th><th>Planejado</th><th>Comprometido</th><th>Realizado</th><th>Desvio</th></tr></thead>
+          <tbody id="eacTbody"></tbody>
+        </table>
+      </div>
+      <div class="eac-tbl-foot">
+        <span>Desvio = Comprometido − Planejado</span>
+        <span><span class="eac-pill bad">+ acima do plano</span> gasto maior que o planejado</span>
+        <span><span class="eac-pill ok">− abaixo do plano</span> economia</span>
+        <span>Teclado: ← recolhe, → expande a linha em foco</span>
+      </div>
+    </section>
+
+  </div>
+</div>
