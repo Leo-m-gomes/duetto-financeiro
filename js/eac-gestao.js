@@ -306,8 +306,8 @@ Object.assign(APP, {
     this.eacLBRender();
   },
   eacLBVerba(el){
-    // Lê os dígitos (máscara por centavos): o oninput roda antes da máscara reformatar o campo
-    const v = parseInt(String(el.value).replace(/\D/g,'').slice(0,13)||'0', 10);
+    // Centavos inteiros pela mesma regra da máscara (ui-money.js)
+    const v = moneyCents(el.value);
     if(v>0) EAC_LB.verbas[el.dataset.eacVerba] = v; else delete EAC_LB.verbas[el.dataset.eacVerba];
     this._eacLBAtualizarResumo();
   },

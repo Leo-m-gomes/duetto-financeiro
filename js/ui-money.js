@@ -16,6 +16,11 @@
 
    Moeda ativa: MONEY_CFG (lido de localStorage dt_prefs.moeda).
    Padrao: BRL.
+
+   Ordem garantida: a mascara roda na fase de CAPTURA do document, antes
+   de qualquer listener de 'input' do proprio campo (addEventListener ou
+   oninput inline). Quem le el.value num 'input' ja recebe o valor
+   formatado, nao importa se foi registrado antes ou depois do binding.
    ══════════════════════════════════════════════════════════════════════ */
 
 /* ── Configuracoes de moeda ── */
@@ -109,15 +114,22 @@ function parseMoney(str) {
  * maskMoney("1050") → "10,50" (BRL) ou "10.50" (USD)
  */
 function maskMoney(raw) {
-  if (raw == null) return '';
-  var onlyDigits = String(raw).replace(/\D/g, '');
-  if (!onlyDigits) return '';
-  // Trava em 13 digitos = 99.999.999.999,99 (limite defensivo)
-  var safe = onlyDigits.slice(0, 13);
-  var cents = parseInt(safe, 10) || 0;
-  return (cents / 100).toLocaleString(MONEY_CFG.locale, {
+  if (raw == null || !String(raw).replace(/\D/g, '')) return '';
+  return (moneyCents(raw) / 100).toLocaleString(MONEY_CFG.locale, {
     minimumFractionDigits: 2, maximumFractionDigits: 2
   });
+}
+
+/**
+ * Le um valor do campo mascarado como INTEIRO de centavos, pela mesma
+ * regra da mascara (somente digitos). Fonte unica para calculos em tela.
+ * moneyCents("1.500,00") → 150000 | moneyCents("70,000") → 70000 | moneyCents("") → 0
+ */
+function moneyCents(raw) {
+  if (raw == null) return 0;
+  // Trava em 13 digitos = 99.999.999.999,99 (limite defensivo)
+  var safe = String(raw).replace(/\D/g, '').slice(0, 13);
+  return parseInt(safe, 10) || 0;
 }
 
 /**
@@ -169,12 +181,7 @@ function bindMoneyInput(el) {
     if (!/^\d$/.test(e.key)) e.preventDefault();
   });
 
-  // Reaplica mascara a cada keystroke; cursor ao final
-  el.addEventListener('input', function () {
-    applyMoneyMask(el);
-    var len = el.value.length;
-    try { el.setSelectionRange(len, len); } catch (_) {}
-  });
+  // Mascara a cada keystroke: listener global em captura (_moneyInputCapture)
 
   // Cola: passa pelo mesmo pipeline
   el.addEventListener('paste', function () {
@@ -187,6 +194,20 @@ function bindMoneyInput(el) {
     el.value = v > 0 ? fmtMoney(v) : '';
   });
 }
+
+/**
+ * Reaplica a mascara a cada keystroke nos campos ligados; cursor ao final.
+ * Captura no document: roda antes dos listeners do campo, que ja leem o
+ * valor formatado (antes, o calculo do "Valor Total" lia "70,000" e
+ * mostrava 70,00 com o campo exibindo 700,00).
+ */
+document.addEventListener('input', function _moneyInputCapture(e) {
+  var el = e.target;
+  if (!el || !el.dataset || !el.dataset.moneyBound) return;
+  applyMoneyMask(el);
+  var len = el.value.length;
+  try { el.setSelectionRange(len, len); } catch (_) {}
+}, true);
 
 /**
  * Liga mascara em todos os inputs .money-input dentro do scope.
