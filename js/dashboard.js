@@ -169,8 +169,8 @@ Object.assign(APP, {
     });
     if(proximas.length > 0) chips.push({cls:'insight-warn', text:`⏰ ${proximas.length} conta${proximas.length>1?'s':''} vencem nos próximos 3 dias`});
 
-    // 5. Contas recorrentes sem preenchimento no mês atual
-    if(mes !== null && ano !== null){
+    // 5. Contas recorrentes sem preenchimento no mês atual (só com o recurso ligado)
+    if(FEATURES.recorrentes && mes !== null && ano !== null){
       const recorrentes = CACHE.contas.filter(c=>c.recorrente && (!resp || c.resp===resp || c.resp==='Leo & Pri'));
       const comMes = new Set(
         CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase()+'|'+c.resp)

@@ -106,7 +106,7 @@ js/
   relatorios.js       Relatório (filtros, busca, CSV) e helpers de texto
   pareto.js           Pareto 80/20
   duplicatas.js       Detecção de contas repetidas (DUP)
-  recorrentes.js      Geração de recorrentes para outro ano
+  recorrentes.js      Geração de recorrentes para outro ano (DESLIGADO, ver 8.7)
   pagamento-massa.js  Pagamento de várias contas
   acoes-extra.js      Desfazer pagamento e PDF do Relatório
   upload.js           Upload Cards (modelo Excel, importação)
@@ -159,7 +159,7 @@ views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.ht
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
   `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Na EAC mostra o ano e a LB vigente (`2026 · LB Rev 2` ou `2026 · sem LB`). Some em Notas, Upload, Backup e Config.
 * **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório, EAC e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
-* **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Gerar recorrentes, Exportar CSV. Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
+* **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Exportar CSV (Gerar recorrentes só com o recurso ligado, 8.7). Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
 ### 4.3 Busca rápida (Ctrl K / ⌘K / "/")
 
@@ -170,7 +170,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
   Ordem: em aberto antes de pagas → descrição que começa com o termo → contém o termo → outros campos → atrasadas antes de pendentes → vencimento mais próximo de hoje.
   Valor exibido: pendente mostra o que falta pagar (`vPendente`); paga mostra o valor pago (`vEfetivo`).
 * **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
-* **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes, Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
+* **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes (só com o recurso ligado, 8.7), Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
 * **Ir para:** telas do app, incluindo EAC (Upload e Config só para o admin).
 * **Teclado:** ↑/↓ ou Tab navegam, Enter abre, **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
 
@@ -237,9 +237,9 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | `vPago` | number \| null | Valor efetivamente pago (pode ter juros/desconto). `null` = não pago. Em compartilhada com pagamento individual guarda a soma das partes |
 | `pagamentos` | `{Leo?:{valor,paidBy,paidAt}, Pri?:{...}}` | Só em compartilhadas pagas por parte |
 | `paidBy`, `paidAt` | string, `YYYY-MM-DD` | Quem registrou e quando |
-| `parcela` | string `"i de n"` | Padrão `"1 de 1"` |
+| `parcela` | string `"i de n"` | Padrão `"1 de 1"`. No cadastro manual é montado pelo sistema a partir de Qtd. e Parcela Atual (8.5) |
 | `grupo` | string `grp-<timestamp>[-sufixo]` | Liga as parcelas do mesmo parcelamento |
-| `recorrente` | boolean | Marca para "Gerar recorrentes" |
+| `recorrente` | boolean | Marca para "Gerar recorrentes". **Recurso desligado (8.7):** contas novas gravam `false`; o valor das existentes é preservado na edição |
 | `createdBy`, `updatedBy` | `'Leo'` \| `'Pri'` | Auditoria |
 | `createdAt`, `updatedAt` | timestamp do servidor | |
 | `origem`, `planilhaId` | string | Só em contas importadas (`origem:'importacao'`) |
@@ -280,13 +280,13 @@ Só quando a coleção está vazia: 30 categorias padrão (`SEED_CATS`), 12 form
 
 * **Datas** sempre `YYYY-MM-DD` no **fuso local** (`isoLocal`/`today()`), nunca `toISOString()` (em UTC-3 virava o dia seguinte após as 21h e marcava contas de hoje como atrasadas). Datas são lidas com `T12:00` para não escorregar de dia.
 * **Somar meses** (`addMeses`): preserva o dia e limita ao último dia do mês (31/01 + 1 mês = 28 ou 29/02, nunca 03/03).
-* **Anos aceitos:** 2019 a 2035 (selects, período personalizado, importação).
+* **Anos aceitos:** 2019 a 2035 (selects, período personalizado, importação, última parcela do cadastro). Constantes `ANO_MIN`/`ANO_MAX` em `fin-state.js` (o cadastro de parcelas já usa; as demais telas ainda têm o número fixo).
 * **Dinheiro:**
   * Contas e receitas são gravadas em **reais (float)**. Notas guardam itens em **centavos inteiros**.
   * Somas do Dashboard (receita, despesas, pendente, saldo, categorias) são feitas em **centavos inteiros** (`centavos(v) = round(v*100)`) e divididas por 100 só na exibição.
   * Campos monetários usam máscara por centavos: o usuário digita só dígitos (`1050` → `10,50`); `parseMoney` aceita `1.500,00`, `1,500.00` e `1500`.
   * A máscara roda na **captura do `document`**, antes de qualquer listener de `input` do campo: cálculos ao vivo leem sempre o valor já formatado. Cálculos em tela usam `moneyCents(valor)` (centavos inteiros, mesma regra da máscara).
-  * **Valor Total (auto)** do modal de conta = `moneyCents(parcela) × quantidade`, com a quantidade efetiva do `saveConta` (vazio, 0 ou negativo = 1).
+  * **Valor Total (auto)** do modal de conta = `moneyCents(valor da parcela) × Qtd. de Parcelas` (todas as parcelas, inclusive as anteriores à atual; regras em 8.5).
   * Moeda (BRL, USD, EUR) muda **só símbolo e formatação**; não converte valores.
 * **Responsáveis:** `Leo`, `Pri` e `Leo & Pri` (compartilhada). Em receitas, "Ambos" é `resp:''`.
 
@@ -349,13 +349,18 @@ Resultado: Leo + Pri soma exatamente o total da casa.
 
 * Obrigatórios: descrição, responsável, categoria, forma, vencimento, valor.
 * `dataCompra` não pode ser posterior ao vencimento.
-* **Qtd. de parcelas > 1:** cria N documentos com o mesmo `grupo`, vencimentos mês a mês (`addMeses`), `parcela = "i de N"`, todos com o valor da parcela. "Valor total" = parcela × quantidade (só exibição).
-* Edição altera uma conta só; o log registra cada campo alterado (`de → para`).
-* Antes de cadastrar, roda a detecção de duplicatas (8.6).
+* **Campos do parcelamento** (só dígitos, até 3): **Qtd. de Parcelas** (total do parcelamento) e **Parcela Atual** (em qual parcela a conta está no cadastro). Vazio ou 0 vale 1. O "?" azul ao lado de Parcela Atual explica a regra (hover, foco ou toque).
+* **O que é gravado** (`planoParcelas` em `fin-state.js`, mesma regra da importação, 11): da Parcela Atual até a última, um documento por parcela com o mesmo `grupo`, `parcela = "i de N"`, todos com o valor da parcela, vencimentos mês a mês (`addMeses`) **a partir da Data de Vencimento, que é a da parcela atual**.
+  Ex.: Qtd. 12, Parcela Atual 5, vencimento 29/01/2027 → 8 documentos, "5 de 12" (29/01/2027) até "12 de 12" (29/08/2027).
+* **Valor Total (auto)** = valor da parcela × Qtd. (as 12 do exemplo, só exibição, centavos inteiros). A linha abaixo dos campos mostra o que será cadastrado: `Cadastra 8 parcelas (da 5ª à 12ª): R$ 5.600,00`.
+* **Bloqueios:** Qtd. acima de **360** (`PARCELAS_MAX`); Parcela Atual maior que Qtd.; última parcela com vencimento depois de **2035** (`ANO_MAX`, limite de anos do sistema, 7).
+* **Acima de 12 parcelas** (`PARCELAS_ALERTA`): antes de gravar, confirmação com a quantidade, o intervalo de parcelas e de datas, o valor da parcela, o total e o valor efetivamente cadastrado. Cancelar mantém o modal aberto, sem gravar nada.
+* Ordem do salvar: validação → bloqueios → confirmação acima de 12 → duplicatas (8.6) → gravação.
+* **Edição** altera uma conta só (uma parcela); o log registra cada campo alterado (`de → para`). Qtd. e Parcela Atual aparecem preenchidas a partir de `"i de n"`, **somente leitura**, e `parcela` não é regravada; o parcelamento se ajusta em Gerenciar Parcelamento (8.4).
 
 ### 8.6 Duplicatas (`js/duplicatas.js`)
 
-O sistema **avisa e o usuário decide**; nunca bloqueia sozinho. Usado no cadastro manual, na importação e em "Gerar recorrentes".
+O sistema **avisa e o usuário decide**; nunca bloqueia sozinho. Usado no cadastro manual, na importação e em "Gerar recorrentes" (recurso desligado, 8.7).
 
 * **Chave:** descrição normalizada (sem acento, minúsculas, espaços únicos) + responsável + forma de pagamento.
 * **Valor semelhante:** diferença de até **10%** do maior valor (comparado em centavos).
@@ -372,7 +377,15 @@ O sistema **avisa e o usuário decide**; nunca bloqueia sozinho. Usado no cadast
 | Mesmo vencimento, valor diferente | possível (ex.: reajuste) |
 | Mesmo mês, outro dia | possível |
 
-### 8.7 Recorrentes
+### 8.7 Recorrentes (RECURSO DESLIGADO)
+
+> **Desligado por decisão do usuário em 2026-10-16.** O recurso sai das telas, mas **o código e os dados continuam no sistema**, prontos para religar.
+>
+> * **Chave:** `FEATURES.recorrentes` em `js/fin-state.js` (hoje `false`).
+> * **O que fica oculto:** caixa "🔁 Conta recorrente" no modal de conta, filtro "Recorrentes" em Contas, botão "Gerar recorrentes" da topbar, ação "Gerar contas recorrentes" da busca rápida, selo "🔁 REC" na lista de Contas e o insight "recorrentes sem registro neste mês" do Dashboard. Os avisos da EAC passam a dizer "cadastre as contas previstas do ano" em vez de "gere as recorrentes".
+> * **Como funciona a ocultação:** marcação estática com `data-feature="recorrentes"` some pela regra `html:not(.ft-recorrentes) [data-feature="recorrentes"]` (`style.css`); o conteúdo montado em JavaScript testa `FEATURES.recorrentes`; `APP.openRecorrentes()` não abre com o recurso desligado.
+> * **O que continua igual:** `js/recorrentes.js`, o modal `ovRecorrentes` e o campo `recorrente` das contas (novas gravam `false`; a edição preserva o valor das antigas; backup e exportações seguem com a coluna).
+> * **Para religar:** troque para `FEATURES = Object.freeze({ recorrentes: true })`. Tudo volta como descrito abaixo, sem migração.
 
 * Contas com `recorrente = true` no **ano de origem** são agrupadas pela chave de duplicata, ficando a mais recente de cada grupo.
 * Data sugerida: mesmo dia e mês no ano de destino (padrão: ano atual + 1; opções: atual, +1, +2). Data e valor são editáveis antes de gerar.
@@ -472,7 +485,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
   2. Categoria com maior gasto no período.
   3. Saldo negativo: "Despesas superam a receita em X".
   4. Contas em aberto que vencem de hoje até 3 dias (qualquer mês; compartilhadas contam para os dois).
-  5. Recorrentes sem registro no mês (chave: descrição em minúsculas + responsável).
+  5. Recorrentes sem registro no mês (chave: descrição em minúsculas + responsável). Só com o recurso ligado (8.7).
   6. Receitas antigas sem ano confirmado (clique leva a Receitas).
 * **Despesas por categoria:** donut + tabela. Até 6 categorias, uma fatia cada; acima disso, as 5 maiores + "Demais (n)" expansível. Percentual sobre o total de todas as categorias. Cores fixas `--cat-1..6` (paleta validada para daltonismo).
 * **Receita × Despesa:** sempre os 12 meses do ano selecionado, ou do ano do período personalizado quando ativo (ignora o mês); receita do ano ("Todos os anos" soma cada mês nos anos com movimento); despesas por `vEfetivo` com filtro de responsável; mês atual destacado.
@@ -482,7 +495,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
 * **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (÷2 nas compartilhadas; a metade já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
-* Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma, recorrente (sim/não), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
+* Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma, recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
 * Com mês específico ou período, as **atrasadas de meses anteriores** entram na lista.
 * Totais: Total = Σ `vEfetivo`; Pago = Σ `vPago`; Pendente = Σ `vPendente`.
 * Paginação: 20 por página (configurável em Preferências).
@@ -645,6 +658,7 @@ Somente admin.
 * Categoria/forma em uso detectada só por ID: contas legadas com nome (`cat`/`forma`) não bloqueiam a exclusão.
 * A busca rápida (Ctrl K) não pesquisa Notas e não abre com modal aberto.
 * Arquivos estáticos sem hash de versão: após deploy pode ser preciso recarregar sem cache.
+* **Parcelamento longo no cadastro manual:** cada parcela é uma gravação própria mais o log (360 parcelas = 720 gravações, em paralelo e sem lote atômico). Queda de rede no meio pode deixar o parcelamento incompleto; confira em Gerenciar Parcelamento. A importação grava em lotes.
 
 ---
 
@@ -654,6 +668,8 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-16 | **Parcela Atual no cadastro:** campo passa a ser só número (em qual parcela a conta está); o sistema grava da parcela atual até a última, mês a mês a partir do vencimento informado (mesma regra da importação), e o Valor Total mostra todas as parcelas. "?" azul com explicação. Qtd. e Parcela Atual lado a lado (3 dígitos), entre Valor da Parcela e Valor Total. Limite de 360 parcelas, confirmação acima de 12 e bloqueio de vencimento depois de 2035. Na edição, parcelamento só leitura e `parcela` preservada. **Recorrentes desligado** (`FEATURES.recorrentes`): some das telas, código e dados preservados (8.7). |
+| 2026-10-16 | **Valor Total (auto) corrigido:** a máscara monetária roda na captura do `document`, antes dos cálculos ao vivo (antes, digitar 700,00 mostrava total 70,00). Mesma causa corrigida na prévia do salário líquido e no valor editado na conferência do upload. Cálculo em centavos inteiros (`moneyCents`). |
 | 2026-10-15 | **EAC só o administrador altera:** salvar linha de base, classificar contas excluídas e criar, renomear, ordenar, excluir grupos ou mover categorias passam a ser exclusivos do admin (interface, funções e `FS._exigirAdminEac`). Pri vê a EAC em modo leitura; quando ela exclui uma conta de ano com LB, a conta fica "a classificar" para o admin. Regras recomendadas do Firestore ajustadas. |
 | 2026-10-15 | **Nova tela EAC** (trilho entre Relatório e Notas; bottom nav entre Notas e Relatório; busca rápida): planejado (linha de base) × comprometido × realizado × desvio por grupo e categoria em tabela EAP recolhível; cards de receita × despesa por mês (régua de 12 meses) e do ano, desvio e ritmo; ponte do desvio e Curva S em SVG; modo "só a tabela" (tecla F). Linhas de base imutáveis por ano (Rev 0 em janeiro, revisões gerais ou por categoria com justificativa, verba mensal, comparação com a Rev 0). Contas excluídas classificadas como cancelada ou indevida (também ao excluir em Contas). Grupos de categorias editáveis em modal. Novas coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes`, `eac_log` e campo `categorias.grupoId`; backup atualizado. |
 | 2026-10-14 | **Receitas com filtro de Período:** botão 📅 Período na tela Receitas (mesmo modal de Contas/Dashboard/Relatório: ano + mês inicial + mês final). Com período ativo, lista e totais usam só esses meses e ignoram Ano/Mês; selo verde remove o filtro; mudar Ano ou Mês limpa o período; o período continua ao sair e voltar para a tela; selo do topbar e ano padrão da nova receita seguem o período. `js/ui-period.js` passa a usar o mapa `PERIODO_TELAS`. |
