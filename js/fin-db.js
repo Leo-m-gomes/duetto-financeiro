@@ -100,7 +100,9 @@ const FS = {
     );
   },
 
-  async pagarConta(id, quem, valorPago){
+  // paidAt: data do pagamento (YYYY-MM-DD). O modal "Confirmar Pagamento" aplica a regra de
+  // dataPagamentoPadrao; baixas automáticas (parcelas, massa) seguem com hoje.
+  async pagarConta(id, quem, valorPago, paidAt = today()){
     const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     const nome  = snap?.exists ? snap.data().conta : '—';
     const parc  = snap?.exists ? snap.data().parcela : '';
@@ -115,30 +117,30 @@ const FS = {
     await fbDb.collection('contas').doc(id).update({
       vPago:  valorPago,
       paidBy: quem,
-      paidAt: today(),
+      paidAt,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await this._log('pagamento', id, nome,
-      `Pagamento de ${fmt(valorPago)} registrado por ${quem}${parc?' ('+parc+')':''}`,
+      `Pagamento de ${fmt(valorPago)} em ${fmtDate(paidAt)} registrado por ${quem}${parc?' ('+parc+')':''}`,
       {valor:valorPago, resp:quem}
     );
   },
 
-  async pagarContaIndividual(id, resp, quem, valorPago){
+  async pagarContaIndividual(id, resp, quem, valorPago, paidAt = today()){
     const contaRef = fbDb.collection('contas').doc(id);
     const result = await fbDb.runTransaction(async tx => {
       const snap = await tx.get(contaRef);
       if(!snap.exists) return null;
       const d = snap.data();
       if(d.pagamentos?.[resp]) return {erro:`${resp} já registrou pagamento nesta conta`};
-      const pgNovo = {valor:valorPago, paidBy:quem, paidAt:today()};
+      const pgNovo = {valor:valorPago, paidBy:quem, paidAt};
       const pagamentos = {...(d.pagamentos||{}), [resp]:pgNovo};
       const vPagoTotal = Object.values(pagamentos).reduce((s,p)=>s+(p.valor||0),0);
       tx.update(contaRef, {
         [`pagamentos.${resp}`]: pgNovo,
         vPago: vPagoTotal,
         paidBy: quem,
-        paidAt: today(),
+        paidAt,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       return {nome:d.conta, parcela:d.parcela, quitada:Object.keys(pagamentos).length>=2};
@@ -148,7 +150,7 @@ const FS = {
     const evento = result.quitada ? 'pagamento_complementar' : 'pagamento_individual';
     const status = result.quitada ? 'conta integralmente quitada' : 'pagamento parcial';
     await this._log(evento, id, result.nome,
-      `Pagamento de ${fmt(valorPago)} (${resp}) por ${quem}${result.parcela?' ('+result.parcela+')':''} — ${status}`,
+      `Pagamento de ${fmt(valorPago)} (${resp}) em ${fmtDate(paidAt)} por ${quem}${result.parcela?' ('+result.parcela+')':''} — ${status}`,
       {valor:valorPago, resp, tipoPagamento:result.quitada?'complementar':'individual'}
     );
   },

@@ -79,7 +79,7 @@ Object.assign(APP, {
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${splitBadge}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal"><button type="button" class="conta-link" onclick="APP.verConta('${c.id}')" title="Ver dados da conta">${c.conta}</button>${splitBadge}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
@@ -136,6 +136,8 @@ Object.assign(APP, {
     const c=CACHE.contas.find(x=>x.id===id); if(!c)return;
     const isShared=c.resp==='Leo & Pri';
     document.getElementById('pgContaId').value          = id;
+    const pgData=document.getElementById('pgData');pgData.value='';pgData.max=today();
+    this.atualizarDataPagamento();
     document.getElementById('pgContaNome').textContent  = c.conta;
     document.getElementById('pgContaData').textContent  = fmtDate(c.data);
     document.getElementById('pgContaParc').textContent  = c.parcela||'';
@@ -180,6 +182,31 @@ Object.assign(APP, {
     setTimeout(()=>{ const el=document.getElementById('pgValorPago'); el.focus(); el.select(); },150);
   },
 
+  // Dica sob "Data do Pagamento": o que vale com o campo em branco ou por que ele é obrigatório
+  atualizarDataPagamento(){
+    const c=CACHE.contas.find(x=>x.id===document.getElementById('pgContaId').value);if(!c)return;
+    const el=document.getElementById('pgData'), info=document.getElementById('pgDataInfo');
+    const pad=dataPagamentoPadrao(c.data);
+    let txt='', cls='';
+    if(el.value){ if(el.value>today()){ txt='A data do pagamento não pode ser futura.'; cls='erro'; } }
+    else if(pad) txt=`Em branco: vale ${pad===c.data?'o vencimento':'hoje'}, ${fmtDate(pad)}.`;
+    else { txt=`Obrigatória: o vencimento (${fmtDate(c.data)}) é de outro mês.`; cls='aviso'; }
+    info.textContent=txt; info.className='pg-data-info'+(cls?' '+cls:''); info.hidden=!txt;
+    el.setAttribute('aria-invalid',String(!!cls));
+  },
+
+  // Data a gravar: a digitada ou, em branco, a padrão (dataPagamentoPadrao em fin-state.js).
+  // Sem padrão (vencimento em outro mês ou ano) a data é obrigatória; data futura é recusada.
+  _dataPagamento(c){
+    const el=document.getElementById('pgData');
+    const data=el.value||dataPagamentoPadrao(c.data);
+    const erro=!data ? `Informe a data do pagamento: o vencimento (${fmtDate(c.data)}) é de outro mês`
+      : !/^\d{4}-\d{2}-\d{2}$/.test(data) ? 'Data do pagamento inválida'
+      : data>today() ? 'A data do pagamento não pode ser futura' : '';
+    if(erro){ this.toast(erro,'error'); this.atualizarDataPagamento(); el.focus(); return null; }
+    return data;
+  },
+
   selecionarRespPagamento(resp){
     document.getElementById('pgRespSelecionado').value=resp;
     document.querySelectorAll('.pg-resp-btn').forEach(b=>{
@@ -203,16 +230,19 @@ Object.assign(APP, {
       const valor = parseMoney(document.getElementById('pgValorPago').value);
       if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
       const c=CACHE.contas.find(x=>x.id===id);
+      if(!c){ this.toast('Conta não encontrada','error'); return; }
+      const paidAt=this._dataPagamento(c); if(!paidAt) return;
       const respSel=document.getElementById('pgRespSelecionado').value;
-      if(c&&c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos'){
-        await FS.pagarContaIndividual(id, respSel, STATE.usuario, valor);
-        APP.closeModal('ovPagamento');
-        this.toast(`Pagamento de ${fmt(valor)} (${respSel}) registrado ✅`,'success');
+      if(c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos'){
+        await FS.pagarContaIndividual(id, respSel, STATE.usuario, valor, paidAt);
+        this.toast(`Pagamento de ${fmt(valor)} (${respSel}) em ${fmtDate(paidAt)} registrado ✅`,'success');
       } else {
-        await FS.pagarConta(id, STATE.usuario, valor);
-        APP.closeModal('ovPagamento');
-        this.toast(`Pagamento de ${fmt(valor)} registrado por ${STATE.usuario} ✅`,'success');
+        await FS.pagarConta(id, STATE.usuario, valor, paidAt);
+        this.toast(`Pagamento de ${fmt(valor)} em ${fmtDate(paidAt)} registrado por ${STATE.usuario} ✅`,'success');
       }
+      APP.closeModal('ovPagamento');
+      // Pago a partir do modal da conta (modo ver): fecha os dois
+      if(STATE.contaModo==='ver') APP.closeModal('ovConta');
     }catch(e){
       this.toast(e.message||'Erro ao registrar pagamento','error');
     }finally{
@@ -397,9 +427,9 @@ Object.assign(APP, {
     CACHE.getAllFormas().forEach(f=>{const o=new Option(f.nome,f.id);if(f.id===selectedFormaId||f.nome===selectedFormaId)o.selected=true;fForma.appendChild(o);});
   },
 
-  openConta(id=null){
+  // modo: 'nova' (sem id), 'editar' (ícone ✏, busca rápida) ou 'ver' (clique na descrição)
+  openConta(id=null, modo=id?'editar':'nova'){
     STATE.editContaId=id;
-    document.getElementById('titleConta').textContent=id?'Editar Conta':'Nova Conta';
     this.clearConta();this.populateContaSelects();
     if(id){
       const c=CACHE.contas.find(x=>x.id===id);
@@ -416,9 +446,49 @@ Object.assign(APP, {
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
       }
     }
+    this._modoConta(modo);
     document.getElementById('ovConta').classList.add('open');
     bindAllMoneyInputs(document.getElementById('ovConta'));
-    setTimeout(()=>document.getElementById('fDesc').focus(),100);
+    setTimeout(()=>document.getElementById(modo==='ver'?'btnEditarConta':'fDesc').focus(),100);
+  },
+  verConta(id){ this.openConta(id,'ver'); },
+  editarConta(){ this._modoConta('editar'); document.getElementById('fDesc').focus(); },
+
+  // 'ver': campos só leitura, sem Gerenciar, rodapé Fechar · Editar · Pagar (Pagar some se quitada).
+  // 'nova'/'editar': rodapé Cancelar · Limpar · Salvar; na edição o parcelamento segue só leitura.
+  _modoConta(modo){
+    STATE.contaModo=modo;
+    const ver=modo==='ver', ov=document.getElementById('ovConta');
+    const c=STATE.editContaId?CACHE.contas.find(x=>x.id===STATE.editContaId):null;
+    ov.classList.toggle('modo-ver',ver);
+    ov.querySelectorAll('.modal-body input, .modal-body select, .modal-body textarea').forEach(e=>{e.disabled=ver;});
+    if(!ver) this._travarParcelamento(!!STATE.editContaId);
+    document.getElementById('titleConta').textContent=ver?'Conta':modo==='editar'?'Editar Conta':'Nova Conta';
+    const mostrar=(el,v)=>{if(el)el.style.display=v?'':'none';};
+    mostrar(ov.querySelector('.modal-manage-bar'),!ver);
+    mostrar(document.getElementById('btnLimparConta'),!ver);
+    mostrar(document.getElementById('btnSalvarConta'),!ver);
+    mostrar(document.getElementById('btnEditarConta'),ver);
+    mostrar(document.getElementById('btnPagarConta'),ver&&c&&!isQuitada(c));
+    document.getElementById('btnFecharConta').textContent=ver?'Fechar':'Cancelar';
+    const st=document.getElementById('contaStatus');
+    st.innerHTML=c?this._statusContaHtml(c):''; st.hidden=!c;
+  },
+
+  // Situação da conta no topo do modal (ver e editar): paga, parcial, atrasada ou pendente
+  _statusContaHtml(c){
+    const pg=c.pagamentos||{}, partes=['Leo','Pri'].filter(r=>pg[r]);
+    const quando=p=>p&&p.paidAt?` em ${fmtDate(p.paidAt)}`:'';
+    const venc=`${c.data<today()?'venceu':'vence'} em ${fmtDate(c.data)}`;
+    if(isQuitada(c)){
+      const det=temPgIndividual(c) ? partes.map(r=>`${r} ${fmt(pg[r].valor)}${quando(pg[r])}`).join(' · ')
+        : `${fmt(c.vPago)}${quando(c)}${c.paidBy?` por ${this._escHtml(c.paidBy)}`:''}`;
+      return `<span class="cs-tag ok">✅ Paga</span><span>${det}</span>`;
+    }
+    if(partes.length) return `<span class="cs-tag parc">⏳ Parcialmente paga</span><span>${partes.map(r=>`${r} ✓ ${fmt(pg[r].valor)}${quando(pg[r])}`).join(' · ')} · falta ${fmt(vPendente(c))} · ${venc}</span>`;
+    return isOverdue(c)
+      ? `<span class="cs-tag atr">🔴 Atrasada</span><span>${venc} · falta ${fmt(vPendente(c))}</span>`
+      : `<span class="cs-tag pend">⏳ Pendente</span><span>${venc} · ${fmt(vPendente(c))}</span>`;
   },
 
   clearConta(){
@@ -455,6 +525,7 @@ Object.assign(APP, {
   },
 
   async saveConta(){
+    if(STATE.contaModo==='ver') return;
     const btn=document.getElementById('btnSalvarConta');
     if(btn) btn.classList.add('loading');
     try{

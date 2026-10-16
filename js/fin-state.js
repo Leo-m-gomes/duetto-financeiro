@@ -9,7 +9,7 @@
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
  *   centavos, fatiaReceita, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
  *   SEED_FORMAS, STATE, FEATURES, anoValido, anosJanela, preencherAnos, PARCELAS_MAX,
- *   PARCELAS_ALERTA, lerParcela, planoParcelas
+ *   PARCELAS_ALERTA, lerParcela, planoParcelas, dataPagamentoPadrao
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -141,6 +141,14 @@ const lerParcela = p => {
 const planoParcelas = (vencAtual, total, atual) =>
   Array.from({length: total - atual + 1}, (_, i) => ({data: addMeses(vencAtual, i), parcela: `${atual + i} de ${total}`}));
 
+// Data do pagamento (paidAt) quando o campo fica em branco. Só existe padrão se o pagamento é
+// informado no MESMO mês e ano do vencimento: vale o vencimento, ou hoje se o vencimento ainda
+// não chegou (pagamento não tem data futura). Em outro mês ou ano → null: a data é obrigatória.
+// dataPagamentoPadrao('2026-04-10','2026-04-20') → '2026-04-10' | ('2026-04-25','2026-04-20') → '2026-04-20'
+// dataPagamentoPadrao('2026-03-10','2026-04-20') → null
+const dataPagamentoPadrao = (venc, hoje = today()) =>
+  venc && String(venc).slice(0,7) === hoje.slice(0,7) ? (venc <= hoje ? venc : hoje) : null;
+
 // Valor em reais (float) → centavos inteiros. Some em centavos e divida por 100 só na exibição,
 // para não acumular erro de ponto flutuante (0.1 + 0.2 !== 0.3).
 const centavos = v => Math.round((Number(v)||0) * 100);
@@ -213,5 +221,6 @@ window.anosJanela    = anosJanela;
 window.preencherAnos = preencherAnos;
 window.lerParcela    = lerParcela;
 window.planoParcelas = planoParcelas;
+window.dataPagamentoPadrao = dataPagamentoPadrao;
 window.fatiaReceita = fatiaReceita;
 window.filtrarPorResp = filtrarPorResp;

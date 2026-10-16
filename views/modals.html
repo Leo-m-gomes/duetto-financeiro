@@ -55,6 +55,7 @@
       <button class="btn btn-secondary btn-sm" onclick="APP.openGerenciar('forma')" style="font-size:11.5px">+ Formas de Pagamento</button>
     </div>
     <div class="modal-body">
+      <div class="conta-status" id="contaStatus" role="status" hidden></div>
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><textarea id="fDesc" rows="2" placeholder="Ex: Financiamento Honda Fit..."></textarea></div>
         <div class="fg"><label>Responsável *</label><select id="fResp"><option value="">Selecione...</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select></div>
@@ -83,7 +84,8 @@
         <div class="fg full"><label>Nota</label><textarea id="fNota" rows="2" placeholder="Informações adicionais..."></textarea></div>
       </div>
     </div>
-    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovConta">Cancelar</button><button class="btn btn-ghost" id="btnLimparConta">Limpar</button><button class="btn btn-primary" id="btnSalvarConta">Salvar</button></div>
+    <!-- Modo "ver" (clique na descrição): Fechar · Editar · Pagar. Nova/editar: Cancelar · Limpar · Salvar -->
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovConta" id="btnFecharConta">Cancelar</button><button class="btn btn-ghost" id="btnLimparConta">Limpar</button><button class="btn btn-secondary" id="btnEditarConta" onclick="APP.editarConta()" style="display:none">✏ Editar</button><button class="btn btn-primary" id="btnPagarConta" onclick="APP.marcarPago(STATE.editContaId)" style="display:none">✓ Pagar</button><button class="btn btn-primary" id="btnSalvarConta">Salvar</button></div>
   </div>
 </div>
 
@@ -344,6 +346,11 @@
           <label>Valor Pago (R$) *</label>
           <input type="text" inputmode="numeric" id="pgValorPago" class="money-input" placeholder="0,00" oninput="setTimeout(()=>APP.atualizarDiffPagamento(),0)">
           <div id="pgDiff" style="display:none;margin-top:5px"></div>
+        </div>
+        <div class="fg full">
+          <label for="pgData">Data do Pagamento</label>
+          <input type="date" id="pgData" oninput="APP.atualizarDataPagamento()" onchange="APP.atualizarDataPagamento()">
+          <div id="pgDataInfo" class="pg-data-info" aria-live="polite"></div>
         </div>
         <div class="form-note" style="grid-column:1/-1">
           💡 Se houve multa, desconto ou diferença, ajuste o valor acima. O valor pago substitui o valor previsto em todo o sistema.

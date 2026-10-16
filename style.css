@@ -247,6 +247,24 @@
 .info-tip:hover+.info-tip-box,.info-tip:focus+.info-tip-box{display:block}
 .parc-info{grid-column:1/-1;font-size:11.5px;color:var(--t3);margin-top:-6px}
 .parc-info.erro{color:var(--orange)}
+/* Descrição clicável na lista de Contas: abre o modal da conta em modo ver */
+.conta-link{all:unset;cursor:pointer;color:inherit;font:inherit;line-height:inherit;border-radius:3px}
+.conta-link:hover{text-decoration:underline;text-underline-offset:2px;color:var(--palm)}
+.conta-link:focus-visible{outline:2px solid var(--palm);outline-offset:2px}
+/* Modal da conta, modo ver: campos desabilitados continuam legíveis */
+#ovConta.modo-ver .fg input:disabled,#ovConta.modo-ver .fg select:disabled,#ovConta.modo-ver .fg textarea:disabled{opacity:1;color:var(--t1);-webkit-text-fill-color:var(--t1);cursor:default;resize:none}
+#ovConta.modo-ver .fg select:disabled{appearance:none;-webkit-appearance:none}
+#ovConta.modo-ver .fg ::placeholder{color:transparent}
+.conta-status{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:14px;padding:9px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);font-size:12.5px;color:var(--t2)}
+.conta-status[hidden]{display:none}
+.cs-tag{font-weight:700;padding:2px 9px;border-radius:var(--ui-radius-pill,99px);font-size:11.5px}
+.cs-tag.ok{background:var(--green-lt);color:var(--green)}
+.cs-tag.pend,.cs-tag.parc{background:var(--yellow-lt);color:var(--yellow)}
+.cs-tag.atr{background:var(--orange-lt);color:var(--orange)}
+/* Confirmar Pagamento: dica/obrigatoriedade da data */
+.pg-data-info{margin-top:5px;font-size:11.5px;color:var(--t3)}
+.pg-data-info.aviso,.pg-data-info.erro{padding:6px 10px;border-radius:6px;background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa}
+.dark .pg-data-info.aviso,.dark .pg-data-info.erro{border-color:rgba(255,159,10,.3)}
 /* Recursos desligados (FEATURES em js/fin-state.js): vence até o display inline dos botões da topbar */
 html:not(.ft-recorrentes) [data-feature="recorrentes"]{display:none!important}
 .form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:2px 0}
