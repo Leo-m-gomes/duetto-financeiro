@@ -169,7 +169,7 @@ const CMD = (() => {
     const pagar = quitada ? '' : '<button type="button" class="cmdk-pay" data-pay tabindex="-1">Pagar</button>';
     return {
       html: linha({ic:'conta', titulo:esc(c.conta), sub, meta:`${tag}<span class="money">${fmt(valor)}</span>${pagar}`}),
-      run:  () => APP.openConta(c.id),
+      run:  () => APP.verConta(c.id),
       pay:  quitada ? null : () => APP.marcarPago(c.id),
     };
   }

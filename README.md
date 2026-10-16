@@ -172,7 +172,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 * **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
 * **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes (só com o recurso ligado, 8.7), Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
 * **Ir para:** telas do app, incluindo EAC (Upload e Config só para o admin).
-* **Teclado:** ↑/↓ ou Tab navegam, Enter abre, **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
+* **Teclado:** ↑/↓ ou Tab navegam, Enter abre (conta: modal da conta em modo ver, 10.2), **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
 
 ### 4.4 Temas
 
@@ -186,6 +186,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 
 * Fecham no **X**, nos botões de cancelar ou com clique no fundo escuro. O clique no fundo só fecha quando o botão do mouse é **pressionado e solto no fundo** (`ligarFecharNoFundo`, em `js/ui-modals.js`). Selecionar texto arrastando de dentro da caixa para fora (ou o contrário) não fecha o modal nem perde o que foi digitado. Vale para todos os modais do app e de Notas.
 * Modal que espera uma decisão (Duplicatas) trata o clique no fundo como "não cadastrar" (`ov._aoFecharNoFundo`), liberando o botão Salvar.
+* Modais podem empilhar: o "Confirmar Pagamento" aberto pelo botão Pagar do modal da conta fica por cima dele (ordem no `views/modals.html`).
 
 ### 4.6 Responsivo
 
@@ -236,7 +237,7 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | `vPagar` | number (reais) | Valor previsto da parcela. Obrigatório, > 0. **Nunca é sobrescrito pelo pagamento** |
 | `vPago` | number \| null | Valor efetivamente pago (pode ter juros/desconto). `null` = não pago. Em compartilhada com pagamento individual guarda a soma das partes |
 | `pagamentos` | `{Leo?:{valor,paidBy,paidAt}, Pri?:{...}}` | Só em compartilhadas pagas por parte |
-| `paidBy`, `paidAt` | string, `YYYY-MM-DD` | Quem registrou e quando |
+| `paidBy`, `paidAt` | string, `YYYY-MM-DD` | Quem registrou e a **data do pagamento** (regra em 8.4). Baixas automáticas (parcelas, massa) gravam a data do dia |
 | `parcela` | string `"i de n"` | Padrão `"1 de 1"`. No cadastro manual é montado pelo sistema a partir de Qtd. e Parcela Atual (8.5) |
 | `grupo` | string `grp-<timestamp>[-sufixo]` | Liga as parcelas do mesmo parcelamento |
 | `recorrente` | boolean | Marca para "Gerar recorrentes". **Recurso desligado (8.7):** contas novas gravam `false`; o valor das existentes é preservado na edição |
@@ -340,13 +341,20 @@ Resultado: Leo + Pri soma exatamente o total da casa.
 
 ### 8.4 Pagamento
 
+* **Modal "Confirmar Pagamento"** (ícone ✓ da lista de Contas, botão Pagar do modal da conta e Shift+Enter na busca rápida): pede **Valor Pago** e **Data do Pagamento**.
+* **Data do Pagamento** (`dataPagamentoPadrao` em `fin-state.js`, `APP._dataPagamento`):
+  * Em branco **no mesmo mês e ano do vencimento**: vale o **vencimento**; se o vencimento ainda não chegou, vale **hoje** (pagamento não tem data futura).
+  * Em branco com vencimento **em outro mês ou ano** (antes ou depois do mês atual): **bloqueia** e pede a data.
+  * Data futura é recusada. A dica abaixo do campo mostra o que vale em branco ou por que ele é obrigatório.
+  * Ex. (hoje 20/04/2026): vence 10/04 → grava 10/04; vence 25/04 → grava 20/04; vence 10/03/2026, 05/05/2026 ou 10/04/2025 → data obrigatória.
+  * Vale também para o pagamento por parte da compartilhada (`pagamentos.<resp>.paidAt`). O log registra a data.
 * **Conta individual** (`FS.pagarConta`): grava `vPago`, `paidBy`, `paidAt`. O valor pago pode diferir do previsto; o modal mostra "acréscimo" ou "desconto".
 * **Compartilhada:** escolha Leo, Pri ou "Ambos de uma vez".
   * Por parte (`FS.pagarContaIndividual`, transação): grava `pagamentos.<resp>`, e `vPago` = soma das partes. Uma pessoa não paga duas vezes. Quitada quando as duas partes existem (log `pagamento_complementar`).
   * Ambos: pagamento integral normal.
   * **Blindagem:** compartilhada com só uma parte paga **não aceita** pagamento integral (erro); a parte faltante vai pelo pagamento individual. Baixas automáticas (parcelas, massa) completam a parte que falta (`_pagarContaAuto`).
 * **Desfazer pagamento:** limpa `vPago`, `paidBy`, `paidAt`; **`vPagar` original é preservado**. Em compartilhada, desfaz a parte de Leo, de Pri ou ambas.
-* **Pagamento em massa** (Contas, desktop): seleciona várias contas em aberto; valores editáveis por linha. Com filtro "Leo"/"Pri", compartilhadas recebem baixa só da parte filtrada; sem filtro (ou "Leo & Pri"), baixa integral. Executa uma por uma e informa erros.
+* **Pagamento em massa** (Contas, desktop): seleciona várias contas em aberto; valores editáveis por linha; `paidAt` = data do dia (não usa o modal). Com filtro "Leo"/"Pri", compartilhadas recebem baixa só da parte filtrada; sem filtro (ou "Leo & Pri"), baixa integral. Executa uma por uma e informa erros.
 * **Parcelas** (modal de parcelamento): pagar uma, pagar todas (valor pendente de cada), **pagamento antecipado** (valor total dividido igualmente; o resto de arredondamento vai para a última parcela), editar descrição/responsável/data/valor/parcela, aplicar categoria, forma ou nota a todas, excluir uma ou todas.
 
 ### 8.5 Cadastro e parcelamento
@@ -498,6 +506,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 ### 10.2 Contas
 
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
+* **Clique na descrição** abre o modal da conta em **modo ver** (`APP.verConta`): todos os campos só leitura, sem a barra Gerenciar, com a situação no topo (paga com valor, data e quem pagou; parcialmente paga; atrasada; pendente). Rodapé: **Fechar**, **Editar** (libera os campos, como o ícone ✏; o parcelamento segue só leitura) e **Pagar** (some se a conta está quitada; abre o "Confirmar Pagamento" por cima e, ao confirmar, fecha os dois). O ícone ✏ continua abrindo direto a edição.
 * **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (÷2 nas compartilhadas; a metade já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
 * Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma, recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
 * Com mês específico ou período, as **atrasadas de meses anteriores** entram na lista.
@@ -674,6 +683,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-16 | **Ver conta e data do pagamento:** clique na descrição em Contas (e Enter na busca rápida) abre o modal da conta em modo ver, com situação, Editar e Pagar. "Confirmar Pagamento" ganha **Data do Pagamento**: em branco vale o vencimento quando o pagamento é informado no mesmo mês e ano (hoje, se o vencimento ainda não chegou); em outro mês ou ano a data é obrigatória; data futura é recusada. `FS.pagarConta`/`pagarContaIndividual` recebem a data (`paidAt`); baixas automáticas seguem com a data do dia. |
 | 2026-10-16 | **Anos sem limite e janela de 9 anos:** sai o limite 2019 a 2035 (cadastro, parcelas, importação, receitas, período do app e de Notas); vale qualquer ano de 4 dígitos (`anoValido`). Todos os seletores de ano mostram os 4 anos anteriores, o vigente no meio e os 4 seguintes (`anosJanela`/`preencherAnos`), e "Todos os anos" cobre todos os dados. EAC: seletor com a janela; Rev 0 de ano futuro só para o próximo ano, em dezembro (`eacPodePrepararLB`). |
 | 2026-10-16 | **Parcela Atual no cadastro:** campo passa a ser só número (em qual parcela a conta está); o sistema grava da parcela atual até a última, mês a mês a partir do vencimento informado (mesma regra da importação), e o Valor Total mostra todas as parcelas. "?" azul com explicação. Qtd. e Parcela Atual lado a lado (3 dígitos), entre Valor da Parcela e Valor Total. Limite de 360 parcelas, confirmação acima de 12 e bloqueio de vencimento depois de 2035. Na edição, parcelamento só leitura e `parcela` preservada. **Recorrentes desligado** (`FEATURES.recorrentes`): some das telas, código e dados preservados (8.7). |
 | 2026-10-16 | **Valor Total (auto) corrigido:** a máscara monetária roda na captura do `document`, antes dos cálculos ao vivo (antes, digitar 700,00 mostrava total 70,00). Mesma causa corrigida na prévia do salário líquido e no valor editado na conferência do upload. Cálculo em centavos inteiros (`moneyCents`). |
