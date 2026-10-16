@@ -93,7 +93,7 @@ Object.assign(APP, {
     const ano = new Date().getFullYear();
     const aS  = document.getElementById('mAno');
     aS.innerHTML='<option value="">Selecione o ano...</option>';
-    for(let a=ano-1;a<=ano+2;a++) aS.appendChild(new Option(a,a));
+    anosJanela().forEach(a=>aS.appendChild(new Option(a,a)));
     aS.value = ano;
     document.getElementById('mMes').value='';
 
@@ -349,7 +349,7 @@ Object.assign(APP, {
       if(!c.data) ev.push(`Linha ${c.linha}: Data ausente ou em formato inválido — use dd/mm/aaaa`);
       if(c.data){
         const ano=parseInt(c.data.slice(0,4));
-        if(isNaN(ano)||ano<2019||ano>2035) ev.push(`Linha ${c.linha}: Data "${c.data}" fora do intervalo permitido (2019–2035)`);
+        if(!anoValido(ano)) ev.push(`Linha ${c.linha}: Data "${c.data}" com ano inválido (use 4 dígitos)`);
         const d=new Date(c.data+'T12:00');
         if(isNaN(d.getTime())) ev.push(`Linha ${c.linha}: Data inválida`);
       }

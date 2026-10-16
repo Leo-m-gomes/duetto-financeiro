@@ -467,6 +467,7 @@ Object.assign(APP, {
     if(!catId){this.toast('Selecione a categoria','error');return;}
     if(!formaId){this.toast('Selecione a forma de pagamento','error');return;}
     if(!c.data){this.toast('Informe a data','error');return;}
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(c.data)){this.toast('Data de vencimento inválida: use o ano com 4 dígitos','error');return;}
     if(!c.vPagar){this.toast('Informe o valor','error');return;}
     if(c.dataCompra&&c.dataCompra>c.data){this.toast('Data da compra não pode ser posterior ao vencimento','error');return;}
 
@@ -479,10 +480,6 @@ Object.assign(APP, {
       if(erro){this.toast(erro,'error');return;}
       // Da parcela atual até a última; c.data é o vencimento da parcela atual
       const plano=planoParcelas(c.data,qtd,atual);
-      const ultima=plano[plano.length-1];
-      if(parseInt(ultima.data.slice(0,4),10)>ANO_MAX){
-        this.toast(`A parcela ${ultima.parcela} venceria em ${fmtDate(ultima.data)}: o sistema aceita datas até ${ANO_MAX}`,'error');return;
-      }
       if(qtd>PARCELAS_ALERTA && !this._confirmarParcelamentoLongo(c,plano,qtd,atual)){
         this.toast('Cadastro cancelado: revise o parcelamento','info');return;
       }

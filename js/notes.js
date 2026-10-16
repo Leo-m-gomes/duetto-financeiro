@@ -1626,7 +1626,7 @@ function ntOpenPeriodoModal(){
 
 /**
  * Aplica o período informado no modal. Validações:
- *   - Ano entre 2019 e 2035 (limite alinhado com o app principal)
+ *   - Ano de 4 dígitos, sem limite (anoValido, regra do app principal)
  *   - mesIni e mesFim obrigatórios
  *   - mesFim não pode ser anterior a mesIni dentro do mesmo ano
  */
@@ -1634,8 +1634,8 @@ function ntAplicarPeriodo(){
   const ano    = parseInt(document.getElementById('ntPeriodoAno').value, 10);
   const mesIni = document.getElementById('ntPeriodoMesIni').value;
   const mesFim = document.getElementById('ntPeriodoMesFim').value;
-  if(!ano || ano < 2019 || ano > 2035){
-    APP.toast('Informe um ano válido (2019 a 2035)', 'error'); return;
+  if(!anoValido(ano)){
+    APP.toast('Informe um ano válido (4 dígitos)', 'error'); return;
   }
   if(mesIni === '' || mesFim === ''){
     APP.toast('Selecione o mês inicial e o mês final', 'error'); return;

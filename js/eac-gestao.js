@@ -237,6 +237,7 @@ Object.assign(APP, {
     const sit = this.eacSituacao(ano), lbs = this.eacLBs(ano), vig = lbs[lbs.length-1], prox = lbs.length, esc = v=>this._escHtml(v);
     if(sit==='encerrado') return `<p class="eac-note" style="padding:16px 0">${ano} está encerrado. Linhas de base só podem ser salvas para o ano vigente.</p>`;
     if(sit==='futuro' && prox>0) return `<p class="eac-note" style="padding:16px 0">A Rev 0 de ${ano} já existe. As revisões seguintes ficam liberadas quando ${ano} começar.</p>`;
+    if(sit==='futuro' && !this.eacPodePrepararLB(ano)) return `<p class="eac-note" style="padding:16px 0">A Rev 0 de ${ano} é salva em dezembro de ${ano-1}.</p>`;
     if(prox===0) EAC_LB.escopo = 'geral';
     const hoje = this._eacCadastradoHoje(ano);
     const grupos = this._eacCatsAgrupadas([...hoje.keys(), ...Object.keys(vig?.porCat||{})]);
@@ -317,7 +318,7 @@ Object.assign(APP, {
     const ano = EAC_ST.ano, sit = this.eacSituacao(ano), lbs = this.eacLBs(ano), rev = lbs.length;
     const just = (document.getElementById('eacLBJust')?.value||'').trim();
     if(sit==='encerrado') return this.toast('Ano encerrado: não é possível salvar linha de base','error');
-    if(sit==='futuro' && (rev>0 || new Date().getMonth()!==11)) return this.toast('Para o próximo ano, só a Rev 0 e só em dezembro','error');
+    if(sit==='futuro' && (rev>0 || !this.eacPodePrepararLB(ano))) return this.toast('Para o próximo ano, só a Rev 0 e só em dezembro','error');
     if(EAC_LB.escopo==='cat' && !EAC_LB.sel.size) return this.toast('Marque ao menos uma categoria','error');
     if(rev>0 && !just){ document.getElementById('eacLBJust')?.focus(); return this.toast('Escreva a justificativa: ela é obrigatória a partir da Rev 1','error'); }
     const m = this._eacLBMontar(ano);
