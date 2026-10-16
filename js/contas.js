@@ -422,7 +422,13 @@ Object.assign(APP, {
     document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
   },
-  calcTotal(){ const v=parseMoney(document.getElementById('fVP').value);const q=parseInt(document.getElementById('fQP').value)||1;document.getElementById('fVT').value=v>0?fmtMoney(v*q):''; },
+  // Valor Total = parcela × quantidade em centavos inteiros (sem erro de ponto flutuante)
+  calcTotal(){
+    const cents=moneyCents(document.getElementById('fVP').value);
+    document.getElementById('fVT').value=cents>0?fmtMoney(cents*this._qtdParcelas()/100):'';
+  },
+  // Quantidade efetiva de parcelas, a mesma que o saveConta grava: vazio, 0 ou negativo = 1
+  _qtdParcelas(){ const q=parseInt(document.getElementById('fQP').value,10); return q>1?q:1; },
 
   async saveConta(){
     const btn=document.getElementById('btnSalvarConta');
@@ -445,7 +451,7 @@ Object.assign(APP, {
       await FS.updateConta(STATE.editContaId,{...editData,updatedBy:STATE.usuario});
       this.toast('Conta atualizada ✅','success');
     } else {
-      const qt=parseInt(document.getElementById('fQP').value)||1;
+      const qt=this._qtdParcelas();
       const grupo=`grp-${Date.now()}`;
       const novaConta = {...c, vPago:null};
 

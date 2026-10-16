@@ -285,6 +285,8 @@ Só quando a coleção está vazia: 30 categorias padrão (`SEED_CATS`), 12 form
   * Contas e receitas são gravadas em **reais (float)**. Notas guardam itens em **centavos inteiros**.
   * Somas do Dashboard (receita, despesas, pendente, saldo, categorias) são feitas em **centavos inteiros** (`centavos(v) = round(v*100)`) e divididas por 100 só na exibição.
   * Campos monetários usam máscara por centavos: o usuário digita só dígitos (`1050` → `10,50`); `parseMoney` aceita `1.500,00`, `1,500.00` e `1500`.
+  * A máscara roda na **captura do `document`**, antes de qualquer listener de `input` do campo: cálculos ao vivo leem sempre o valor já formatado. Cálculos em tela usam `moneyCents(valor)` (centavos inteiros, mesma regra da máscara).
+  * **Valor Total (auto)** do modal de conta = `moneyCents(parcela) × quantidade`, com a quantidade efetiva do `saveConta` (vazio, 0 ou negativo = 1).
   * Moeda (BRL, USD, EUR) muda **só símbolo e formatação**; não converte valores.
 * **Responsáveis:** `Leo`, `Pri` e `Leo & Pri` (compartilhada). Em receitas, "Ambos" é `resp:''`.
 
