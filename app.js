@@ -251,7 +251,7 @@ const APP = {
     // Ano de início da vigência do salário (o salário vale para todos os anos a partir dele)
     const as = document.getElementById('sAnoInicio');
     if(as){
-      if(as.options.length === 0){ for(let a=2019;a<=2035;a++) as.appendChild(new Option(a,a)); }
+      if(as.options.length === 0) preencherAnos(as);
       as.value = new Date().getFullYear();
     }
   },
@@ -263,9 +263,8 @@ const APP = {
     const mkAno = (id) => {
       const s=document.getElementById(id); if(!s)return;
       if(s.options.length > 0) return;
-      s.appendChild(new Option('Todos os anos','todos'));
-      for(let a=2019;a<=2035;a++) s.appendChild(new Option(a,a));
-      s.value = String(anoAtual);
+      // Janela de 9 anos (anosJanela); "Todos os anos" cobre todos os dados, também fora dela
+      preencherAnos(s, {todos:true, valor:anoAtual});
     };
 
     const mkMes = (id) => {

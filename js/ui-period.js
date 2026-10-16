@@ -36,7 +36,7 @@ Object.assign(APP, {
     const ano    = parseInt(document.getElementById('periodoAno').value);
     const mesIni = document.getElementById('periodoMesIni').value;
     const mesFim = document.getElementById('periodoMesFim').value;
-    if (!ano || ano < 2019 || ano > 2035) return this.toast('Informe um ano valido (2019-2035)', 'error');
+    if (!anoValido(ano)) return this.toast('Informe um ano valido (4 digitos)', 'error');
     if (mesIni === '' || mesFim === '')    return this.toast('Selecione o mes inicial e o mes final', 'error');
     if (parseInt(mesFim) < parseInt(mesIni)) return this.toast('O mes final nao pode ser anterior ao mes inicial', 'error');
     const p = { ano, mesIni: parseInt(mesIni), mesFim: parseInt(mesFim) };

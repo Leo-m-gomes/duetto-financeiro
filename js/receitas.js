@@ -272,10 +272,10 @@ Object.assign(APP, {
     const rMesFim=document.getElementById('rMesFim');if(rMesFim)rMesFim.value='-1';
     const rAno=document.getElementById('rAno');
     if(rAno){
-      if(!rAno.options.length) for(let a=2019;a<=2035;a++) rAno.appendChild(new Option(a,a));
-      // Nova receita: ano do período ativo ou o filtrado na tela Receitas (ou o atual)
+      // Nova receita: ano do período ativo ou o filtrado na tela Receitas (ou o atual).
+      // Janela de 9 anos; o ano escolhido entra na lista mesmo fora dela.
       const filtro=STATE.periodoReceitas ? String(STATE.periodoReceitas.ano) : document.getElementById('filtroAnoReceitas')?.value;
-      rAno.value=String(/^\d{4}$/.test(filtro||'') ? filtro : new Date().getFullYear());
+      preencherAnos(rAno, {valor:/^\d{4}$/.test(filtro||'') ? parseInt(filtro,10) : new Date().getFullYear()});
     }
 
     if(id){
@@ -284,7 +284,7 @@ Object.assign(APP, {
         const valores=(r.valores||[]).slice(0,12);
         document.getElementById('rDesc').value=r.desc;
         if(rResp)rResp.value=r.resp||'';
-        if(rAno)rAno.value=String(CACHE.anoReceita(r));
+        if(rAno)preencherAnos(rAno, {valor:CACHE.anoReceita(r)});
         let ini=-1,fim=-1;
         for(let m=0;m<12;m++){if(valores[m]){if(ini===-1)ini=m;fim=m;}}
         if(rMesIni)rMesIni.value=ini;
@@ -335,7 +335,7 @@ Object.assign(APP, {
     const fim=parseInt(document.getElementById('rMesFim')?.value??'-1');
     const ano=parseInt(document.getElementById('rAno')?.value);
     if(!desc)return this.toast('Informe a descrição','error');
-    if(!ano||ano<2019||ano>2035)return this.toast('Informe o ano da receita (2019 a 2035)','error');
+    if(!anoValido(ano))return this.toast('Informe o ano da receita (4 dígitos)','error');
     if(ini!==-1&&fim!==-1&&fim<ini)return this.toast('Mês final deve ser igual ou posterior ao inicial','error');
 
     // Edição sem mudar valor nem meses: mantém os valores originais de cada mês
@@ -380,7 +380,6 @@ Object.assign(APP, {
     const tbody=document.getElementById('recAnosBody');
     if(!tbody) return;
     if(!lista.length){ this.toast('Todas as receitas já têm ano','info'); return; }
-    const anos=Array.from({length:17},(_,i)=>2019+i);
     tbody.innerHTML=lista.map(r=>{
       const valores=r.valores||[];
       const meses=valores.map((v,i)=>v?MESES[i]:null).filter(Boolean);
@@ -391,7 +390,7 @@ Object.assign(APP, {
         <td>${this._escHtml(r.resp||'Ambos')}</td>
         <td style="font-size:11px;color:var(--t3);white-space:normal">${meses.length===12?'Jan a Dez':meses.join(', ')||'—'}</td>
         <td class="money" style="text-align:right">${fmt(total)}</td>
-        <td><select class="filter-select rec-ano-sel" data-id="${r.id}" style="min-width:90px">${anos.map(a=>`<option value="${a}"${a===anoSug?' selected':''}>${a}</option>`).join('')}</select></td>
+        <td><select class="filter-select rec-ano-sel" data-id="${r.id}" style="min-width:90px">${anosJanela(anoSug).map(a=>`<option value="${a}"${a===anoSug?' selected':''}>${a}</option>`).join('')}</select></td>
       </tr>`;
     }).join('');
     document.getElementById('ovRecAnos').classList.add('open');
@@ -400,7 +399,7 @@ Object.assign(APP, {
   async salvarAnosReceitas(){
     const pares=[...document.querySelectorAll('#recAnosBody .rec-ano-sel')].map(s=>({id:s.dataset.id, ano:parseInt(s.value)}));
     if(!pares.length) return APP.closeModal('ovRecAnos');
-    if(pares.some(p=>!p.ano||p.ano<2019||p.ano>2035)) return this.toast('Ano inválido','error');
+    if(pares.some(p=>!anoValido(p.ano))) return this.toast('Ano inválido','error');
     const btn=document.getElementById('btnSalvarRecAnos');
     if(btn) btn.disabled=true;
     try{

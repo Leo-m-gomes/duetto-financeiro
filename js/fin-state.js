@@ -8,8 +8,8 @@
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
  *   centavos, fatiaReceita, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
- *   SEED_FORMAS, STATE, FEATURES, ANO_MIN, ANO_MAX, PARCELAS_MAX, PARCELAS_ALERTA, lerParcela,
- *   planoParcelas
+ *   SEED_FORMAS, STATE, FEATURES, anoValido, anosJanela, preencherAnos, PARCELAS_MAX,
+ *   PARCELAS_ALERTA, lerParcela, planoParcelas
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -27,8 +27,29 @@ const FEATURES = Object.freeze({ recorrentes: false });
 // Marcação estática com data-feature="recorrentes" fica oculta (CSS) enquanto a classe não existir
 document.documentElement.classList.toggle('ft-recorrentes', FEATURES.recorrentes);
 
-// Anos aceitos pelo sistema (selects, período, importação, cadastro)
-const ANO_MIN = 2019, ANO_MAX = 2035;
+// ── ANOS ──
+// Sem limite de anos: cadastro, importação, período e receitas aceitam qualquer ano de 4 dígitos
+// (formato YYYY-MM-DD das datas). Os seletores de ano mostram uma janela móvel de 9 anos: os 4
+// anteriores, o vigente no meio e os 4 seguintes. "Todos os anos" ('todos') não usa a janela:
+// cobre todos os dados gravados, de qualquer ano.
+const ANOS_JANELA = 4;
+const anoValido = a => Number.isInteger(a) && a >= 1000 && a <= 9999;
+// anosJanela() → [2022 … 2030] em 2026. Anos extras válidos (ex.: o da receita em edição) entram em ordem.
+const anosJanela = (...extras) => {
+  const atual = new Date().getFullYear();
+  const anos = new Set(Array.from({length: 2*ANOS_JANELA + 1}, (_, i) => atual - ANOS_JANELA + i));
+  extras.map(Number).filter(anoValido).forEach(a => anos.add(a));
+  return [...anos].sort((a, b) => a - b);
+};
+// Preenche um <select> de ano com a janela ("Todos os anos" no topo se todos=true) e seleciona
+// `valor`, que entra na lista mesmo fora da janela.
+const preencherAnos = (sel, {todos = false, valor = new Date().getFullYear()} = {}) => {
+  if(!sel) return sel;
+  sel.innerHTML = (todos ? '<option value="todos">Todos os anos</option>' : '')
+    + anosJanela(valor).map(a => `<option value="${a}">${a}</option>`).join('');
+  sel.value = String(valor);
+  return sel;
+};
 
 // ── PARCELAMENTO ──
 const PARCELAS_MAX    = 360;  // limite do cadastro manual
@@ -187,6 +208,9 @@ window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
 window.centavos  = centavos;
 window.FEATURES  = FEATURES;
+window.anoValido     = anoValido;
+window.anosJanela    = anosJanela;
+window.preencherAnos = preencherAnos;
 window.lerParcela    = lerParcela;
 window.planoParcelas = planoParcelas;
 window.fatiaReceita = fatiaReceita;

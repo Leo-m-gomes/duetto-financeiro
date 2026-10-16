@@ -63,15 +63,11 @@ Object.assign(APP, {
   eacLBs(ano){ return CACHE.lbs.filter(l=>l.ano===ano).sort((a,b)=>a.rev-b.rev); },
   eacLBVigente(ano){ const l=this.eacLBs(ano); return l[l.length-1]||null; },
 
-  /** Anos do seletor: anos com contas ou LB, o atual e, em dezembro, o seguinte (preparar a Rev 0). */
-  eacAnos(){
-    const hoje = new Date(), atual = hoje.getFullYear();
-    const anos = new Set([atual]);
-    CACHE.contas.forEach(c=>{ const y=eacAnoDe(c.data); if(y>=2019&&y<=atual) anos.add(y); });
-    CACHE.lbs.forEach(l=>{ if(l.ano<=atual) anos.add(l.ano); });
-    if(hoje.getMonth()===11) anos.add(atual+1);
-    return [...anos].filter(a=>a>=2019&&a<=2035).sort((a,b)=>b-a);
-  },
+  /** Anos do seletor: janela de 9 anos do sistema (anosJanela), do mais recente ao mais antigo. */
+  eacAnos(){ return anosJanela().reverse(); },
+
+  /** Rev 0 de ano futuro: só a do próximo ano e só em dezembro. */
+  eacPodePrepararLB(ano){ const h=new Date(); return ano===h.getFullYear()+1 && h.getMonth()===11; },
 
   /** Situação do ano: 'atual', 'encerrado' (anterior) ou 'futuro' (só o próximo, em dezembro). */
   eacSituacao(ano){ const a=new Date().getFullYear(); return ano===a?'atual':ano<a?'encerrado':'futuro'; },
@@ -298,7 +294,7 @@ Object.assign(APP, {
     if(this.eacLBs(ano).length<2) EAC_ST.cmp = 'cur';
 
     const sel = document.getElementById('eacAno');
-    sel.innerHTML = anos.map(a=>`<option value="${a}">${a} ${a===atual?'(vigente)':a<atual?'(encerrado)':'(preparar LB)'}</option>`).join('');
+    sel.innerHTML = anos.map(a=>`<option value="${a}">${a} ${a===atual?'(vigente)':a<atual?'(encerrado)':this.eacPodePrepararLB(a)?'(preparar LB)':'(futuro)'}</option>`).join('');
     sel.value = String(ano);
     document.getElementById('eacContent').classList.toggle('eac-foco', EAC_ST.foco);
     this._eacRenderFocoBtn();
@@ -367,7 +363,9 @@ Object.assign(APP, {
         : `<div class="eac-banner bad" role="alert"><span class="eac-grow"><b>Sem linha de base em ${ano}.</b> A Rev 0 deveria ter sido salva em janeiro. Salve agora: ela fica marcada como fora do prazo e passa a valer a partir de hoje.</span>${salvar0}</div>`);
     }
     if(sit==='encerrado') b.push(`<div class="eac-banner warn"><span class="eac-grow"><b>${ano} encerrado.</b> Consulta somente leitura${T.semLB?'; o ano não teve linha de base.':`: resultado final contra a Rev ${T.calc.lb.rev}.`}</span></div>`);
-    if(sit==='futuro') b.push(`<div class="eac-banner info"><span class="eac-grow"><b>Preparação de ${ano}.</b> Em dezembro dá para salvar a Rev 0 do ano seguinte. ${FEATURES.recorrentes?'Gere as recorrentes':'Cadastre as contas previstas'} de ${ano} antes de salvar.</span>${T.semLB?salvar0:''}</div>`);
+    if(sit==='futuro') b.push(this.eacPodePrepararLB(ano)
+      ? `<div class="eac-banner info"><span class="eac-grow"><b>Preparação de ${ano}.</b> Em dezembro dá para salvar a Rev 0 do ano seguinte. ${FEATURES.recorrentes?'Gere as recorrentes':'Cadastre as contas previstas'} de ${ano} antes de salvar.</span>${T.semLB?salvar0:''}</div>`
+      : `<div class="eac-banner info"><span class="eac-grow"><b>${ano} ainda não começou.</b> Consulta do que já está cadastrado; a Rev 0 de ${ano} é salva em dezembro de ${ano-1}.</span></div>`);
     if(sit==='atual' && hoje.getMonth()===11 && !this.eacLBs(ano+1).length)
       b.push(`<div class="eac-banner info"><span class="eac-grow"><b>Dezembro:</b> já dá para preparar a linha de base de ${ano+1}.</span>${btn('Preparar Rev 0 de '+(ano+1),`APP.eacSetAno(${ano+1})`)}</div>`);
     const pend = this.eacExcluidas(ano).filter(e=>!e.cls).length;

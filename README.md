@@ -280,7 +280,11 @@ Só quando a coleção está vazia: 30 categorias padrão (`SEED_CATS`), 12 form
 
 * **Datas** sempre `YYYY-MM-DD` no **fuso local** (`isoLocal`/`today()`), nunca `toISOString()` (em UTC-3 virava o dia seguinte após as 21h e marcava contas de hoje como atrasadas). Datas são lidas com `T12:00` para não escorregar de dia.
 * **Somar meses** (`addMeses`): preserva o dia e limita ao último dia do mês (31/01 + 1 mês = 28 ou 29/02, nunca 03/03).
-* **Anos aceitos:** 2019 a 2035 (selects, período personalizado, importação, última parcela do cadastro). Constantes `ANO_MIN`/`ANO_MAX` em `fin-state.js` (o cadastro de parcelas já usa; as demais telas ainda têm o número fixo).
+* **Anos sem limite:** cadastro de contas e parcelas, importação, receitas e período aceitam qualquer ano de **4 dígitos** (`anoValido` em `fin-state.js`; exigência do formato `YYYY-MM-DD`). Os anos são criados automaticamente, sem lista fixa.
+* **Seletores de ano (janela móvel de 9 anos):** os 4 anos anteriores, o **vigente no meio** e os 4 seguintes (em 2026: 2022 a 2030), recalculados pelo ano atual (`anosJanela`/`preencherAnos`). Vale para todos os seletores: filtros de Dashboard, Contas, Receitas e Relatório, seletor da EAC, ano da receita, ano de início do salário, ano da planilha modelo (Upload) e revisão de ano das receitas antigas.
+  * **"Todos os anos"** (`'todos'`) não usa a janela: mostra os dados de **todos** os anos gravados, inclusive fora dos 9 visíveis.
+  * Valor fora da janela que precisa aparecer (ex.: editar uma receita de 2019) entra na lista daquele seletor e fica selecionado.
+  * Para ver um ano específico fora da janela: "Todos os anos" ou o **Período** (ano digitado livremente, 10.5).
 * **Dinheiro:**
   * Contas e receitas são gravadas em **reais (float)**. Notas guardam itens em **centavos inteiros**.
   * Somas do Dashboard (receita, despesas, pendente, saldo, categorias) são feitas em **centavos inteiros** (`centavos(v) = round(v*100)`) e divididas por 100 só na exibição.
@@ -353,7 +357,7 @@ Resultado: Leo + Pri soma exatamente o total da casa.
 * **O que é gravado** (`planoParcelas` em `fin-state.js`, mesma regra da importação, 11): da Parcela Atual até a última, um documento por parcela com o mesmo `grupo`, `parcela = "i de N"`, todos com o valor da parcela, vencimentos mês a mês (`addMeses`) **a partir da Data de Vencimento, que é a da parcela atual**.
   Ex.: Qtd. 12, Parcela Atual 5, vencimento 29/01/2027 → 8 documentos, "5 de 12" (29/01/2027) até "12 de 12" (29/08/2027).
 * **Valor Total (auto)** = valor da parcela × Qtd. (as 12 do exemplo, só exibição, centavos inteiros). A linha abaixo dos campos mostra o que será cadastrado: `Cadastra 8 parcelas (da 5ª à 12ª): R$ 5.600,00`.
-* **Bloqueios:** Qtd. acima de **360** (`PARCELAS_MAX`); Parcela Atual maior que Qtd.; última parcela com vencimento depois de **2035** (`ANO_MAX`, limite de anos do sistema, 7).
+* **Bloqueios:** Qtd. acima de **360** (`PARCELAS_MAX`); Parcela Atual maior que Qtd.; vencimento com ano fora do formato de 4 dígitos. **Não há limite de ano** (7): um parcelamento de 360 parcelas a partir de 2027 vai até 2056.
 * **Acima de 12 parcelas** (`PARCELAS_ALERTA`): antes de gravar, confirmação com a quantidade, o intervalo de parcelas e de datas, o valor da parcela, o total e o valor efetivamente cadastrado. Cancelar mantém o modal aberto, sem gravar nada.
 * Ordem do salvar: validação → bloqueios → confirmação acima de 12 → duplicatas (8.6) → gravação.
 * **Edição** altera uma conta só (uma parcela); o log registra cada campo alterado (`de → para`). Qtd. e Parcela Atual aparecem preenchidas a partir de `"i de n"`, **somente leitura**, e `parcela` não é regravada; o parcelamento se ajusta em Gerenciar Parcelamento (8.4).
@@ -456,7 +460,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 9.4 Outras receitas
 
-* Descrição e **ano** obrigatórios (2019 a 2035); responsável Leo, Pri ou Ambos. Nova receita vem com o ano do período ativo da tela Receitas, senão com o ano filtrado.
+* Descrição e **ano** obrigatórios (qualquer ano de 4 dígitos; seletor com a janela de 9 anos, 7); responsável Leo, Pri ou Ambos. Nova receita vem com o ano do período ativo da tela Receitas, senão com o ano filtrado.
 * Período dentro do ano: "Todos os meses" aplica o valor de Jan a Dez; mês inicial + final aplica no intervalo; só mês inicial aplica em um mês. Mês final não pode ser anterior ao inicial.
 * **Edição preserva os valores mês a mês:** se valor e meses não forem alterados (ex.: só trocar o ano ou a descrição), os 12 valores originais são mantidos. Se a receita tem valores diferentes por mês e o usuário muda valor ou meses, o sistema pede confirmação antes de aplicar o mesmo valor a todo o período.
 * Receitas não se repetem entre anos: para o ano seguinte, cadastre de novo.
@@ -520,13 +524,13 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 10.5 Período personalizado
 
-Ano entre 2019 e 2035, mês final ≥ mês inicial, sempre dentro de um único ano. Cada tela (Dashboard, Contas, Receitas, Relatório) guarda o seu (`STATE.periodoDash`, `periodoContas`, `periodoReceitas`, `periodo`; mapa `PERIODO_TELAS` em `js/ui-period.js`); mudar ano/mês limpa o período daquela tela. Tela nova com período: adicionar a entrada em `PERIODO_TELAS`.
+Ano digitado livremente (4 dígitos, sem limite), mês final ≥ mês inicial, sempre dentro de um único ano. Cada tela (Dashboard, Contas, Receitas, Relatório) guarda o seu (`STATE.periodoDash`, `periodoContas`, `periodoReceitas`, `periodo`; mapa `PERIODO_TELAS` em `js/ui-period.js`); mudar ano/mês limpa o período daquela tela. Tela nova com período: adicionar a entrada em `PERIODO_TELAS`.
 
 ---
 
 ### 10.6 EAC (planejado × comprometido × realizado)
 
-Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Visão sempre do **ano escolhido** (abre no vigente); anos anteriores ficam para consulta, somente leitura. A tela não cadastra contas; as únicas gravações (linha de base, classificação de excluídas e grupos) são feitas em modais, **somente pelo administrador (Leo)**, e passam por `FS.*` com registro em `eac_log`. Para a Pri a tela é somente leitura: vê tudo, inclusive histórico e comparação de revisões, grupos e excluídas, sem botões de alteração. Tudo é somado em **centavos inteiros**.
+Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Visão sempre do **ano escolhido** (abre no vigente; seletor com a janela de 9 anos, 7); anos anteriores ficam para consulta, somente leitura. Anos futuros mostram o que já está cadastrado ("futuro"); só o próximo ano, em dezembro, aparece como "preparar LB". A tela não cadastra contas; as únicas gravações (linha de base, classificação de excluídas e grupos) são feitas em modais, **somente pelo administrador (Leo)**, e passam por `FS.*` com registro em `eac_log`. Para a Pri a tela é somente leitura: vê tudo, inclusive histórico e comparação de revisões, grupos e excluídas, sem botões de alteração. Tudo é somado em **centavos inteiros**.
 
 | Coluna | Cálculo |
 |---|---|
@@ -550,7 +554,7 @@ Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Vis
 
 **Linhas de base (modal "Linhas de base")**
 * Cada revisão é uma foto completa e **imutável** (ID `<ano>-r<rev>` gravado em transação: duas pessoas não criam o mesmo número). A numeração recomeça em **Rev 0 a cada ano**.
-* **Rev 0** é sempre geral. Janeiro é o mês de salvá-la (aviso laranja em janeiro, vermelho depois). Salva fora de janeiro (ou de dezembro do ano anterior) fica marcada **fora do prazo**. Em dezembro dá para preparar a Rev 0 do ano seguinte (o seletor mostra o próximo ano).
+* **Rev 0** é sempre geral. Janeiro é o mês de salvá-la (aviso laranja em janeiro, vermelho depois). Salva fora de janeiro (ou de dezembro do ano anterior) fica marcada **fora do prazo**. Em dezembro dá para preparar a Rev 0 do ano seguinte (`eacPodePrepararLB`); nenhum outro ano futuro aceita LB, nem pelo modal nem pelo botão do aviso.
 * **Rev 1 em diante:** geral ou por categoria (as escolhidas recebem as contas de hoje; as demais copiam a revisão anterior, inclusive a verba). Justificativa obrigatória.
 * **Verba mensal por categoria:** valor para gastos variáveis ainda não cadastrados (mercado, restaurante, cartão). Entra no Planejado; na ponte, as contas novas aparecem descontadas da verba.
 * Ano encerrado não recebe LB. Abas: Histórico (total e diferença de cada revisão), Salvar nova revisão (prévia do total antes de salvar) e Comparar revisões (diferença por categoria). Só o administrador salva; para a Pri a aba "Salvar nova revisão" não aparece.
@@ -578,7 +582,7 @@ Somente admin.
   * Planilha sem `_meta.planilha_id` (não gerada pelo sistema) é recusada.
   * **Mesma planilha não importa duas vezes** (bloqueio pelo ID, renomear o arquivo não contorna).
   * Colunas obrigatórias ausentes.
-* **Por linha:** Status "Nova" importa, "Existente" ignora, vazio com dados é erro. Responsável, forma e categoria precisam existir no sistema. Data em dd/mm/aaaa entre 2019 e 2035. Data Compra válida e não posterior ao vencimento. Valor > 0. Total e Parcela Atual inteiros > 0, com Parcela Atual ≤ Total. **Qualquer erro bloqueia o lote inteiro.**
+* **Por linha:** Status "Nova" importa, "Existente" ignora, vazio com dados é erro. Responsável, forma e categoria precisam existir no sistema. Data em dd/mm/aaaa (ano com 4 dígitos, sem limite). Data Compra válida e não posterior ao vencimento. Valor > 0. Total e Parcela Atual inteiros > 0, com Parcela Atual ≤ Total. **Qualquer erro bloqueia o lote inteiro.**
 * **Geração:** cada linha vira as parcelas de Parcela Atual até Total, mês a mês a partir do vencimento informado, todas com o valor da parcela e um grupo por linha.
 * Duplicatas são verificadas contra o banco e entre linhas da própria planilha; o usuário decide.
 * Gravação em lotes de 400 e registro em `importacoes`.
@@ -658,6 +662,8 @@ Somente admin.
 * Categoria/forma em uso detectada só por ID: contas legadas com nome (`cat`/`forma`) não bloqueiam a exclusão.
 * A busca rápida (Ctrl K) não pesquisa Notas e não abre com modal aberto.
 * Arquivos estáticos sem hash de versão: após deploy pode ser preciso recarregar sem cache.
+* **"Todos os anos" e parcelamentos longos:** a receita de "Todos os anos" soma o salário em cada ano com movimento (`anosComDados`); um financiamento até 2056 faz esses anos futuros entrarem na soma, junto com as parcelas deles.
+* **Anos fora da janela de 9** não aparecem nos seletores; os dados continuam em "Todos os anos", no Período, na busca e no Relatório com "Todos os anos".
 * **Parcelamento longo no cadastro manual:** cada parcela é uma gravação própria mais o log (360 parcelas = 720 gravações, em paralelo e sem lote atômico). Queda de rede no meio pode deixar o parcelamento incompleto; confira em Gerenciar Parcelamento. A importação grava em lotes.
 
 ---
@@ -668,6 +674,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-16 | **Anos sem limite e janela de 9 anos:** sai o limite 2019 a 2035 (cadastro, parcelas, importação, receitas, período do app e de Notas); vale qualquer ano de 4 dígitos (`anoValido`). Todos os seletores de ano mostram os 4 anos anteriores, o vigente no meio e os 4 seguintes (`anosJanela`/`preencherAnos`), e "Todos os anos" cobre todos os dados. EAC: seletor com a janela; Rev 0 de ano futuro só para o próximo ano, em dezembro (`eacPodePrepararLB`). |
 | 2026-10-16 | **Parcela Atual no cadastro:** campo passa a ser só número (em qual parcela a conta está); o sistema grava da parcela atual até a última, mês a mês a partir do vencimento informado (mesma regra da importação), e o Valor Total mostra todas as parcelas. "?" azul com explicação. Qtd. e Parcela Atual lado a lado (3 dígitos), entre Valor da Parcela e Valor Total. Limite de 360 parcelas, confirmação acima de 12 e bloqueio de vencimento depois de 2035. Na edição, parcelamento só leitura e `parcela` preservada. **Recorrentes desligado** (`FEATURES.recorrentes`): some das telas, código e dados preservados (8.7). |
 | 2026-10-16 | **Valor Total (auto) corrigido:** a máscara monetária roda na captura do `document`, antes dos cálculos ao vivo (antes, digitar 700,00 mostrava total 70,00). Mesma causa corrigida na prévia do salário líquido e no valor editado na conferência do upload. Cálculo em centavos inteiros (`moneyCents`). |
 | 2026-10-15 | **EAC só o administrador altera:** salvar linha de base, classificar contas excluídas e criar, renomear, ordenar, excluir grupos ou mover categorias passam a ser exclusivos do admin (interface, funções e `FS._exigirAdminEac`). Pri vê a EAC em modo leitura; quando ela exclui uma conta de ano com LB, a conta fica "a classificar" para o admin. Regras recomendadas do Firestore ajustadas. |
