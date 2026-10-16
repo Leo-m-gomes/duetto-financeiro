@@ -26,6 +26,8 @@ Object.assign(APP, {
   },
 
   openRecorrentes(){
+    // Recurso desligado (FEATURES em fin-state.js): código preservado para religar
+    if(!FEATURES.recorrentes) return;
     // Popular selects de ano
     const anos = [...new Set(CACHE.contas.map(c=>new Date(c.data+'T12:00').getFullYear()))].sort((a,b)=>b-a);
     const anoAtual = new Date().getFullYear();

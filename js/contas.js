@@ -79,7 +79,7 @@ Object.assign(APP, {
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${splitBadge}${c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal">${c.conta}${splitBadge}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
@@ -407,7 +407,11 @@ Object.assign(APP, {
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
         document.getElementById('fResp').value=c.resp;document.getElementById('fData').value=c.data;
         const fDc=document.getElementById('fDataCompra');if(fDc)fDc.value=c.dataCompra||'';
-        setMoneyValue(document.getElementById('fVP'),c.vPagar);document.getElementById('fParc').value=c.parcela||'';
+        setMoneyValue(document.getElementById('fVP'),c.vPagar);
+        // Parcelamento só para leitura: a edição altera esta parcela, "i de n" não muda
+        const p=lerParcela(c.parcela);
+        document.getElementById('fQP').value=p?p.total:1;document.getElementById('fParc').value=p?p.atual:'';
+        this._travarParcelamento(true);
         const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=!!c.recorrente;
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
       }
@@ -421,14 +425,34 @@ Object.assign(APP, {
     ['fDesc','fNota','fResp','fForma','fCat','fData','fDataCompra','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
+    this._travarParcelamento(!!STATE.editContaId);this.calcTotal();
   },
-  // Valor Total = parcela × quantidade em centavos inteiros (sem erro de ponto flutuante)
+  _travarParcelamento(travar){
+    ['fQP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e){e.readOnly=travar;e.title=travar?'Para alterar o parcelamento, use Gerenciar Parcelamento':'';}});
+  },
+  // Valor Total = parcela × quantidade (TODAS as parcelas, também as anteriores à atual),
+  // em centavos inteiros. A linha fParcInfo mostra o que de fato será cadastrado.
   calcTotal(){
     const cents=moneyCents(document.getElementById('fVP').value);
-    document.getElementById('fVT').value=cents>0?fmtMoney(cents*this._qtdParcelas()/100):'';
+    const {qtd,atual,erro}=this._parcelamento();
+    document.getElementById('fVT').value=cents>0?fmtMoney(cents*qtd/100):'';
+    const info=document.getElementById('fParcInfo');if(!info)return;
+    const n=qtd-atual+1;
+    info.textContent=STATE.editContaId ? ''
+      : erro ? erro
+      : qtd>1 ? `Cadastra ${n} parcela${n>1?'s':''}${atual>1?` (da ${atual}ª à ${qtd}ª)`:''}${cents>0?`: ${fmt(cents*n/100)}`:''}`
+      : '';
+    info.classList.toggle('erro',!!erro);
+    info.hidden=!info.textContent;
   },
-  // Quantidade efetiva de parcelas, a mesma que o saveConta grava: vazio, 0 ou negativo = 1
-  _qtdParcelas(){ const q=parseInt(document.getElementById('fQP').value,10); return q>1?q:1; },
+  // Qtd. de Parcelas e Parcela Atual (só dígitos; vazio ou 0 = 1). erro bloqueia o cadastro.
+  _parcelamento(){
+    const qtd=Math.max(1,parseInt(document.getElementById('fQP').value,10)||1);
+    const atual=Math.max(1,parseInt(document.getElementById('fParc').value,10)||1);
+    const erro=qtd>PARCELAS_MAX ? `Máximo de ${PARCELAS_MAX} parcelas`
+      : atual>qtd ? `Parcela atual (${atual}) maior que a quantidade de parcelas (${qtd})` : '';
+    return {qtd,atual,erro};
+  },
 
   async saveConta(){
     const btn=document.getElementById('btnSalvarConta');
@@ -437,7 +461,7 @@ Object.assign(APP, {
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
     const dataCompra=document.getElementById('fDataCompra')?.value||null;
-    const c={dataCompra,conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),parcela:document.getElementById('fParc').value.trim(),recorrente,createdBy:STATE.usuario};
+    const c={dataCompra,conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),recorrente,createdBy:STATE.usuario};
     if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
     if(!c.resp){this.toast('Selecione o responsável','error');return;}
     if(!catId){this.toast('Selecione a categoria','error');return;}
@@ -451,36 +475,49 @@ Object.assign(APP, {
       await FS.updateConta(STATE.editContaId,{...editData,updatedBy:STATE.usuario});
       this.toast('Conta atualizada ✅','success');
     } else {
-      const qt=this._qtdParcelas();
+      const {qtd,atual,erro}=this._parcelamento();
+      if(erro){this.toast(erro,'error');return;}
+      // Da parcela atual até a última; c.data é o vencimento da parcela atual
+      const plano=planoParcelas(c.data,qtd,atual);
+      const ultima=plano[plano.length-1];
+      if(parseInt(ultima.data.slice(0,4),10)>ANO_MAX){
+        this.toast(`A parcela ${ultima.parcela} venceria em ${fmtDate(ultima.data)}: o sistema aceita datas até ${ANO_MAX}`,'error');return;
+      }
+      if(qtd>PARCELAS_ALERTA && !this._confirmarParcelamentoLongo(c,plano,qtd,atual)){
+        this.toast('Cadastro cancelado: revise o parcelamento','info');return;
+      }
       const grupo=`grp-${Date.now()}`;
-      const novaConta = {...c, vPago:null};
+      const candidatos=plano.map(p=>({...c,vPago:null,...p}));
 
       // Detecção de duplicatas: comunica e deixa o usuário decidir
-      const candidatos = qt>1
-        ? Array.from({length:qt},(_,i)=>({...novaConta,data:addMeses(c.data,i),parcela:`${i+1} de ${qt}`}))
-        : [{...novaConta,parcela:novaConta.parcela||'1 de 1'}];
       const itensDup = candidatos.map(cand=>({candidato:cand, achados:DUP.buscar(cand)})).filter(i=>i.achados.length);
       if(itensDup.length){
         const ok = await DUP.confirmar({
           titulo: `Possível conta repetida (${itensDup.length} de ${candidatos.length} lançamento${candidatos.length>1?'s':''})`,
           itens: itensDup,
-          btnSim: qt>1?'Não é duplicata, cadastrar todas':'Não é duplicata, cadastrar',
+          btnSim: candidatos.length>1?'Não é duplicata, cadastrar todas':'Não é duplicata, cadastrar',
         });
         if(!ok){ this.toast('Cadastro cancelado: revise a conta','info'); return; }
       }
 
-      if(qt>1){
-        const proms=[];
-        for(let i=0;i<qt;i++){proms.push(FS.addConta({...novaConta,data:addMeses(c.data,i),parcela:`${i+1} de ${qt}`,grupo}));}
-        await Promise.all(proms);
-      } else {
-        if(!novaConta.parcela)novaConta.parcela='1 de 1';
-        await FS.addConta({...novaConta,grupo});
-      }
-      this.toast('Conta cadastrada ✅','success');
+      await Promise.all(candidatos.map(cand=>FS.addConta({...cand,grupo})));
+      this.toast(candidatos.length>1?`${candidatos.length} parcelas cadastradas ✅`:'Conta cadastrada ✅','success');
     }
     APP.closeModal('ovConta');STATE.editContaId=null;
     }finally{ if(btn) btn.classList.remove('loading'); }
+  },
+
+  // Acima de PARCELAS_ALERTA parcelas: resumo do que será gravado e confirmação explícita
+  _confirmarParcelamentoLongo(c,plano,qtd,atual){
+    const cents=centavos(c.vPagar), n=plano.length;
+    return confirm(
+      `Esta conta tem ${qtd} parcelas (acima de ${PARCELAS_ALERTA}).\n\n`+
+      `Serão cadastradas ${n} parcela${n>1?'s':''}${atual>1?` (da ${atual}ª à ${qtd}ª)`:''}, `+
+      `de ${fmtDate(plano[0].data)} a ${fmtDate(plano[n-1].data)}.\n\n`+
+      `Valor da parcela: ${fmt(cents/100)}\n`+
+      `Valor total (${qtd} parcelas): ${fmt(cents*qtd/100)}\n`+
+      (n<qtd?`Valor cadastrado (${n} parcelas): ${fmt(cents*n/100)}\n`:'')+
+      `\nConfirma o cadastro?`);
   },
 
 });

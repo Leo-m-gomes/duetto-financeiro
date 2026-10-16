@@ -8,7 +8,8 @@
  * EXPORTS GLOBAIS (escopo léxico, com aliases window.*):
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
  *   centavos, fatiaReceita, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
- *   SEED_FORMAS, STATE
+ *   SEED_FORMAS, STATE, FEATURES, ANO_MIN, ANO_MAX, PARCELAS_MAX, PARCELAS_ALERTA, lerParcela,
+ *   planoParcelas
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -17,6 +18,21 @@
 const MESES   = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 const MESES_F = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const COLORS  = ['#006437','#00a85a','#d97706','#dc2626','#2563eb','#7c3aed','#0891b2','#ea580c','#65a30d','#64748b'];
+
+// ── RECURSOS DESLIGÁVEIS ──
+// recorrentes: "Conta recorrente" no cadastro e "Gerar recorrentes" (js/recorrentes.js).
+// DESLIGADO por decisão do usuário: sai das telas, mas o código e o campo `recorrente`
+// das contas ficam intactos. Para religar, troque para true (README, seção 8.7).
+const FEATURES = Object.freeze({ recorrentes: false });
+// Marcação estática com data-feature="recorrentes" fica oculta (CSS) enquanto a classe não existir
+document.documentElement.classList.toggle('ft-recorrentes', FEATURES.recorrentes);
+
+// Anos aceitos pelo sistema (selects, período, importação, cadastro)
+const ANO_MIN = 2019, ANO_MAX = 2035;
+
+// ── PARCELAMENTO ──
+const PARCELAS_MAX    = 360;  // limite do cadastro manual
+const PARCELAS_ALERTA = 12;   // acima disso, o cadastro pede confirmação antes de gravar
 
 // ── CHART.JS DUAL-THEME (M03) ──
 // A paleta categórica fica em css/theme.css (--cat-1..6, --cat-rest); ver APP.chartCategoria.
@@ -93,6 +109,17 @@ const fatiaReceita = (r, resp) => {
   if(!compartilhada) return 0;
   return resp === 'Leo & Pri' ? 1 : 0.5;
 };
+// "5 de 12" ou "5/12" → {atual:5, total:12}; texto fora do padrão → null
+const lerParcela = p => {
+  const m = String(p||'').match(/(\d+)\s*(?:de|\/)\s*(\d+)/i);
+  return m ? {atual:parseInt(m[1],10), total:parseInt(m[2],10)} : null;
+};
+
+// Parcelas a cadastrar: da atual até a última, mês a mês a partir do vencimento da parcela
+// atual (mesma regra da importação). planoParcelas('2027-01-29',12,5) → 8 itens, "5 de 12" … "12 de 12"
+const planoParcelas = (vencAtual, total, atual) =>
+  Array.from({length: total - atual + 1}, (_, i) => ({data: addMeses(vencAtual, i), parcela: `${atual + i} de ${total}`}));
+
 // Valor em reais (float) → centavos inteiros. Some em centavos e divida por 100 só na exibição,
 // para não acumular erro de ponto flutuante (0.1 + 0.2 !== 0.3).
 const centavos = v => Math.round((Number(v)||0) * 100);
@@ -159,5 +186,8 @@ window.isQuitada = isQuitada;
 window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
 window.centavos  = centavos;
+window.FEATURES  = FEATURES;
+window.lerParcela    = lerParcela;
+window.planoParcelas = planoParcelas;
 window.fatiaReceita = fatiaReceita;
 window.filtrarPorResp = filtrarPorResp;

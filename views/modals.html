@@ -29,7 +29,7 @@
     ovModelo       Mapeamento de colunas no upload
     ovParcelasUp   Conferência de parcelas no upload
     ovPeriodo      Filtro por período (Ano + Mês Início + Mês Fim)
-    ovRecorrentes  Geração de contas recorrentes
+    ovRecorrentes  Geração de contas recorrentes (recurso desligado: FEATURES.recorrentes)
     ovPagMassa     Pagamento em massa de múltiplas contas
     ovEacDetalhe, ovEacLB, ovEacExcl, ovEacGrupos   Modais da tela EAC (js/eac-gestao.js)
     ovExcluirConta Motivo da exclusão de conta de ano com linha de base
@@ -63,10 +63,18 @@
         <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
         <div class="fg"><label>Data da Compra <span style="font-weight:400;color:var(--t4)">(cartão, opcional)</span></label><input type="date" id="fDataCompra" title="Dia da compra na fatura; ajuda a identificar lançamentos repetidos"></div>
         <div class="fg"><label>Valor da Parcela (R$) *</label><input type="text" inputmode="numeric" id="fVP" class="money-input" placeholder="0,00"></div>
-        <div class="fg"><label>Qtd. de Parcelas</label><input type="number" id="fQP" inputmode="numeric" min="1" value="1"></div>
+        <!-- Qtd. e Parcela Atual (até 3 dígitos) dividem a coluna; Valor Total fica sob Valor da Parcela -->
+        <div class="fg-pair">
+          <div class="fg"><label for="fQP">Qtd. de Parcelas</label><input type="text" id="fQP" inputmode="numeric" maxlength="3" value="1" autocomplete="off"></div>
+          <div class="fg">
+            <div class="fg-label"><label for="fParc">Parcela Atual</label><span class="info-tip" tabindex="0" aria-label="Ajuda: Parcela Atual" aria-describedby="tipParcAtual">?</span>
+              <span class="info-tip-box" role="tooltip" id="tipParcAtual"><b>Em qual parcela a conta está hoje.</b> Ex.: compra em 12x já na 5ª: Qtd. de Parcelas 12 e Parcela Atual 5.<br>O Valor Total mostra as 12 parcelas; o sistema cadastra só da 5ª à 12ª (8 lançamentos), mês a mês a partir da Data de Vencimento, que é a da parcela atual.<br>Em branco: 1ª parcela. Acima de 12 parcelas pede confirmação; máximo de 360.</span></div>
+            <input type="text" id="fParc" inputmode="numeric" maxlength="3" placeholder="1" autocomplete="off">
+          </div>
+        </div>
         <div class="fg"><label>Valor Total (auto)</label><input type="text" id="fVT" readonly placeholder="—"></div>
-        <div class="fg"><label>Parcela Atual</label><input type="text" id="fParc" placeholder="Ex: 3 de 12"></div>
-        <div class="fg full" style="display:flex;align-items:center;gap:10px;padding:10px 0">
+        <div class="parc-info" id="fParcInfo" aria-live="polite" hidden></div>
+        <div class="fg full" data-feature="recorrentes" style="display:flex;align-items:center;gap:10px;padding:10px 0">
           <input type="checkbox" id="fRecorrente" style="width:16px;height:16px;accent-color:var(--palm);cursor:pointer;flex-shrink:0">
           <label for="fRecorrente" style="cursor:pointer;font-size:12.5px;color:var(--t2);margin:0">
             <strong style="color:var(--palm)">🔁 Conta recorrente</strong> — gera nova entrada todo ano (água, energia, escola, streaming…)

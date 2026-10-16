@@ -154,7 +154,7 @@ const APP = {
       const btn=document.getElementById(id); if(btn) btn.style.display='none';
     });
     const show=id=>{ const b=document.getElementById(id); if(b) b.style.display='flex'; };
-    if(page==='contas'){ show('btnNovaConta'); show('btnGerarRec'); show('btnCSVContas'); }
+    if(page==='contas'){ show('btnNovaConta'); if(FEATURES.recorrentes) show('btnGerarRec'); show('btnCSVContas'); }
     if(page==='receitas'){ show('btnNovaReceita'); show('btnGerenciarSalarios'); }
 
     // Filtro global de responsável: desativado nas telas que não o usam (Notas, Upload, Backup)
@@ -230,7 +230,8 @@ const APP = {
     safeBind('btnLimparConta', 'click', ()=>this.clearConta());
     safeBind('btnSalvarConta', 'click', ()=>this.saveConta());
     safeBind('fVP',            'input', ()=>this.calcTotal());
-    safeBind('fQP',            'input', ()=>this.calcTotal());
+    // Qtd. de Parcelas e Parcela Atual: só dígitos, até 3 (limite de PARCELAS_MAX validado ao salvar)
+    ['fQP','fParc'].forEach(id => safeBind(id, 'input', e=>{ e.target.value=e.target.value.replace(/\D/g,'').slice(0,3); this.calcTotal(); }));
     safeBind('btnSalvarSal',   'click', ()=>this.saveSalario());
     ['sSal','sBon','sDeps'].forEach(id => safeBind(id, 'input', ()=>this.calcSalario()));
     safeBind('btnSalvarReceita', 'click', ()=>this.saveReceita());
