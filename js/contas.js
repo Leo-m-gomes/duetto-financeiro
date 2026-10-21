@@ -87,7 +87,7 @@ Object.assign(APP, {
         <td data-label="Pago" class="money ${fullyPaid?'pos':(hasPg?'':'dim')}">${hasPg?fmt(c.vPago):'—'}</td>
         <td data-label="Pendente" class="money ${pend>0?(atr?'atr':'neg'):'dim'}">${pend>0?fmt(pend):'—'}</td>
         <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>
-        <td data-label="Parcela" class="col-hide" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
+        <td data-label="Parcela" class="col-hide mob-mostrar" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
         <td data-label="Por" class="col-hide">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
         <td data-label="Ações" style="white-space:nowrap">
           <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>

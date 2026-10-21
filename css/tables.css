@@ -206,7 +206,10 @@
     box-shadow:0 1px 4px rgba(0,0,0,.07)
   }
 
-  /* Todas as células: flex coluna */
+  /* Todas as células: flex coluna.
+     max-width:none: as larguras máximas inline das células (Descrição, Nota) são da tabela
+     do computador; no cartão quem manda é o grid. Sem isso o título ocupava só metade da
+     faixa de cima. !important porque a largura vem do atributo style. */
   .data-table tr.mob-card td{
     display:flex;
     flex-direction:column;
@@ -214,8 +217,13 @@
     font-size:13px;
     border-bottom:1px solid var(--border);
     border-right:1px solid var(--border);
-    min-width:0
+    min-width:0;
+    max-width:none!important
   }
+
+  /* Coluna escondida na tabela média (col-hide, até 1100px) que volta no cartão:
+     Parcela de Contas, ao lado do Vencimento. !important para vencer o do col-hide. */
+  .data-table tr.mob-card td.mob-mostrar{display:flex!important}
 
   /* Label acima do valor */
   .data-table tr.mob-card td[data-label]::before{
