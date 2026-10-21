@@ -33,6 +33,7 @@
     ovPagMassa     Pagamento em massa de múltiplas contas
     ovEacDetalhe, ovEacLB, ovEacExcl, ovEacGrupos   Modais da tela EAC (js/eac-gestao.js)
     ovExcluirConta Motivo da exclusão de conta de ano com linha de base
+    ovPerfil       Meu perfil: foto (recorte com foco no rosto) e Sair (js/avatares.js)
 
   ATENÇÃO PARA INTEGRAÇÃO:
    • Quando este fragmento é injetado em <div id="appModals"></div>, o
@@ -577,5 +578,41 @@
       </div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-eac-exc-cancelar>Cancelar</button><button class="btn btn-danger" id="eacExcOk" disabled>Excluir</button></div>
+  </div>
+</div>
+
+<!-- ══ MEU PERFIL: foto do usuário logado (js/avatares.js) ══
+     A área .perfil-vista é o recorte: arrastar move, roda/pinça/slider dão zoom, toque centraliza e aproxima.
+     O que sai do círculo não aparece nos avatares. Salvar grava um JPEG quadrado em avatares/{usuario}. -->
+<div class="modal-overlay" id="ovPerfil">
+  <div class="modal modal-sm perfil-modal" role="dialog" aria-modal="true" aria-labelledby="perfilTitulo" tabindex="-1">
+    <div class="modal-header"><h2 id="perfilTitulo">Meu perfil</h2><button class="modal-close" onclick="APP.fecharPerfil()" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body">
+      <div class="perfil-quem"><b id="perfilNome"></b><span id="perfilEmail"></span></div>
+      <div class="perfil-vista" id="perfilVista" tabindex="0" role="img" aria-label="Recorte da foto. Arraste para mover; setas movem e as teclas + e − mudam o zoom.">
+        <canvas id="perfilCanvas"></canvas>
+        <span class="perfil-mascara" aria-hidden="true"></span>
+        <span class="perfil-vazio" id="perfilVazio" aria-hidden="true"></span>
+      </div>
+      <div class="perfil-zoom">
+        <button type="button" class="perfil-zbtn" onclick="APP.perfilZoomPasso(-1)" aria-label="Diminuir zoom">&minus;</button>
+        <input type="range" id="perfilZoom" min="0" max="1000" value="0" aria-label="Zoom da foto" oninput="APP.perfilZoomSlider(this.value)">
+        <button type="button" class="perfil-zbtn" onclick="APP.perfilZoomPasso(1)" aria-label="Aumentar zoom">+</button>
+      </div>
+      <p class="perfil-dica" id="perfilDica" role="status"></p>
+      <div class="perfil-acoes">
+        <button type="button" class="btn btn-secondary btn-sm" onclick="document.getElementById('perfilArquivo').click()">Escolher foto</button>
+        <input type="file" id="perfilArquivo" accept="image/*" class="sr-only" tabindex="-1" aria-hidden="true" onchange="APP.perfilArquivo(this)">
+        <button type="button" class="btn btn-ghost btn-sm" id="perfilPadrao" onclick="APP.perfilUsarPadrao()" hidden>Usar foto padrão</button>
+      </div>
+      <div class="perfil-previa" aria-hidden="true">
+        <span>Prévia</span><canvas id="perfilPrev1"></canvas><canvas id="perfilPrev2"></canvas>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost perfil-sair" onclick="AUTH.signOut()">Sair</button>
+      <button class="btn btn-ghost" onclick="APP.fecharPerfil()">Cancelar</button>
+      <button class="btn btn-primary" id="perfilSalvar" onclick="APP.perfilSalvar()" disabled>Salvar</button>
+    </div>
   </div>
 </div>

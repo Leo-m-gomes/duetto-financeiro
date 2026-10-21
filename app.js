@@ -57,14 +57,8 @@ const APP = {
     }
     this.nav(); this.topBtns(); this.modals(); this.selects(); this.filtros();
     localStorage.removeItem('dt_sb_collapsed');   // legado: o trilho tem largura fixa
-    // Avatar do usuário logado no trilho (inicial + cor de identidade via data-user)
-    const chip=document.getElementById('sbUserChip');
-    if(chip){
-      chip.textContent=(STATE.usuario||'?').charAt(0).toUpperCase();
-      chip.dataset.user=STATE.usuario;
-      chip.title=STATE.usuario;
-      chip.setAttribute('aria-label','Conectado como '+STATE.usuario);
-    }
+    // Avatar do usuário logado (trilho e botão de perfil do celular) e fotos do filtro de responsável
+    this.iniciarAvatares?.();
     if(STATE.usuario==='Leo'){
       const navCfg=document.getElementById('navConfig');
       if(navCfg) navCfg.style.display='flex';

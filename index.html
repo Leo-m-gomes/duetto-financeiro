@@ -99,7 +99,8 @@
         <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
         <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4.5"/><line x1="12" y1="1.5" x2="12" y2="3.5"/><line x1="12" y1="20.5" x2="12" y2="22.5"/><line x1="4.6" y1="4.6" x2="6" y2="6"/><line x1="18" y1="18" x2="19.4" y2="19.4"/><line x1="1.5" y1="12" x2="3.5" y2="12"/><line x1="20.5" y1="12" x2="22.5" y2="12"/><line x1="4.6" y1="19.4" x2="6" y2="18"/><line x1="18" y1="6" x2="19.4" y2="4.6"/></svg>
       </button>
-      <span id="sbUserChip" class="rail-avatar" role="img" aria-label=""></span>
+      <!-- Avatar do usuário logado: foto (js/avatares.js) ou inicial. Clique abre "Meu perfil" (trocar foto). -->
+      <button type="button" id="sbUserChip" class="rail-avatar" onclick="APP.abrirPerfil()" aria-label=""></button>
     </div>
   </aside>
 
@@ -129,13 +130,13 @@
             <span class="who-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg></span><span class="who-lb" aria-hidden="true">Todos</span>
           </button>
           <button type="button" class="who-btn" data-resp="Leo" aria-pressed="false" aria-label="Leo" title="Leo" onclick="APP.setResp('Leo')">
-            <span class="who-av who-leo" aria-hidden="true">L</span><span class="who-lb" aria-hidden="true">Leo</span>
+            <span class="who-av who-leo" data-avatar="Leo" aria-hidden="true">L</span><span class="who-lb" aria-hidden="true">Leo</span>
           </button>
           <button type="button" class="who-btn" data-resp="Pri" aria-pressed="false" aria-label="Pri" title="Pri" onclick="APP.setResp('Pri')">
-            <span class="who-av who-pri" aria-hidden="true">P</span><span class="who-lb" aria-hidden="true">Pri</span>
+            <span class="who-av who-pri" data-avatar="Pri" aria-hidden="true">P</span><span class="who-lb" aria-hidden="true">Pri</span>
           </button>
           <button type="button" class="who-btn" data-resp="Leo &amp; Pri" aria-pressed="false" aria-label="Leo &amp; Pri, só compartilhadas" title="Leo &amp; Pri: só contas e receitas compartilhadas" onclick="APP.setResp('Leo & Pri')">
-            <span class="who-duo" aria-hidden="true"><i class="who-leo">L</i><i class="who-pri">P</i></span><span class="who-lb" aria-hidden="true">Leo &amp; Pri</span>
+            <span class="who-duo" aria-hidden="true"><i class="who-leo" data-avatar="Leo">L</i><i class="who-pri" data-avatar="Pri">P</i></span><span class="who-lb" aria-hidden="true">Leo &amp; Pri</span>
           </button>
         </div>
         <select class="filter-select resp-global-select" id="respGlobalSelect" aria-label="Filtrar por responsável" onchange="APP.setResp(this.value)">
@@ -156,7 +157,9 @@
           <svg id="iconPrivacyOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg id="iconPrivacyOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
         </button>
-        <button type="button" class="btn btn-ghost btn-sm tb-icon" onclick="AUTH.signOut()" title="Sair" aria-label="Sair">
+        <!-- Até 768px o trilho some: o avatar do perfil ocupa o lugar do Sair (Sair fica dentro de "Meu perfil") -->
+        <button type="button" class="btn btn-ghost btn-sm tb-icon tb-perfil" id="btnPerfil" onclick="APP.abrirPerfil()" title="Meu perfil" aria-label="Meu perfil"><span class="tb-perfil-av" id="tbPerfilAv" aria-hidden="true"></span></button>
+        <button type="button" class="btn btn-ghost btn-sm tb-icon tb-sair" onclick="AUTH.signOut()" title="Sair" aria-label="Sair">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         </button>
       </div>
@@ -215,6 +218,7 @@
 <script src="js/gerenciar.js"></script>
 <script src="js/eac.js"></script>
 <script src="js/eac-gestao.js"></script>
+<script src="js/avatares.js"></script>
 <script src="js/command-palette.js"></script>
 </body>
 </html>

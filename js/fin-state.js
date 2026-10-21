@@ -27,6 +27,12 @@ const FEATURES = Object.freeze({ recorrentes: false });
 // Marcação estática com data-feature="recorrentes" fica oculta (CSS) enquanto a classe não existir
 document.documentElement.classList.toggle('ft-recorrentes', FEATURES.recorrentes);
 
+// ── FOTOS DE PERFIL (js/avatares.js) ──
+// Foto padrão versionada no repositório; a enviada pelo usuário fica em avatares/{usuario}.
+const AVATAR_PADRAO   = Object.freeze({ Leo:'img/leo.jpg', Pri:'img/pri.jpg' });
+const AVATAR_LADO     = 320;      // px do JPEG gravado (quadrado)
+const AVATAR_MAX_CHARS = 400000;  // teto do data URL (~300 KB); o documento do Firestore aceita até 1 MiB
+
 // ── ANOS ──
 // Sem limite de anos: cadastro, importação, período e receitas aceitam qualquer ano de 4 dígitos
 // (formato YYYY-MM-DD das datas). Os seletores de ano mostram uma janela móvel de 9 anos: os 4

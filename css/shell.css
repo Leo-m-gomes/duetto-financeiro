@@ -122,19 +122,56 @@
 .dark .rail-btn .ic-sun{display:block}
 .dark .rail-btn .ic-moon{display:none}
 
-/* Avatar do usuário logado (inicial preenchida por APP.boot) */
+/* Avatar do usuário logado: botão que abre "Meu perfil" (js/avatares.js).
+   Inicial preenchida no boot; com foto, a imagem cobre o círculo (.com-foto). */
 .rail-avatar{
-  width:36px;height:36px;border-radius:50%;
-  display:grid;place-items:center;
-  font-size:14px;font-weight:800;user-select:none;
+  position:relative;width:36px;height:36px;border-radius:50%;
+  display:grid;place-items:center;border:0;padding:0;cursor:pointer;
+  font-family:var(--font-b);font-size:14px;font-weight:800;user-select:none;
   background:var(--id-leo);color:var(--id-leo-ink);
   box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px color-mix(in srgb,var(--id-leo) 45%,transparent);
+  transition:box-shadow .15s;
 }
 .rail-avatar[data-user="Pri"]{
   background:var(--id-pri);color:var(--id-pri-ink);
   box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px color-mix(in srgb,var(--id-pri) 45%,transparent);
 }
 .rail-avatar:empty{visibility:hidden}
+.rail-avatar:hover,.rail-avatar:focus-visible{outline:none;box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px var(--id-leo)}
+.rail-avatar[data-user="Pri"]:hover,.rail-avatar[data-user="Pri"]:focus-visible{box-shadow:0 0 0 2px var(--rail-bg),0 0 0 3.5px var(--id-pri)}
+/* Selo de câmera no hover/foco: indica que a foto pode ser trocada */
+.rail-avatar::before,.rail-avatar::after{
+  content:'';position:absolute;right:-5px;bottom:-5px;width:17px;height:17px;border-radius:50%;
+  opacity:0;transform:scale(.6);transition:opacity .15s,transform .15s;pointer-events:none;
+}
+.rail-avatar::after{background:var(--surface);box-shadow:0 0 0 1.5px var(--rail-border)}
+.rail-avatar::before{
+  z-index:1;background:var(--t2);
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z'/%3E%3Ccircle cx='12' cy='13' r='4'/%3E%3C/svg%3E") center/10px no-repeat;
+          mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z'/%3E%3Ccircle cx='12' cy='13' r='4'/%3E%3C/svg%3E") center/10px no-repeat;
+}
+.rail-avatar:hover::before,.rail-avatar:hover::after,
+.rail-avatar:focus-visible::before,.rail-avatar:focus-visible::after{opacity:1;transform:none}
+.dark .rail-avatar::after{background:#2c2c2e}
+
+/* Botão de perfil do topbar: só até 768px, quando o trilho some (ocupa o lugar do Sair).
+   O seletor com #topbarBtns vence o "#topbarBtns .btn span{display:none}" do celular (style.css). */
+#topbarBtns .tb-perfil{display:none}
+#topbarBtns .tb-perfil .tb-perfil-av{display:grid}
+.tb-perfil-av{
+  width:28px;height:28px;border-radius:50%;flex-shrink:0;
+  display:grid;place-items:center;font-size:12px;font-weight:800;
+  background:var(--id-leo);color:var(--id-leo-ink);
+  box-shadow:0 0 0 1.5px var(--surface),0 0 0 3px color-mix(in srgb,var(--id-leo) 55%,transparent);
+}
+.tb-perfil-av[data-user="Pri"]{
+  background:var(--id-pri);color:var(--id-pri-ink);
+  box-shadow:0 0 0 1.5px var(--surface),0 0 0 3px color-mix(in srgb,var(--id-pri) 55%,transparent);
+}
+
+/* Foto aplicada (APP.aplicarAvatares): esconde a inicial, que volta se a foto falhar.
+   Fica depois das regras de cor dos avatares (mesma especificidade: vence a última). */
+[data-avatar].com-foto{color:transparent}
 
 
 /* Coluna principal: min-width:0 impede que conteúdo largo (tabela de Contas)
@@ -213,6 +250,9 @@
 .who-ic svg{width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .who-leo{background:var(--id-leo);color:var(--id-leo-ink)}
 .who-pri{background:var(--id-pri);color:var(--id-pri-ink)}
+/* Com foto, um anel fino mantém a cor de identidade da pessoa */
+.who-av.who-leo.com-foto{box-shadow:0 0 0 1.5px var(--id-leo)}
+.who-av.who-pri.com-foto{box-shadow:0 0 0 1.5px var(--id-pri)}
 .who-duo{display:flex;align-items:center;height:22px}
 .who-duo i{
   width:18px;height:18px;border-radius:50%;display:grid;place-items:center;
@@ -257,6 +297,8 @@
   .sidebar.rail{display:none}
   .topbar{gap:8px;padding:0 12px}
   .tb-crumb-root,.tb-crumb-sep{display:none}
+  #topbarBtns .tb-perfil{display:inline-flex}
+  #topbarBtns .tb-sair{display:none}
 }
 @media(max-width:640px){
   .topbar{gap:6px;padding:0 10px;height:auto;min-height:var(--sh)}
@@ -268,6 +310,54 @@
   #topbarBtns .tb-icon{width:40px;height:40px;min-height:40px;padding:0}
   #topbarBtns .btn-primary{width:40px;height:40px;min-height:40px;padding:0;justify-content:center}
 }
+
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MEU PERFIL (ovPerfil, js/avatares.js)
+   Área de recorte quadrada; fora do círculo fica escurecido (é o que os
+   avatares cortam). touch-action:none: arrastar e pinçar não rolam a página.
+   ───────────────────────────────────────────────────────────────────────── */
+.perfil-modal .modal-body{display:flex;flex-direction:column;align-items:center;gap:14px}
+.perfil-quem{display:flex;flex-direction:column;align-items:center;gap:2px;text-align:center}
+.perfil-quem b{font-size:15px;font-weight:700;color:var(--t1)}
+.perfil-quem span{font-size:12px;color:var(--t3)}
+.perfil-vista{
+  position:relative;width:min(260px,72vw);aspect-ratio:1/1;flex-shrink:0;
+  border-radius:14px;overflow:hidden;background:var(--bg);
+  touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;
+}
+.perfil-vista.tem-fonte:active{cursor:grabbing}
+.perfil-vista:not(.tem-fonte){cursor:default}
+.perfil-vista:focus-visible{outline:2px solid var(--palm);outline-offset:3px}
+.perfil-vista canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.perfil-mascara{
+  position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(circle closest-side,transparent calc(100% - 1px),rgba(10,14,12,.55) 100%);
+}
+.perfil-mascara::after{content:'';position:absolute;inset:0;border-radius:50%;box-shadow:inset 0 0 0 2px rgba(255,255,255,.9)}
+.perfil-vazio{
+  position:absolute;inset:0;display:none;place-items:center;
+  font-family:var(--font-b);font-size:84px;font-weight:800;color:var(--t4);
+}
+.perfil-vista:not(.tem-fonte) .perfil-vazio{display:grid}
+.perfil-zoom{display:flex;align-items:center;gap:10px;width:min(260px,72vw)}
+.perfil-zoom input[type=range]{flex:1;min-width:0;accent-color:var(--palm)}
+.perfil-zbtn{
+  width:30px;height:30px;flex-shrink:0;border-radius:50%;display:grid;place-items:center;
+  border:1px solid var(--border);background:var(--surface);color:var(--t2);
+  font-family:var(--font-b);font-size:17px;line-height:1;cursor:pointer;
+}
+.perfil-zbtn:hover{border-color:var(--palm);color:var(--palm)}
+.perfil-zbtn:focus-visible{outline:none;box-shadow:0 0 0 2px var(--palm)}
+.perfil-dica{min-height:1.5em;max-width:320px;margin:0;font-size:12px;color:var(--t3);text-align:center}
+.perfil-acoes{display:flex;align-items:center;justify-content:center;flex-wrap:wrap;gap:8px}
+.perfil-previa{display:flex;align-items:center;gap:8px;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--t4)}
+.perfil-previa canvas{border-radius:50%;background:var(--bg)}
+#perfilPrev1{width:36px;height:36px}
+#perfilPrev2{width:22px;height:22px}
+.perfil-modal .modal-footer .perfil-sair{margin-right:auto}
+.perfil-modal .btn[hidden]{display:none}   /* .btn{display:inline-flex} anularia o hidden */
+.perfil-modal .btn:disabled{opacity:.45;cursor:not-allowed}
 
 
 /* ─────────────────────────────────────────────────────────────────────────

@@ -354,6 +354,29 @@ const FS = {
     return id;
   },
 
+  // ── FOTO DE PERFIL ──
+  // Cada usuário altera só a própria foto (trava do cliente; a regra do Firestore repete, README seção 15).
+  // A foto é um JPEG pequeno já recortado no navegador, gravado como data URL (sem Firebase Storage).
+  _exigirDonoAvatar(usuario){
+    if(!usuario || usuario!==STATE.usuario) throw new Error('Cada usuário altera apenas a própria foto');
+  },
+
+  async salvarAvatar(usuario, foto){
+    this._exigirDonoAvatar(usuario);
+    if(typeof foto!=='string' || !foto.startsWith('data:image/jpeg;base64,')) throw new Error('Foto inválida');
+    if(foto.length > AVATAR_MAX_CHARS) throw new Error('Foto grande demais');
+    await fbDb.collection('avatares').doc(usuario).set({
+      foto, atualizadoPor:STATE.usuario, atualizadoEmIso:new Date().toISOString(),
+      atualizadoEm:firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
+  /** Apaga a foto enviada: o usuário volta para a foto padrão de img/. */
+  async removerAvatar(usuario){
+    this._exigirDonoAvatar(usuario);
+    await fbDb.collection('avatares').doc(usuario).delete();
+  },
+
   /** Lixeira de contas (para mostrar quem excluiu e quando na EAC). */
   async lerLixeira(){
     const snap = await fbDb.collection('lixeira').get();
@@ -437,7 +460,12 @@ function setupListeners(){
         CACHE[chave]=snap.docs.map(d=>({id:d.id,...d.data()}));
         if(_canReRender()) APP.eacAoMudarDados?.();
       }, err=>console.warn(`[EAC] ${col}:`, err.message))
-    )
+    ),
+    // Fotos de perfil: fora do markReady. Sem permissão de leitura, ficam as fotos padrão de img/.
+    fbDb.collection('avatares').onSnapshot(snap=>{
+      CACHE.avatares = Object.fromEntries(snap.docs.map(d=>[d.id, d.data()]));
+      if(typeof APP !== 'undefined') APP.aplicarAvatares?.();   // avatares.js também lê o CACHE ao carregar
+    }, err=>console.warn('[Avatares] avatares:', err.message))
   );
 }
 
