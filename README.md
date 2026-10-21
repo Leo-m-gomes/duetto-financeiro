@@ -198,7 +198,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 | ≤ 1100px | Filtro de responsável vira select compacto |
 | ≤ 900px | Busca vira só o ícone de lupa |
 | ≤ 768px | Trilho some; navegação pela **bottom nav** flutuante (esconde ao rolar para baixo). No topbar, o avatar do usuário ocupa o lugar do botão Sair e abre Meu perfil, que tem o **Sair** |
-| ≤ 640px | Topbar compacto (botões só ícone, 40px de toque), filtros recolhíveis, tabelas viram cartões |
+| ≤ 640px | Topbar compacto (botões só ícone, 40px de toque), filtros recolhíveis, tabelas viram cartões. No cartão, o título ocupa a faixa de cima na largura toda e nenhuma célula usa a largura máxima da tabela do computador (`max-width` inline vale só lá); em Contas, **Parcela** aparece ao lado do Vencimento (classe `mob-mostrar`; na tabela ela some até 1100px, `col-hide`) |
 
 A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola dentro do próprio contêiner, sem rolagem horizontal da página.
 
@@ -717,6 +717,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-21 | **Cartões no celular:** a faixa do título de Contas e do Relatório passa a ocupar a largura toda do cartão (antes ficava na metade esquerda por causa do `max-width` da tabela do computador; a Nota do Relatório tinha o mesmo corte). Em Contas, a Parcela aparece ao lado do Vencimento, no espaço que ficava vazio. Tabela do computador sem mudança. |
 | 2026-10-21 | **Fotos de perfil:** pasta `img/` com as fotos padrão de Leo e Pri (recortadas no rosto, 512 px, sem EXIF/GPS). Avatares do trilho e do filtro de responsável mostram a foto, com anel na cor de identidade. Novo modal **Meu perfil** (`js/avatares.js`): clique no avatar do trilho, avatar no topbar até 768px (no lugar do Sair, que passa para dentro do modal) ou busca rápida; recorte com foco no rosto (FaceDetector quando houver, toque centraliza e aproxima, arrastar, zoom), prévia e Usar foto padrão. Nova coleção `avatares` (JPEG 320 px em data URL; cada usuário só altera a própria), incluída no backup JSON. Regra recomendada do Firestore em 15. |
 | 2026-10-16 | **Ver conta e data do pagamento:** clique na descrição em Contas (e Enter na busca rápida) abre o modal da conta em modo ver, com situação, Editar e Pagar. "Confirmar Pagamento" ganha **Data do Pagamento**: em branco vale o vencimento quando o pagamento é informado no mesmo mês e ano (hoje, se o vencimento ainda não chegou); em outro mês ou ano a data é obrigatória; data futura é recusada. `FS.pagarConta`/`pagarContaIndividual` recebem a data (`paidAt`); baixas automáticas seguem com a data do dia. |
 | 2026-10-16 | **Anos sem limite e janela de 9 anos:** sai o limite 2019 a 2035 (cadastro, parcelas, importação, receitas, período do app e de Notas); vale qualquer ano de 4 dígitos (`anoValido`). Todos os seletores de ano mostram os 4 anos anteriores, o vigente no meio e os 4 seguintes (`anosJanela`/`preencherAnos`), e "Todos os anos" cobre todos os dados. EAC: seletor com a janela; Rev 0 de ano futuro só para o próximo ano, em dezembro (`eacPodePrepararLB`). |
