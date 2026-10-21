@@ -53,6 +53,7 @@ const CMD = (() => {
     rel:     '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
     upload:  '<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/>',
     eac:     '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>',
+    pessoa:  '<path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>',
     config:  '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.22 4.22l2.12 2.12M17.66 17.66l2.12 2.12M2 12h3M19 12h3M4.22 19.78l2.12-2.12M17.66 6.34l2.12-2.12"/>',
   };
   const svg  = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICON[k]}</svg>`;
@@ -86,6 +87,7 @@ const CMD = (() => {
       STATE.page === 'contas' && {titulo:'Exportar contas em CSV', sub:'Ano e mês filtrados nesta tela', ic:'baixar', run:()=>APP.exportCSVContas()},
       {titulo:STATE.darkMode ? 'Usar modo claro' : 'Usar modo escuro', ic:'lua', run:()=>APP.toggleDark()},
       {titulo:STATE.hideValues ? 'Mostrar valores' : 'Ocultar valores', sub:'Modo privacidade', ic:'olho', run:()=>APP.togglePrivacy()},
+      {titulo:'Meu perfil e foto', sub:'Trocar ou ajustar sua foto de perfil', ic:'pessoa', run:()=>APP.abrirPerfil()},
     ].filter(Boolean);
   }
 

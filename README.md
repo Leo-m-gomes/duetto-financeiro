@@ -85,6 +85,7 @@ index.html            Shell: telas de loading/login/negado, trilho, topbar, bott
 app.js                Objeto APP: boot, navegação, filtros, topbar, renderPage, filtro global de responsável
 style.css             Estilos legados (componentes, páginas, dark mode, temas Leo/Pri, mobile)
 manifest.json         PWA
+img/                  Fotos padrão de perfil (leo.jpg, pri.jpg): JPEG 512 px recortado no rosto, sem metadados
 css/
   theme.css           Tokens globais (cores, espaçamento, z-index), reset, tokens do modo escuro
   tables.css          Tabelas, badges, botões de ação, paginação, padrão mob-card
@@ -117,6 +118,7 @@ js/
   command-palette.js  Busca rápida e ações (Ctrl K / ⌘K / "/")
   eac.js              Tela EAC: cálculo (planejado, comprometido, realizado, ponte do desvio) e render
   eac-gestao.js       Modais da EAC: detalhe da linha, linhas de base, excluídas, grupos; pergunta na exclusão
+  avatares.js         Fotos de perfil: aplica nos avatares e modal "Meu perfil" (recorte com foco no rosto)
 css/eac.css           Tela EAC e seus modais
 views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
@@ -149,7 +151,7 @@ views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.ht
 
 * Coluna fixa de **76px** (`--sw` em `theme.css`) com ícone e rótulo curto. Ordem e grupos: **Dashboard, Contas, Receitas** · **Relatório, EAC, Notas** · **Upload, Config** (o último grupo e seu divisor só aparecem para o admin).
 * O item ativo tem fundo na cor do tema e indicador luminoso na borda esquerda.
-* Base do trilho: botão de modo claro/escuro (lua/sol) e avatar do usuário logado (inicial; verde para Leo, rosa para Pri).
+* Base do trilho: botão de modo claro/escuro (lua/sol) e avatar do usuário logado: **foto** com anel verde (Leo) ou rosa (Pri); sem foto, a inicial nessas cores. O avatar é um botão: abre **Meu perfil** (4.7); no hover/foco aparece um selo de câmera.
 * A largura é fixa (não existe mais "recolher menu"). A chave antiga `dt_sb_collapsed` é apagada no boot.
 
 ### 4.2 Topbar
@@ -158,7 +160,7 @@ views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.ht
 
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
   `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Na EAC mostra o ano e a LB vigente (`2026 · LB Rev 2` ou `2026 · sem LB`). Some em Notas, Upload, Backup e Config.
-* **Filtro global de responsável:** avatares Todos · L (Leo) · P (Pri) · L+P (Leo & Pri, só compartilhadas). O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório, EAC e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
+* **Filtro global de responsável:** avatares Todos · Leo · Pri · Leo & Pri (só compartilhadas), com a foto de cada um (4.7) ou a inicial. O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório, EAC e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
 * **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Exportar CSV (Gerar recorrentes só com o recurso ligado, 8.7). Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
 ### 4.3 Busca rápida (Ctrl K / ⌘K / "/")
@@ -170,7 +172,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
   Ordem: em aberto antes de pagas → descrição que começa com o termo → contém o termo → outros campos → atrasadas antes de pendentes → vencimento mais próximo de hoje.
   Valor exibido: pendente mostra o que falta pagar (`vPendente`); paga mostra o valor pago (`vEfetivo`).
 * **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
-* **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes (só com o recurso ligado, 8.7), Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores.
+* **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes (só com o recurso ligado, 8.7), Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores, Meu perfil e foto (4.7).
 * **Ir para:** telas do app, incluindo EAC (Upload e Config só para o admin).
 * **Teclado:** ↑/↓ ou Tab navegam, Enter abre (conta: modal da conta em modo ver, 10.2), **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
 
@@ -195,10 +197,24 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 | > 1100px | Topbar completo, filtro de responsável em avatares |
 | ≤ 1100px | Filtro de responsável vira select compacto |
 | ≤ 900px | Busca vira só o ícone de lupa |
-| ≤ 768px | Trilho some; navegação pela **bottom nav** flutuante (esconde ao rolar para baixo) |
+| ≤ 768px | Trilho some; navegação pela **bottom nav** flutuante (esconde ao rolar para baixo). No topbar, o avatar do usuário ocupa o lugar do botão Sair e abre Meu perfil, que tem o **Sair** |
 | ≤ 640px | Topbar compacto (botões só ícone, 40px de toque), filtros recolhíveis, tabelas viram cartões |
 
 A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola dentro do próprio contêiner, sem rolagem horizontal da página.
+
+### 4.7 Fotos de perfil (Meu perfil)
+
+Módulo `js/avatares.js`. Vale para os avatares do trilho, do filtro de responsável (inclusive o par Leo & Pri) e do botão de perfil do celular: todo elemento com `data-avatar`.
+
+* **Qual foto aparece:** a enviada pelo usuário (`avatares/{usuario}`, 6.2); sem ela, a padrão do repositório (`img/leo.jpg`, `img/pri.jpg`, constante `AVATAR_PADRAO`); se nenhuma carregar, a inicial. A troca chega em tempo real para os dois (listener fora da contagem de prontidão do boot).
+* **Abrir:** clique no avatar do trilho, no avatar do topbar (até 768px) ou "Meu perfil e foto" na busca rápida.
+* **Editor:** área quadrada com o círculo do avatar marcado; o que fica fora do círculo não aparece.
+  * Escolher foto (qualquer imagem até 25 MB). A cópia de trabalho tem no máximo 3072 px no lado maior.
+  * **Foco no rosto:** com `FaceDetector` no navegador, a foto abre centrada no maior rosto; sem ele, abre no terço de cima (fotos em pé) e o **toque no rosto centraliza e aproxima** (1,5x por toque).
+  * Arrastar move; roda do mouse, pinça, slider e botões − / + mudam o zoom (o zoom máximo mostra 160 px da cópia, para não ampliar pixels). Teclado: setas movem, + e − mudam o zoom, Esc fecha.
+  * Prévia nos tamanhos reais (36 px do trilho e 22 px do filtro).
+* **Salvar** grava um JPEG de 320 px (qualidade 0,85; 0,7 se passar do teto), sem metadados. **Usar foto padrão** apaga o documento (com confirmação) e volta para a de `img/`.
+* **Permissão:** cada um altera só a própria foto (5).
 
 ---
 
@@ -213,6 +229,7 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | Itens Upload/Config da navegação só aparecem para Leo | `APP.boot` |
 | Notas: admin edita/exclui qualquer nota; autor edita a própria; nota com responsável "Leo & Pri" libera os dois | `notes.js` → `ntCanEdit` |
 | Todo acesso (abertura do app) é registrado | coleção `logs_acesso` |
+| Foto de perfil: **cada usuário altera só a própria** (Leo não troca a da Pri e vice-versa) | `FS._exigirDonoAvatar` |
 | EAC: **só o admin** salva linha de base, classifica contas excluídas e altera grupos (criar, renomear, ordenar, excluir, mover categorias). Pri consulta tudo em modo leitura. Ninguém edita ou apaga uma LB salva | `APP.eacPodeAlterar`, `FS._exigirAdminEac` |
 
 * Login por popup Google; se o navegador bloquear o popup, cai para redirect.
@@ -259,6 +276,7 @@ A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola de
 | `eac_exclusoes` | Classificação de conta excluída, ID = ID da conta: `{contaId, ano, conta, catId, resp, vCent, classificacao:'cancelada'\|'indevida', definidoPor, definidoEm, definidoEmIso}` |
 | `eac_log` | Auditoria da EAC: `{evento:'lb_salva'\|'exclusao_classificada'\|'grupo_criado'\|'grupo_renomeado'\|'grupo_excluido'\|'grupo_ordem'\|'categoria_movida', usuario, detalhes, timestamp, ...}` |
 | `formas` | `{nome}` (formas de pagamento; nome único) |
+| `avatares` | Foto de perfil, ID = usuário (`Leo`, `Pri`): `{foto:'data:image/jpeg;base64,...', atualizadoPor, atualizadoEm, atualizadoEmIso}`. JPEG quadrado de 320 px (~25 a 50 KB; teto `AVATAR_MAX_CHARS` = 400 mil caracteres). Sem documento = foto padrão de `img/` |
 | `config/tabelas` | `{ir:[{de,ate,al,ded}], inss:[{de,ate,al,ded}], dedDep, tetoINSS, vigencia}` |
 | `config/usuarios` | `{lista:[{nome,email,role,adicionadoPor,em}]}` (informativo) |
 | `cartoes` | `{nome, bandeira, createdBy, createdAt}` (usados no nome da planilha modelo) |
@@ -634,7 +652,7 @@ Somente admin.
 
 ### 13.4 Backup (admin)
 
-* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log`. O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
+* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log, avatares`. `avatares` (fotos) vai só no JSON; o Excel não tem aba para ela. O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
 * **JSON** (versão 2): timestamps serializados como `{__tipo:'timestamp', iso, seconds, nanoseconds}`; `meta` com data, autor, contagem e falhas.
 * **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos, salários por período (mês e ano de início) e outras receitas com Ano e "Ano confirmado" (Não = ano ainda inferido).
 * Coleção que falhar não derruba o backup: entra em `meta.falhas` e o usuário é avisado.
@@ -667,6 +685,22 @@ Somente admin.
 * **Usuários extras** em Configurações não recebem acesso sem mudar `ALLOWED_EMAILS` e as regras do Firestore.
 * **Regras do Firestore para a EAC:** as coleções `categoria_grupos`, `eac_lb`, `eac_lb_itens`, `eac_exclusoes` e `eac_log` precisam de leitura para os dois e-mails e **escrita só para o e-mail do administrador**; `eac_lb` e `eac_lb_itens` só com create (LB imutável) e `eac_log` só com create. Em `categorias`, mudar o campo `grupoId` deve ser permitido só ao administrador (os dois continuam editando o nome). A trava do app (`FS._exigirAdminEac`) é só do lado do cliente: a proteção real é a regra. Sem as regras, a tela abre, mas salvar LB, classificar e mexer em grupos falham.
 * **EAC:** a ponte compara cada conta pelo ID; contas recriadas com ID novo (ex.: excluir e cadastrar de novo) aparecem como exclusão + conta nova. Uma LB muito grande (mais de ~180 mil contas) não cabe numa gravação. O Realizado da Curva S é por mês de vencimento, não pela data do pagamento.
+* **Regras do Firestore para fotos de perfil:** a coleção `avatares` precisa de leitura para os dois e-mails e escrita (create, update, delete) só no documento do próprio usuário, com teto de tamanho. Sugestão:
+  ```
+  match /avatares/{usuario} {
+    allow read: if request.auth.token.email in ['leonardo.phn7@gmail.com', 'pri.alverim@gmail.com'];
+    allow delete: if (usuario == 'Leo' && request.auth.token.email == 'leonardo.phn7@gmail.com')
+                  || (usuario == 'Pri' && request.auth.token.email == 'pri.alverim@gmail.com');
+    allow create, update: if ((usuario == 'Leo' && request.auth.token.email == 'leonardo.phn7@gmail.com')
+                           || (usuario == 'Pri' && request.auth.token.email == 'pri.alverim@gmail.com'))
+                          && request.resource.data.foto is string
+                          && request.resource.data.foto.size() < 400000;
+  }
+  ```
+  Sem a regra, o app abre com as fotos padrão de `img/` e salvar avisa que o banco recusou.
+* **Fotos padrão são públicas:** o repositório e o GitHub Pages são públicos, então `img/leo.jpg` e `img/pri.jpg` podem ser abertos por qualquer pessoa com o link (o resto do app exige login). As fotos enviadas pelo app ficam no Firestore, protegidas pelas regras. Para não expor as padrão, apague os arquivos de `img/` (o app usa a inicial até cada um enviar a sua); o histórico do Git continua guardando as versões já publicadas. Os arquivos de `img/` não têm EXIF nem GPS; fotos enviadas pelo app também não (o canvas descarta os metadados).
+* **Detecção automática de rosto** usa o `FaceDetector` nativo, que só existe em alguns Chrome. Nos demais navegadores a foto nova abre no terço de cima e o usuário toca no rosto para centralizar e aproximar.
+* **HEIC:** Chrome e Firefox no computador não abrem fotos HEIC; o app avisa. No iPhone a galeria converte para JPEG ao enviar.
 * **Sem modo offline** (não há service worker) e **sem restauração** a partir do backup.
 * Categoria/forma em uso detectada só por ID: contas legadas com nome (`cat`/`forma`) não bloqueiam a exclusão.
 * A busca rápida (Ctrl K) não pesquisa Notas e não abre com modal aberto.
@@ -683,6 +717,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-21 | **Fotos de perfil:** pasta `img/` com as fotos padrão de Leo e Pri (recortadas no rosto, 512 px, sem EXIF/GPS). Avatares do trilho e do filtro de responsável mostram a foto, com anel na cor de identidade. Novo modal **Meu perfil** (`js/avatares.js`): clique no avatar do trilho, avatar no topbar até 768px (no lugar do Sair, que passa para dentro do modal) ou busca rápida; recorte com foco no rosto (FaceDetector quando houver, toque centraliza e aproxima, arrastar, zoom), prévia e Usar foto padrão. Nova coleção `avatares` (JPEG 320 px em data URL; cada usuário só altera a própria), incluída no backup JSON. Regra recomendada do Firestore em 15. |
 | 2026-10-16 | **Ver conta e data do pagamento:** clique na descrição em Contas (e Enter na busca rápida) abre o modal da conta em modo ver, com situação, Editar e Pagar. "Confirmar Pagamento" ganha **Data do Pagamento**: em branco vale o vencimento quando o pagamento é informado no mesmo mês e ano (hoje, se o vencimento ainda não chegou); em outro mês ou ano a data é obrigatória; data futura é recusada. `FS.pagarConta`/`pagarContaIndividual` recebem a data (`paidAt`); baixas automáticas seguem com a data do dia. |
 | 2026-10-16 | **Anos sem limite e janela de 9 anos:** sai o limite 2019 a 2035 (cadastro, parcelas, importação, receitas, período do app e de Notas); vale qualquer ano de 4 dígitos (`anoValido`). Todos os seletores de ano mostram os 4 anos anteriores, o vigente no meio e os 4 seguintes (`anosJanela`/`preencherAnos`), e "Todos os anos" cobre todos os dados. EAC: seletor com a janela; Rev 0 de ano futuro só para o próximo ano, em dezembro (`eacPodePrepararLB`). |
 | 2026-10-16 | **Parcela Atual no cadastro:** campo passa a ser só número (em qual parcela a conta está); o sistema grava da parcela atual até a última, mês a mês a partir do vencimento informado (mesma regra da importação), e o Valor Total mostra todas as parcelas. "?" azul com explicação. Qtd. e Parcela Atual lado a lado (3 dígitos), entre Valor da Parcela e Valor Total. Limite de 360 parcelas, confirmação acima de 12 e bloqueio de vencimento depois de 2035. Na edição, parcelamento só leitura e `parcela` preservada. **Recorrentes desligado** (`FEATURES.recorrentes`): some das telas, código e dados preservados (8.7). |

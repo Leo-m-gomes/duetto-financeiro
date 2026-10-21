@@ -51,6 +51,7 @@ Object.assign(APP, {
     'lixeira',                        // lixeira de Contas
     'logs','notes_log','activity_log','logs_acesso',  // históricos de auditoria
     'categoria_grupos','eac_lb','eac_lb_itens','eac_exclusoes','eac_log',  // EAC
+    'avatares',                       // fotos de perfil (só no JSON: o Excel não tem aba para elas)
   ],
 
   /**

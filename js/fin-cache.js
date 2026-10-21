@@ -26,6 +26,8 @@ const CACHE = {
   grupos:   [],   // categoria_grupos: {id, nome, ordem, cor}
   lbs:      [],   // eac_lb: cabeçalhos das linhas de base (os itens ficam em eac_lb_itens, lidos sob demanda)
   eacExcl:  [],   // eac_exclusoes: classificação das contas da LB que foram excluídas
+  // Fotos de perfil (avatares/{Leo|Pri}); sem documento vale a foto padrão de img/ (js/avatares.js)
+  avatares: {},   // {Leo:{foto, atualizadoPor, atualizadoEmIso}, Pri:{...}}
   _ready:   new Set(),
 
   markReady(key){
