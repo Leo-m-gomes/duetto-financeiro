@@ -155,7 +155,8 @@ Object.assign(APP, {
     if(window.ROUTER) await ROUTER.navigate('relatorio'); else this.goPage('relatorio');
     const set = (id,v)=>{ const el = document.getElementById(id); if(el) el.value = v; };
     set('relAno', String(ano)); set('relMes', 'todos'); set('relCat', catId ? CACHE.getCatNome(catId) : '');
-    ['relForma','relStatus','relBusca'].forEach(id=>set(id, ''));
+    ['relStatus','relBusca'].forEach(id=>set(id, ''));
+    this.filtroFormasDefinir('relatorio', []);
     STATE.periodo = null;
     this._atualizarPeriodoBadge('relatorio', null);
     this.renderRelatorio();

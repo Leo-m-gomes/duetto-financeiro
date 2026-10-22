@@ -10,7 +10,6 @@ Object.assign(APP, {
     const mes=document.getElementById('filtroMesContas').value;
     const resp=STATE.resp;   // filtro global do topbar
     const cat=document.getElementById('filtroCatContas').value;
-    const formaId=document.getElementById('filtroFormaContas')?.value||'';
     const status=document.getElementById('filtroStatus').value;
     const recFiltro=document.getElementById('filtroRecorrente')?.value||'';
     const p=STATE.periodoContas;
@@ -35,12 +34,14 @@ Object.assign(APP, {
     });
     if(resp)    data = filtrarPorResp(data, resp);
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
-    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(recFiltro==='sim') data = data.filter(c=>c.recorrente);
     else if(recFiltro==='nao') data = data.filter(c=>!c.recorrente);
     if(status==='pago')          data=data.filter(c=>isQuitada(c));
     else if(status==='pendente') data=data.filter(c=>!isQuitada(c));
     else if(status==='atrasado') data=data.filter(c=>!isQuitada(c)&&c.data<today());
+    // Forma por último: o painel de formas mostra a distribuição do recorte sem ela
+    this.filtroFormasAtualizar('contas', data);
+    data = this.filtroFormasAplicar('contas', data);
 
     document.getElementById('totalGeral').textContent    = fmt(data.reduce((s,c)=>s+vEfetivo(c),0));
     document.getElementById('totalPago').textContent     = fmt(data.reduce((s,c)=>s+(c.vPago||0),0));

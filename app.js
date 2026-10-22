@@ -277,7 +277,7 @@ const APP = {
       });
     };
     mkCatForma(['filtroCatContas','relCat'], CACHE.getAllCats(), c=>c.nome, c=>c.nome);
-    mkCatForma(['filtroFormaContas','relForma'], CACHE.getAllFormas(), f=>f.id, f=>f.nome);
+    // Forma de pagamento não é select: filtro com seleção múltipla em js/ui-filtro-formas.js
 
     mkAno('filtroAnoDash');
     mkMes('filtroMesDash');
@@ -295,7 +295,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=>{ STATE.periodoDash=null; self._atualizarPeriodoBadge('dashboard',null); self.renderDashboard(); };
     });
-    ['searchContas','filtroAnoContas','filtroMesContas','filtroCatContas','filtroFormaContas','filtroStatus','filtroRecorrente'].forEach(id=>{
+    ['searchContas','filtroAnoContas','filtroMesContas','filtroCatContas','filtroStatus','filtroRecorrente'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.oninput = ()=>{
         if(id==='filtroAnoContas'||id==='filtroMesContas'){ STATE.periodoContas=null; self._atualizarPeriodoBadge('contas',null); }
@@ -314,7 +314,7 @@ const APP = {
       const el=document.getElementById(id);
       if(el) el.onchange = ()=>{ STATE.periodo=null; self._atualizarPeriodoBadge('relatorio',null); self.renderRelatorio(); };
     });
-    ['relCat','relForma','relStatus'].forEach(id=>{
+    ['relCat','relStatus'].forEach(id=>{
       const el=document.getElementById(id);
       if(el) el.onchange = ()=> self.renderRelatorio();
     });
@@ -430,7 +430,8 @@ const APP = {
     set('filtroStatus', 'atrasado');
     set('filtroMesContas', 'todos');
     set('filtroAnoContas', 'todos');
-    ['searchContas','filtroCatContas','filtroFormaContas','filtroRecorrente'].forEach(id=>set(id, ''));
+    ['searchContas','filtroCatContas','filtroRecorrente'].forEach(id=>set(id, ''));
+    this.filtroFormasDefinir('contas', []);
     STATE.periodoContas = null;
     this._atualizarPeriodoBadge('contas', null);
     STATE.pg = 1;

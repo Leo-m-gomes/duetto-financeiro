@@ -46,14 +46,15 @@ Object.assign(APP, {
    *
    * Busca: case/acento-insensível; múltiplos termos separados por espaço
    * são combinados com E (todos precisam aparecer na conta).
+   * Forma (seleção múltipla, js/ui-filtro-formas.js) entra por último: `base` é o
+   * recorte sem ela, usado pelo painel de formas.
    *
-   * @returns {{data:object[], anoVal:string, mesVal:string, cat:string, resp:string, busca:string}}
+   * @returns {{data:object[], base:object[], anoVal:string, mesVal:string, cat:string, resp:string, busca:string, formas:string[]}}
    */
   _filtrarRelatorio(){
     const anoVal  = document.getElementById('relAno').value;
     const mesVal  = document.getElementById('relMes').value;
     const cat     = document.getElementById('relCat').value;
-    const formaId = document.getElementById('relForma')?.value||'';
     const resp    = STATE.resp;   // filtro global do topbar
     const status  = document.getElementById('relStatus')?.value||'';
     const busca   = (document.getElementById('relBusca')?.value||'').trim();
@@ -81,7 +82,6 @@ Object.assign(APP, {
       CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
     }
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
-    if(formaId) data = data.filter(c=>c.formaId===formaId||CACHE.resolveForma(c.formaId||c.forma)===CACHE.getFormaNome(formaId));
     if(resp) data = filtrarPorResp(data, resp);
     if(status==='pago')          data=data.filter(c=>isQuitada(c));
     else if(status==='pendente') data=data.filter(c=>!isQuitada(c));
@@ -92,11 +92,14 @@ Object.assign(APP, {
       data=data.filter(c=>{ const txt=this._textoBuscaConta(c); return termos.every(t=>txt.includes(t)); });
     }
 
-    return { data, anoVal, mesVal, cat, resp, busca };
+    const base = data;
+    data = this.filtroFormasAplicar('relatorio', base);
+    return { data, base, anoVal, mesVal, cat, resp, busca, formas: this.filtroFormasNomes('relatorio') };
   },
 
   renderRelatorio(){
-    let { data, busca } = this._filtrarRelatorio();
+    let { data, base, busca } = this._filtrarRelatorio();
+    this.filtroFormasAtualizar('relatorio', base);
     const btnLimpar = document.getElementById('relBuscaLimpar');
     if(btnLimpar) btnLimpar.style.display = busca ? '' : 'none';
 

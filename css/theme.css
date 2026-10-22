@@ -72,6 +72,7 @@
   --ui-z-submodal: 1100;  /* sub-modal sobre modal */
   --ui-z-palette:  1050;  /* busca rápida Ctrl K (abre e fecha antes dos modais) */
   --ui-z-modal:    1000;  /* modais principais */
+  --ui-z-popover:   300;  /* painel do filtro de formas (acima da bottom nav, abaixo dos modais) */
   --ui-z-sidebar:   200;  /* sidebar e overlays mobile */
   --ui-z-topbar:    100;  /* topbar (acima de thead sticky) */
   --ui-z-sticky:     10;  /* thead sticky dentro de scroll containers */
