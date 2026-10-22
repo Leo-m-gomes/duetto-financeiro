@@ -21,6 +21,8 @@
      barra-pagamento, barra-pag-info, barra-pag-count, barra-pag-total.
    • A tabela mantém data-label nos td (injetado pelo APP.renderContas)
      para o padrão mob-card funcionar no mobile.
+   • filtroFormaContas é um botão: abre o filtro de formas com seleção
+     múltipla (js/ui-filtro-formas.js), não um select.
 ═══════════════════════════════════════════════════════════════════════════
 -->
 
@@ -39,7 +41,7 @@
         <select class="filter-select" id="filtroAnoContas"></select>
         <select class="filter-select" id="filtroMesContas"></select>
         <select class="filter-select" id="filtroCatContas"><option value="">Todas as categorias</option></select>
-        <select class="filter-select" id="filtroFormaContas"><option value="">Todas as formas</option></select>
+        <button type="button" class="filter-select ff-trigger" id="filtroFormaContas" aria-haspopup="dialog" aria-expanded="false" aria-label="Forma de pagamento: todas" onclick="APP.filtroFormasAbrir('contas')"><span class="ff-rot">Formas</span><span class="ff-mini" aria-hidden="true"></span><span class="ff-qtd">Todas</span><svg class="ff-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
         <select class="filter-select" id="filtroStatus"><option value="">Todos os status</option><option value="pago">✅ Pago</option><option value="pendente">⏳ Pendente</option><option value="atrasado">🔴 Atrasado</option></select>
         <select class="filter-select" id="filtroRecorrente" data-feature="recorrentes"><option value="">Todas as contas</option><option value="sim">🔁 Recorrentes</option><option value="nao">Não recorrentes</option></select>
         <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('contas')">📅 Período</button>

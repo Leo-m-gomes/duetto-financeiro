@@ -99,7 +99,7 @@ js/
   fin-db.js           FS: único ponto de escrita de contas/receitas/cadastros + logs; listeners
   router.js           ROUTER: carrega views/*.html em #appMain, rotas e restrição de admin
   notes.js            Módulo Notas e Ações (isolado, namespace NT)
-  ui-*.js             Toast/tema/privacidade, modais, tabelas/ordenação, gráficos, período, máscara monetária
+  ui-*.js             Toast/tema/privacidade, modais, tabelas/ordenação, gráficos, período, máscara monetária, filtro de formas (4.8)
   dashboard.js        Dashboard (KPIs, insights, gráficos, pendentes)
   contas.js           Contas (lista, pagamento, parcelas, cadastro)
   receitas.js         Receitas (lista unificada, gráfico, outras receitas)
@@ -120,6 +120,7 @@ js/
   eac-gestao.js       Modais da EAC: detalhe da linha, linhas de base, excluídas, grupos; pergunta na exclusão
   avatares.js         Fotos de perfil: aplica nos avatares e modal "Meu perfil" (recorte com foco no rosto)
 css/eac.css           Tela EAC e seus modais
+css/filtro-formas.css Filtro de forma de pagamento: botão da barra de filtros e painel de distribuição
 views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
 
@@ -215,6 +216,18 @@ Módulo `js/avatares.js`. Vale para os avatares do trilho, do filtro de respons�
   * Prévia nos tamanhos reais (36 px do trilho e 22 px do filtro).
 * **Salvar** grava um JPEG de 320 px (qualidade 0,85; 0,7 se passar do teto), sem metadados. **Usar foto padrão** apaga o documento (com confirmação) e volta para a de `img/`.
 * **Permissão:** cada um altera só a própria foto (5).
+
+### 4.8 Filtro de forma de pagamento (seleção múltipla)
+
+Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e **Relatório** (botão "Formas" na barra de filtros, ids `filtroFormaContas` e `relForma`).
+
+* **Seleção:** marque uma ou várias formas. Nenhuma marcada, ou todas marcadas, = sem filtro ("Todas"). Cada tela tem a sua seleção; ela continua nos redesenhos da tela (dados chegando do Firestore) e **zera ao trocar de tela**, como os demais filtros da barra. O clique no aviso de atrasadas (10.2) e o "Ver contas no Relatório" da EAC limpam a forma.
+* **Botão:** mostra uma mini barra com a distribuição do recorte (formas selecionadas na cor do tema) e "Todas" ou "N de M". Com filtro ativo fica destacado; a dica e o `aria-label` listam os nomes.
+* **Painel de distribuição:** cada forma com barra, valor, % e quantidade de contas **no recorte atual da tela, sem o filtro de forma** (todos os outros filtros e o responsável valem). Soma em **centavos** de `vEfetivo` (mesma base do Total). Formas sem conta no recorte ficam em "Sem contas no recorte", ainda selecionáveis. Ordem por valor (padrão) ou A–Z. Rodapé: valor e % selecionados e quantidade de contas.
+* **Atalhos:** **Todas**; **Cartões** (formas cujo nome começa com "Cartão", sem diferença de acento ou maiúscula; some se não houver nenhuma); **Pareto 80%** (menor conjunto de formas, da maior para a menor, que soma ao menos 80% do recorte; mostra quantas formas e o % que concentram).
+* **Contas legadas** (nome da forma em `forma`, sem `formaId`) entram na forma de mesmo nome. Conta com forma que não existe mais aparece só sem filtro.
+* **Desktop:** popover ancorado no botão (abre para cima se faltar espaço). **Até 640px:** painel inferior com fundo escuro, linhas de 60px e botão "Ver N contas · R$". O painel fica no `<body>` (z-index `--ui-z-popover`, acima da bottom nav e abaixo dos modais), para não ser cortado pela barra de filtros recolhível.
+* **Teclado e acessibilidade:** Enter/Espaço abre; foco vai para a lista; ↑/↓ andam pelas formas; Espaço marca; Tab fica dentro do painel; Esc fecha e devolve o foco ao botão. Clique fora fecha. Formas são botões com `aria-pressed`. Valores levam `.money` (modo privacidade borra).
 
 ---
 
@@ -526,7 +539,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
 * **Clique na descrição** abre o modal da conta em **modo ver** (`APP.verConta`): todos os campos só leitura, sem a barra Gerenciar, com a situação no topo (paga com valor, data e quem pagou; parcialmente paga; atrasada; pendente). Rodapé: **Fechar**, **Editar** (libera os campos, como o ícone ✏; o parcelamento segue só leitura) e **Pagar** (some se a conta está quitada; abre o "Confirmar Pagamento" por cima e, ao confirmar, fecha os dois). O ícone ✏ continua abrindo direto a edição.
 * **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (÷2 nas compartilhadas; a metade já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
-* Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma, recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
+* Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma (seleção múltipla, 4.8), recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
 * Com mês específico ou período, as **atrasadas de meses anteriores** entram na lista.
 * Totais: Total = Σ `vEfetivo`; Pago = Σ `vPago`; Pendente = Σ `vPendente`.
 * Paginação: 20 por página (configurável em Preferências).
@@ -534,10 +547,10 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 ### 10.3 Relatório
 
-* Filtros: ano, mês, período, categoria, forma, status, responsável global e **busca** (sem acento; vários termos com E; inclui valores e datas). A busca vale só dentro do período escolhido.
+* Filtros: ano, mês, período, categoria, forma (seleção múltipla, 4.8), status, responsável global e **busca** (sem acento; vários termos com E; inclui valores e datas). A busca vale só dentro do período escolhido.
 * Atrasadas de meses anteriores entram quando há mês específico ou período.
 * KPIs: quantidade, Total a pagar (Σ `vEfetivo`), Total pago (Σ `vPago`), Pendente (Σ `vPendente`).
-* Tabela, CSV e PDF usam **o mesmo recorte** (`_filtrarRelatorio`). PDF em A4 paisagem com cabeçalho, KPIs, tabela, totais e paginação.
+* Tabela, CSV e PDF usam **o mesmo recorte** (`_filtrarRelatorio`). PDF em A4 paisagem com cabeçalho, KPIs, tabela, totais e paginação. O cabeçalho do PDF cita as formas filtradas: até 2 pelo nome; acima disso, só a quantidade ("5 formas").
 * **Pareto:** soma `vEfetivo` por categoria, ordena do maior para o menor, calcula % e % acumulado; destaca as categorias até atingir 80% do total.
 
 ### 10.4 Receitas
@@ -717,6 +730,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-22 | **Filtro de forma com seleção múltipla** (Contas e Relatório): o select de forma vira o botão "Formas" com painel de distribuição (`js/ui-filtro-formas.js`, `css/filtro-formas.css`, 4.8). Marca uma ou várias formas; cada forma mostra barra, valor (centavos de `vEfetivo`), % e contas do recorte sem o filtro de forma; atalhos Todas, Cartões e Pareto 80%; ordem por valor ou A–Z. Popover no desktop e painel inferior até 640px. Forma passa a ser o último filtro aplicado (resultado igual ao anterior). PDF do Relatório cita as formas filtradas. Aviso de atrasadas e "Ver contas no Relatório" da EAC limpam a seleção. Novo token `--ui-z-popover`. |
 | 2026-10-21 | **Cartões no celular:** a faixa do título de Contas e do Relatório passa a ocupar a largura toda do cartão (antes ficava na metade esquerda por causa do `max-width` da tabela do computador; a Nota do Relatório tinha o mesmo corte). Em Contas, a Parcela aparece ao lado do Vencimento, no espaço que ficava vazio. Tabela do computador sem mudança. |
 | 2026-10-21 | **Fotos de perfil:** pasta `img/` com as fotos padrão de Leo e Pri (recortadas no rosto, 512 px, sem EXIF/GPS). Avatares do trilho e do filtro de responsável mostram a foto, com anel na cor de identidade. Novo modal **Meu perfil** (`js/avatares.js`): clique no avatar do trilho, avatar no topbar até 768px (no lugar do Sair, que passa para dentro do modal) ou busca rápida; recorte com foco no rosto (FaceDetector quando houver, toque centraliza e aproxima, arrastar, zoom), prévia e Usar foto padrão. Nova coleção `avatares` (JPEG 320 px em data URL; cada usuário só altera a própria), incluída no backup JSON. Regra recomendada do Firestore em 15. |
 | 2026-10-16 | **Ver conta e data do pagamento:** clique na descrição em Contas (e Enter na busca rápida) abre o modal da conta em modo ver, com situação, Editar e Pagar. "Confirmar Pagamento" ganha **Data do Pagamento**: em branco vale o vencimento quando o pagamento é informado no mesmo mês e ano (hoje, se o vencimento ainda não chegou); em outro mês ou ano a data é obrigatória; data futura é recusada. `FS.pagarConta`/`pagarContaIndividual` recebem a data (`paidAt`); baixas automáticas seguem com a data do dia. |

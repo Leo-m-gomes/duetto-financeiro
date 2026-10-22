@@ -1,0 +1,112 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, MÓDULO filtro-formas.css
+   ═══════════════════════════════════════════════════════════════════════════
+   Responsabilidade: filtro de forma de pagamento com seleção múltipla
+   (js/ui-filtro-formas.js): botão na barra de filtros de Contas e Relatório e
+   o painel de distribuição (popover no desktop, painel inferior até 640px).
+   Tudo deriva dos tokens de theme.css, então segue o modo escuro e o tema Pri.
+   Valores levam a classe .money: o modo privacidade borra sem regra extra.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root{
+  --ff-trilho:#eef1f4;   /* fundo das barras */
+  --ff-fora:#b6bdc6;     /* barra de forma fora da seleção */
+  --ff-on-palm:#fff;     /* check e texto sobre --palm */
+}
+.dark{ --ff-trilho:#3a3a3c; --ff-fora:#636366; --ff-on-palm:#04240c; }
+.dark.theme-pri{ --ff-on-palm:#2c0634; }
+
+/* ── Botão na barra de filtros (.filter-select dá a mesma medida dos selects) ── */
+.ff-trigger{display:inline-flex;align-items:center;gap:8px;cursor:pointer;text-align:left;white-space:nowrap}
+.ff-rot{font-weight:500}
+.ff-mini{display:flex;gap:1px;width:64px;height:7px;flex-shrink:0;border-radius:var(--ui-radius-pill);overflow:hidden;background:var(--ff-trilho)}
+.ff-mini span{height:100%;flex-shrink:0;background:var(--ff-fora)}
+.ff-mini span.on{background:var(--palm)}
+.ff-qtd{font-size:11.5px;font-weight:600;color:var(--t3);font-variant-numeric:tabular-nums}
+.ff-chev{width:12px;height:12px;margin-left:auto;flex-shrink:0;fill:none;stroke:currentColor;stroke-width:2.5;stroke-linecap:round;transition:transform var(--transition)}
+.ff-trigger[aria-expanded="true"] .ff-chev{transform:rotate(180deg)}
+.ff-trigger.ff-ativo,
+.dark .ff-trigger.ff-ativo{background:var(--palm-lt);border-color:var(--palm-border);color:var(--palm)}
+.ff-trigger.ff-ativo .ff-qtd{color:var(--palm)}
+
+/* ── Painel ── */
+.ff-painel{position:fixed;z-index:var(--ui-z-popover);width:520px;max-width:calc(100vw - 24px);display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--border2);border-radius:var(--r);box-shadow:var(--shadow-lg);overflow:hidden;font-family:var(--font-b);color:var(--t1);animation:fadeIn .15s ease}
+.ff-painel[hidden],.ff-fundo[hidden]{display:none}
+.ff-fundo,.ff-alca,.ff-fechar,.ff-so-cel{display:none}
+
+.ff-cab{display:flex;align-items:flex-start;gap:12px;padding:14px 16px 10px}
+.ff-cab-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ff-cab h2{margin:0;font-size:14px;font-weight:700;color:var(--t1)}
+.ff-sub{font-size:12px;color:var(--t3)}
+.ff-seg{display:inline-flex;flex-shrink:0;gap:2px;padding:2px;border-radius:var(--ui-radius-pill);background:var(--bg);border:1px solid var(--border)}
+.ff-seg button{border:0;background:transparent;padding:4px 11px;border-radius:var(--ui-radius-pill);font-family:inherit;font-size:11.5px;font-weight:600;color:var(--t3);cursor:pointer}
+.ff-seg button[aria-pressed="true"]{background:var(--surface);color:var(--t1);box-shadow:var(--shadow-sm)}
+
+.ff-atalhos{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:0 16px 12px;border-bottom:1px solid var(--border)}
+.ff-rotulo{margin-right:2px;font-size:10.5px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--t3)}
+.ff-chip{height:28px;padding:0 12px;border-radius:var(--ui-radius-pill);border:1px solid var(--border2);background:var(--surface);color:var(--t2);font-family:inherit;font-size:12px;font-weight:600;cursor:pointer}
+.ff-chip:hover{border-color:var(--palm);color:var(--palm)}
+.ff-chip[aria-pressed="true"]{background:var(--palm);border-color:var(--palm);color:var(--ff-on-palm)}
+.ff-info{flex-basis:100%;margin:2px 0 0;font-size:12px;color:var(--palm)}
+
+.ff-lista{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 8px}
+/* Linha é item de lista, não botão visual: cantos de 10px em vez da pílula global de style.css */
+.ff-painel .ff-linha{border-radius:var(--r-sm) !important}
+.ff-linha{display:grid;grid-template-columns:16px minmax(110px,168px) minmax(0,1fr) 96px 46px;gap:12px;align-items:center;width:100%;min-height:38px;padding:0 8px;border:0;background:transparent;text-align:left;font-family:inherit;font-size:13px;color:var(--t1);cursor:pointer}
+.ff-linha:hover{background:var(--hover)}
+.ff-linha[aria-pressed="true"]{background:var(--palm-lt)}
+.ff-linha:focus-visible,.ff-chip:focus-visible,.ff-seg button:focus-visible,.ff-fechar:focus-visible{outline:2px solid var(--palm);outline-offset:-2px}
+.ff-chk{width:16px;height:16px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;border-radius:4px;border:1.5px solid var(--t3);background:var(--surface)}
+.ff-chk svg{width:11px;height:11px;fill:none;stroke:var(--ff-on-palm);stroke-width:3.5;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.ff-linha[aria-pressed="true"] .ff-chk{background:var(--palm);border-color:var(--palm)}
+.ff-linha[aria-pressed="true"] .ff-chk svg{opacity:1}
+.ff-nome{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.ff-barra{height:8px;border-radius:var(--ui-radius-pill);background:var(--ff-trilho);overflow:hidden}
+.ff-barra span{display:block;height:100%;border-radius:inherit;background:var(--ff-fora)}
+.ff-barra span.on{background:var(--palm)}
+.ff-valor{font-size:12.5px;font-weight:600;text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ff-pct{font-size:11.5px;color:var(--t3);text-align:right;font-variant-numeric:tabular-nums}
+.ff-linha[aria-pressed="true"] .ff-pct{color:var(--t2)}
+.ff-linha.ff-zero{grid-template-columns:16px minmax(0,1fr) auto;color:var(--t3)}
+.ff-linha.ff-zero .ff-valor{font-weight:400}
+.ff-sec{padding:10px 8px 4px;font-size:10.5px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--t3)}
+.ff-vazio{margin:14px 8px;font-size:13px;color:var(--t3)}
+
+.ff-rodape{display:flex;align-items:center;gap:8px;padding:10px 16px;border-top:1px solid var(--border);background:var(--bg)}
+.ff-resumo{flex:1;min-width:0;font-size:12px;color:var(--t2)}
+.ff-resumo strong{color:var(--t1)}
+
+/* ── Celular: painel inferior com fundo escuro ── */
+@media(max-width:640px){
+  .ff-mini{flex:1;width:auto}
+  .ff-qtd{font-size:13px}
+  html.ff-aberto,html.ff-aberto body{overflow:hidden}
+  .ff-fundo{display:block;position:fixed;inset:0;z-index:var(--ui-z-popover);background:rgba(15,31,20,.45);animation:duettoOverlayIn .2s ease}
+  .ff-painel{left:0;right:0;bottom:0;width:auto;max-width:none;max-height:88vh;border-bottom:0;border-radius:22px 22px 0 0;animation:slideUp .22s ease}
+  .ff-alca{display:block;width:40px;height:4px;margin:8px auto 0;border-radius:var(--ui-radius-pill);background:var(--border2)}
+  .ff-cab{flex-wrap:wrap;align-items:center;padding:4px 8px 0 20px}
+  .ff-cab-txt{flex-basis:calc(100% - 60px)}
+  .ff-cab h2{font-size:17px}
+  .ff-sub{font-size:12.5px}
+  .ff-fechar{display:flex;align-items:center;justify-content:center;width:44px;height:44px;border:0;border-radius:var(--ui-radius-pill);background:transparent;color:var(--t2);cursor:pointer}
+  .ff-fechar svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round}
+  .ff-seg{margin-top:6px}
+  .ff-seg button{min-height:40px;padding:0 14px;font-size:13px}
+  .ff-atalhos{padding:10px 16px 12px;gap:8px}
+  .ff-chip{height:44px;padding:0 16px;font-size:13.5px}
+  .ff-lista{padding:4px 8px}
+  .ff-linha{grid-template-columns:22px minmax(0,1fr) auto;grid-template-areas:"chk nome valor" "chk barra pct";column-gap:12px;row-gap:6px;min-height:60px;padding:8px 12px;font-size:15px}
+  .ff-chk{grid-area:chk;width:22px;height:22px;border-width:2px;border-radius:6px}
+  .ff-chk svg{width:14px;height:14px}
+  .ff-nome{grid-area:nome}
+  .ff-valor{grid-area:valor;font-size:14px;font-weight:700}
+  .ff-barra{grid-area:barra}
+  .ff-pct{grid-area:pct;min-width:44px;font-size:12.5px}
+  .ff-linha.ff-zero{grid-template-areas:"chk nome valor";min-height:52px}
+  .ff-sec{padding:14px 12px 6px;font-size:11px}
+  .ff-rodape{gap:10px;padding:12px 16px calc(16px + env(safe-area-inset-bottom));background:var(--surface)}
+  .ff-resumo,.ff-so-desk{display:none}
+  .ff-so-cel{display:inline}
+  .ff-rodape .btn{height:48px;padding:0 20px;justify-content:center;border-radius:var(--ui-radius-pill);font-size:14.5px}
+  .ff-rodape .btn-primary{flex:1;font-weight:700}
+}

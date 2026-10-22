@@ -8,7 +8,8 @@
   Conteúdo: extração LITERAL das linhas 281-335 do index.html legado.
 
   Esta view é a mais densa em filtros e análises. Ela contém:
-    • Filtros avançados (ano, mês, categoria, forma); responsável vem do topbar (STATE.resp)
+    • Filtros avançados (ano, mês, categoria, forma); responsável vem do topbar (STATE.resp).
+      relForma é um botão: filtro de formas com seleção múltipla (js/ui-filtro-formas.js)
     • Gráficos: Pareto + Histórico mensal + Comparativo Leo vs Pri
     • Tabelas analíticas
     • Botões de exportação (PDF, CSV)
@@ -42,7 +43,7 @@
             <select class="filter-select" id="relAno"></select>
             <select class="filter-select" id="relMes"></select>
             <select class="filter-select" id="relCat"><option value="">Todas as categorias</option></select>
-            <select class="filter-select" id="relForma"><option value="">Todas as formas</option></select>
+            <button type="button" class="filter-select ff-trigger" id="relForma" aria-haspopup="dialog" aria-expanded="false" aria-label="Forma de pagamento: todas" onclick="APP.filtroFormasAbrir('relatorio')"><span class="ff-rot">Formas</span><span class="ff-mini" aria-hidden="true"></span><span class="ff-qtd">Todas</span><svg class="ff-chev" viewBox="0 0 24 24" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg></button>
             <select class="filter-select" id="relStatus"><option value="">Todos os status</option><option value="pago">Pago</option><option value="pendente">Pendente</option><option value="atrasado">Atrasado</option></select>
             <button class="btn btn-secondary btn-sm" onclick="APP.openPeriodo('relatorio')">📅 Período</button>
             <span id="periodoBadge" style="display:none;background:var(--palm-lt);color:var(--palm);border:1px solid var(--palm-border);border-radius:99px;padding:3px 10px;font-size:11.5px;font-weight:600;cursor:pointer" onclick="APP.limparPeriodo('relatorio')" title="Clique para remover o filtro de período"></span>

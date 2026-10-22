@@ -42,7 +42,7 @@ Object.assign(APP, {
     const doc = new jsPDF({orientation:'landscape', unit:'mm', format:'a4'});
 
     // Coletar dados do filtro atual
-    let { data, anoVal, mesVal, cat, resp, busca } = this._filtrarRelatorio();
+    let { data, anoVal, mesVal, cat, resp, busca, formas } = this._filtrarRelatorio();
     const p = STATE.periodo;
     data = this._aplicarSort(data,'sortRel');
 
@@ -57,6 +57,8 @@ Object.assign(APP, {
     else periodoLabel = anoVal==='todos'?'Todos os períodos':anoVal;
     if(resp) periodoLabel += ` · ${resp}`;
     if(cat)  periodoLabel += ` · ${cat}`;
+    // Até 2 formas pelo nome; mais que isso só a quantidade, para caber no cabeçalho
+    if(formas.length) periodoLabel += ` · ${formas.length<=2 ? formas.join(', ') : formas.length+' formas'}`;
     if(busca) periodoLabel += ` · Busca: "${busca}"`;
 
     // ── CABEÇALHO ──
