@@ -18,6 +18,7 @@
   IDs dos 15 modais (em ordem de aparição):
     ovConta        Cadastro/edição de conta
     ovParcelas     Edição manual de parcelas
+    ovParcsDivisao Divisão (Leo & Pri) aplicada a todas as parcelas sem pagamento (js/divisao.js)
     ovSalarios     Gerenciar salários (lista de cards)
     ovSalario      Cadastro/edição de salário
     ovCalculoDetalhe Cálculo detalhado IR/INSS (passo a passo)
@@ -59,7 +60,20 @@
       <div class="conta-status" id="contaStatus" role="status" hidden></div>
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><textarea id="fDesc" rows="2" placeholder="Ex: Financiamento Honda Fit..."></textarea></div>
-        <div class="fg"><label>Responsável *</label><select id="fResp"><option value="">Selecione...</option><option>Leo</option><option>Pri</option><option>Leo &amp; Pri</option></select></div>
+        <!-- Responsável em botões com foto (js/divisao.js, APP._respConta). Leo & Pri mostra a Divisão:
+             a régua abre na escolha e recolhe na linha de resumo depois (README 8.3) -->
+        <div class="fg full"><span class="fg-tit" id="fRespTit">Responsável *</span>
+          <div class="resp-seg" role="radiogroup" aria-labelledby="fRespTit">
+            <label class="resp-op"><input type="radio" name="fResp" value="Leo" onchange="APP.respContaMudou()"><span class="who-av who-leo" data-avatar="Leo" aria-hidden="true">L</span><span>Leo</span></label>
+            <label class="resp-op"><input type="radio" name="fResp" value="Pri" onchange="APP.respContaMudou()"><span class="who-av who-pri" data-avatar="Pri" aria-hidden="true">P</span><span>Pri</span></label>
+            <label class="resp-op"><input type="radio" name="fResp" value="Leo &amp; Pri" onchange="APP.respContaMudou()"><span class="who-duo" aria-hidden="true"><i class="who-leo" data-avatar="Leo">L</i><i class="who-pri" data-avatar="Pri">P</i></span><span>Leo &amp; Pri</span></label>
+          </div>
+        </div>
+        <div class="fg full div-campo" id="fDivCampo" hidden>
+          <span class="fg-tit" id="fDivTit">Divisão</span>
+          <button type="button" class="div-resumo" id="fDivResumo" aria-expanded="false" aria-controls="fDivPainel" onclick="APP.divAbrir()"></button>
+          <div id="fDivPainel" role="group" aria-labelledby="fDivTit" hidden></div>
+        </div>
         <div class="fg"><label>Forma de Pagamento *</label><select id="fForma"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Categoria *</label><select id="fCat"><option value="">Selecione...</option></select></div>
         <div class="fg"><label>Data de Vencimento *</label><input type="date" id="fData"></div>
@@ -101,10 +115,11 @@
         <span style="flex:1"></span>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('forma')">💳 Forma de Pgto</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenEditField('cat')">🏷 Categoria</button>
+        <button class="btn btn-secondary btn-sm" onclick="APP.parcsAbrirDivisao()" title="Mesma divisão para as parcelas compartilhadas sem pagamento">➗ Divisão</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsOpenNota()">📝 Nota</button>
         <button class="btn btn-secondary btn-sm" onclick="APP.parcsApplyDesc()">Aplicar descrição a todas</button>
       </div>
-      <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
+      <div style="overflow-x:auto"><table class="parcs-table" id="tblParcelas"><thead><tr><th>Parcela</th><th>Descrição</th><th>Responsável</th><th title="Sua parte nas parcelas Leo &amp; Pri">Sua parte</th><th>Vencimento</th><th>Valor (R$)</th><th>Status</th><th>Por</th><th>Ação</th></tr></thead><tbody id="tbodyParcelas"></tbody></table></div>
     </div>
     <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcelas">Fechar</button><button class="btn btn-primary" onclick="APP.parcsSaveAll()">💾 Salvar</button></div>
   </div>
@@ -142,6 +157,18 @@
       <button class="btn btn-ghost" data-close="ovParcsNota">Cancelar</button>
       <button class="btn btn-primary" onclick="APP.parcsApplyNota()">✅ Aplicar a todas</button>
     </div>
+  </div>
+</div>
+
+<!-- Divisão aplicada a todas as parcelas compartilhadas sem pagamento (js/divisao.js) -->
+<div class="modal-overlay" id="ovParcsDivisao">
+  <div class="modal modal-md" role="dialog" aria-modal="true" aria-labelledby="titleParcsDivisao">
+    <div class="modal-header"><h2 id="titleParcsDivisao">➗ Divisão do Parcelamento</h2><button class="modal-close" data-close="ovParcsDivisao" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body">
+      <p class="parcs-div-aviso" id="parcsDivAviso"></p>
+      <div id="parcsDivRegua"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovParcsDivisao">Cancelar</button></div>
   </div>
 </div>
 

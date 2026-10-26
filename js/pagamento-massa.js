@@ -77,7 +77,7 @@ Object.assign(APP, {
         else if(!!c.pagamentos?.Leo !== !!c.pagamentos?.Pri) rowResp = c.pagamentos?.Leo ? 'Pri' : 'Leo';
       }
       const badge = isShared
-        ? `<div style="font-size:10px;margin-top:2px;color:var(--t4)">${rowResp?`baixa da parte de <strong>${rowResp}</strong>`:'baixa integral (Leo e Pri)'}</div>`
+        ? `<div style="font-size:10px;margin-top:2px;color:var(--t4)">${rowResp?`baixa da parte de <strong>${rowResp}</strong> (${fmtPct(divisaoDe(c)[rowResp])})`:`baixa integral (Leo e Pri, ${fmtDivisao(c)})`}</div>`
         : '';
       return`<tr>
         <td style="max-width:200px;white-space:normal;font-weight:600">${c.conta}${c.parcela?`<br><span style="font-size:10px;color:var(--t4)">${c.parcela}</span>`:''}</td>

@@ -9,7 +9,9 @@
  *   MESES, MESES_F, COLORS, fmt, fmtN, fmtDate, today, isOverdue, vEfetivo, vPendente,
  *   centavos, fatiaReceita, filtrarPorResp, getChartDefaults, DEFAULT_TABELAS, SEED_CATS,
  *   SEED_FORMAS, STATE, FEATURES, anoValido, anosJanela, preencherAnos, PARCELAS_MAX,
- *   PARCELAS_ALERTA, lerParcela, planoParcelas, dataPagamentoPadrao
+ *   PARCELAS_ALERTA, lerParcela, planoParcelas, dataPagamentoPadrao,
+ *   DIV_* (divisão das compartilhadas), divLeo, divisaoDe, montarDivisao, divValida,
+ *   parteCent, parteValor, fmtPct, fmtDivisao, temPagamento
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -124,8 +126,8 @@ const vPendente = c => {
 };
 /**
  * Fração de uma "outra receita" que pertence ao filtro de responsável.
- * Mesma regra das contas compartilhadas (÷2): receita "Ambos" (resp vazio) vale metade
- * para Leo e metade para Pri, então Leo + Pri soma exatamente o total da casa.
+ * Receita "Ambos" (resp vazio) vale sempre metade para Leo e metade para Pri, então
+ * Leo + Pri soma o total da casa. Receitas não têm divisão personalizada (só contas, 8.3).
  * @param {Object} r    receita (CACHE.outras)
  * @param {string} resp 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
  * @returns {number} 1, 0.5 ou 0
@@ -159,12 +161,49 @@ const dataPagamentoPadrao = (venc, hoje = today()) =>
 // para não acumular erro de ponto flutuante (0.1 + 0.2 !== 0.3).
 const centavos = v => Math.round((Number(v)||0) * 100);
 
+// ── DIVISÃO DAS CONTAS COMPARTILHADAS ("Leo & Pri") ──
+// Campo `divisao: {Leo, Pri}` em centésimos de ponto percentual (10000 = 100%; 6000 = 60%).
+// A parte do Leo é a fonte: a da Pri é sempre 10000 − Leo, então a soma nunca foge de 100%.
+// Conta sem o campo (antigas, importadas) vale 50/50. Faixa permitida: 1% a 99% (100% é
+// conta individual; 0% geraria uma parte de R$ 0, que o pagamento por parte não aceita).
+const DIV_TOTAL  = 10000;
+const DIV_PADRAO = 5000;
+const DIV_MIN    = 100;
+const DIV_MAX    = 9900;
+const divValida  = leo => Number.isInteger(leo) && leo >= DIV_MIN && leo <= DIV_MAX;
+/** Parte do Leo (centésimos de %) de uma conta, de um item da LB ({div}) ou 50/50. */
+const divLeo = c => {
+  const v = c?.divisao ? c.divisao.Leo : c?.div;
+  return divValida(v) ? v : DIV_PADRAO;
+};
+const montarDivisao = leo => ({Leo: leo, Pri: DIV_TOTAL - leo});
+const divisaoDe = c => montarDivisao(divLeo(c));
 /**
- * DUP-004: helper centralizado para filtrar contas por responsável
- * com split ÷2 para despesas compartilhadas ("Leo & Pri").
+ * Parte de um valor em centavos para Leo ou Pri. O Leo é arredondado e a Pri fica com o
+ * resto, então Leo + Pri = total exato. parteCent(9999, 3333, 'Leo') → 3333; 'Pri' → 6666.
+ */
+const parteCent = (cent, leo, resp) => {
+  const l = Math.round(cent * leo / DIV_TOTAL);
+  return resp === 'Leo' ? l : cent - l;
+};
+/** Mesma regra em reais (float), para os campos vPagar/vPago das contas. */
+const parteValor = (v, leo, resp) => parteCent(centavos(v), leo, resp) / 100;
+// 6000 → "60%"; 3333 → "33,33%"
+const fmtPct = bp => (bp/100).toLocaleString('pt-BR', {maximumFractionDigits:2}) + '%';
+// Conta → "60/40" (Leo/Pri)
+const fmtDivisao = c => {
+  const d = divisaoDe(c), n = v => (v/100).toLocaleString('pt-BR', {maximumFractionDigits:2});
+  return `${n(d.Leo)}/${n(d.Pri)}`;
+};
+/** Conta com qualquer pagamento (integral ou de uma parte): a divisão fica travada. */
+const temPagamento = c => !!(c && (c.vPago > 0 || c.pagamentos?.Leo || c.pagamentos?.Pri));
+
+/**
+ * DUP-004: helper centralizado para filtrar contas por responsável, com a parte de cada
+ * um nas despesas compartilhadas ("Leo & Pri"), pela divisão gravada na conta.
  * @param {Array} data - array de contas
  * @param {string} resp - 'Leo', 'Pri', 'Leo & Pri' ou '' (todos)
- * @returns {Array} contas filtradas (com _split:true nas divididas)
+ * @returns {Array} contas filtradas (com _split:true e _pct = parte da pessoa nas divididas)
  */
 const filtrarPorResp = (data, resp) => {
   if(!resp) return data;
@@ -173,13 +212,13 @@ const filtrarPorResp = (data, resp) => {
     .filter(c => c.resp === resp || c.resp === 'Leo & Pri')
     .map(c => {
       if(c.resp !== 'Leo & Pri') return c;
-      const metade = (c.vPagar||0) / 2;
+      const leo = divLeo(c);
+      const parte = {...c, vPagar: parteValor(c.vPagar||0, leo, resp), _split: true, _pct: montarDivisao(leo)[resp]};
       const pgInd = c.pagamentos?.[resp];
-      if(pgInd) return {...c, vPagar: metade, vPago: pgInd.valor, _split: true};
+      if(pgInd) return {...parte, vPago: pgInd.valor};
       const outra = resp === 'Leo' ? 'Pri' : 'Leo';
-      const pgOutra = c.pagamentos?.[outra];
-      if(pgOutra) return {...c, vPagar: metade, vPago: null, _split: true};
-      return {...c, vPagar: metade, vPago: c.vPago > 0 ? c.vPago/2 : null, _split: true};
+      if(c.pagamentos?.[outra]) return {...parte, vPago: null};
+      return {...parte, vPago: c.vPago > 0 ? parteValor(c.vPago, leo, resp) : null};
     });
 };
 
@@ -230,3 +269,12 @@ window.planoParcelas = planoParcelas;
 window.dataPagamentoPadrao = dataPagamentoPadrao;
 window.fatiaReceita = fatiaReceita;
 window.filtrarPorResp = filtrarPorResp;
+window.divLeo        = divLeo;
+window.divisaoDe     = divisaoDe;
+window.montarDivisao = montarDivisao;
+window.divValida     = divValida;
+window.parteCent     = parteCent;
+window.parteValor    = parteValor;
+window.fmtPct        = fmtPct;
+window.fmtDivisao    = fmtDivisao;
+window.temPagamento  = temPagamento;

@@ -79,7 +79,7 @@ Object.assign(APP, {
       const dOrig = new Date(c.data+'T12:00');
       const dSug  = `${document.getElementById('recAnoDestino').value}-${String(dOrig.getMonth()+1).padStart(2,'0')}-${String(dOrig.getDate()).padStart(2,'0')}`;
       return`<div class="rec-sel-item selected" onclick="APP.recToggleItem(this)">
-        <input type="checkbox" class="rec-chk" data-id="${c.id}" data-conta='${JSON.stringify({conta:c.conta,resp:c.resp,formaId:c.formaId||'',catId:c.catId||'',nota:c.nota||'',parcela:'1 de 1',recorrente:true}).replace(/'/g,"&apos;")}' checked>
+        <input type="checkbox" class="rec-chk" data-id="${c.id}" data-conta='${JSON.stringify({conta:c.conta,resp:c.resp,formaId:c.formaId||'',catId:c.catId||'',nota:c.nota||'',parcela:'1 de 1',recorrente:true,...(c.resp==='Leo & Pri'?{divisao:divisaoDe(c)}:{})}).replace(/'/g,"&apos;")}' checked>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;font-size:13px;color:var(--t1)">${c.conta} <span class="badge-rec">🔁 REC</span></div>
           <div style="font-size:11px;color:var(--t4);margin-top:2px">${c.resp} · ${CACHE.resolveForma(c.formaId||c.forma)} · ${catNome}</div>

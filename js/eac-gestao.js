@@ -268,7 +268,10 @@ Object.assign(APP, {
   /** Monta a revisão que seria salva agora (usada no resumo e na gravação). */
   _eacLBMontar(ano){
     const lbs = this.eacLBs(ano), vig = lbs[lbs.length-1]||null, parcial = EAC_LB.escopo==='cat' && !!vig;
-    const foto = c => ({id:c.id, conta:c.conta||'', catId:this._eacCatId(c), resp:c.resp, mes:eacMesDe(c.data), vCent:centavos(c.vPagar)});
+    // Compartilhada guarda a divisão do dia (div = parte do Leo em centésimos de %, README 8.3):
+    // a parte de cada um no Planejado não muda se a divisão da conta mudar depois
+    const foto = c => ({id:c.id, conta:c.conta||'', catId:this._eacCatId(c), resp:c.resp, mes:eacMesDe(c.data), vCent:centavos(c.vPagar),
+      ...(c.resp==='Leo & Pri' ? {div:divLeo(c)} : {})});
     const contas = CACHE.contas.filter(c=>eacAnoDe(c.data)===ano);
     let itens;
     if(parcial){
