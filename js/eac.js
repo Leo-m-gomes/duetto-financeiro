@@ -15,7 +15,7 @@
  * Tudo em CENTAVOS INTEIROS. A tela só lê; as gravações (LB, exclusões, grupos) ficam nos
  * modais de js/eac-gestao.js e passam por FS.*. Gráficos em SVG (cores por CSS).
  *
- * DEPENDÊNCIAS: fin-state (centavos, vEfetivo, filtrarPorResp, fmt, MESES), fin-cache
+ * DEPENDÊNCIAS: fin-state (centavos, vEfetivo, filtrarPorResp, parteCent, divLeo, fmt, MESES), fin-cache
  *   (CACHE.contas/cats/grupos/lbs/eacExcl), fin-db (FS.lerItensLB), relatorios (_escHtml).
  * IMPORTAÇÃO: depois de relatorios.js e antes de eac-gestao.js.
  * ═══════════════════════════════════════════════════════════════════════════
@@ -95,29 +95,34 @@ Object.assign(APP, {
     return x ? x.id : '?'+(c.cat||'');
   },
 
+  /** A conta (ou item da LB) entra no filtro global de responsável? Compartilhada entra para os dois. */
+  _eacEntra(resp, filtro){
+    return !filtro || resp===filtro || resp==='Leo & Pri';
+  },
+
   /**
-   * Fração de um valor que pertence ao filtro global de responsável (mesma regra do
-   * Dashboard): compartilhada vale metade para Leo e para Pri. Usada na LB e na verba.
+   * Parte de um valor em centavos que pertence ao filtro de responsável (mesma regra do
+   * Dashboard, README 8.3): compartilhada vale a parte da pessoa pela divisão (leo =
+   * centésimos de % do Leo; LB antiga sem divisão = 50/50). Usada na LB e na verba.
    */
-  _eacFrac(resp, filtro){
-    if(!filtro) return 1;
-    if(filtro==='Leo & Pri') return resp==='Leo & Pri' ? 1 : 0;
-    if(resp===filtro) return 1;
-    return resp==='Leo & Pri' ? 0.5 : 0;
+  _eacParte(cent, resp, leo, filtro){
+    if(!filtro || resp===filtro) return cent;
+    if(filtro==='Leo & Pri' || resp!=='Leo & Pri') return 0;
+    return parteCent(cent, leo, filtro);
   },
 
   /**
    * Valores de uma conta em centavos para o filtro de responsável.
    * pag = vPagar (previsto), ef = vEfetivo (pesa no Comprometido), pago = vPago.
-   * Na metade ÷2, pag usa o mesmo arredondamento da LB para não gerar reajuste de 1 centavo.
+   * Na parte de uma compartilhada, pag usa o mesmo arredondamento da LB (parteCent) para não
+   * gerar reajuste de 1 centavo.
    * @returns {{pag:number, ef:number, pago:number}|null} null se a conta não entra no filtro
    */
   _eacValores(c, filtro){
-    const f = this._eacFrac(c.resp, filtro);
-    if(!f) return null;
-    if(f===1) return {pag:centavos(c.vPagar), ef:centavos(vEfetivo(c)), pago:centavos(c.vPago||0)};
+    if(!this._eacEntra(c.resp, filtro)) return null;
+    if(!filtro || filtro==='Leo & Pri' || c.resp===filtro) return {pag:centavos(c.vPagar), ef:centavos(vEfetivo(c)), pago:centavos(c.vPago||0)};
     const s = filtrarPorResp([c], filtro)[0];
-    const pag = Math.round(centavos(c.vPagar)*f), pago = centavos(s.vPago||0);
+    const pag = parteCent(centavos(c.vPagar), divLeo(c), filtro), pago = centavos(s.vPago||0);
     return {pag, ef: pago>0 ? pago : pag, pago};
   },
 
@@ -157,14 +162,13 @@ Object.assign(APP, {
     };
     const planejar = (lista, doc, campo) => {
       lista.forEach(it=>{
-        if(indevida(it.id)) return;
-        const f = this._eacFrac(it.resp, filtro);
-        if(f) acc(it.catId)[campo][it.mes] += Math.round(it.vCent*f);
+        if(indevida(it.id) || !this._eacEntra(it.resp, filtro)) return;
+        // Item da LB guarda a divisão do dia da foto (div); LB antiga sem ela = 50/50
+        acc(it.catId)[campo][it.mes] += this._eacParte(it.vCent, it.resp, divLeo(it), filtro);
       });
-      // Verba (gastos variáveis): é da casa, então pesa como compartilhada no filtro
-      const fv = this._eacFrac('Leo & Pri', filtro);
+      // Verba (gastos variáveis): é da casa, então pesa como compartilhada 50/50 no filtro
       Object.entries(doc.porCat||{}).forEach(([catId,p])=>{
-        const v = Math.round((p.verbaMesCent||0)*fv);
+        const v = this._eacParte(p.verbaMesCent||0, 'Leo & Pri', DIV_PADRAO, filtro);
         if(!v) return;
         const a = acc(catId);
         for(let m=0;m<12;m++) a[campo][m] += v;
@@ -191,7 +195,7 @@ Object.assign(APP, {
     // Contas da LB: exclusões, troca de categoria, reajuste e juros/descontos
     if(lb) itens.forEach(it=>{
       if(indevida(it.id)) return;
-      const p = Math.round(it.vCent*this._eacFrac(it.resp, filtro));
+      const p = this._eacEntra(it.resp, filtro) ? this._eacParte(it.vCent, it.resp, divLeo(it), filtro) : 0;
       const c = porId.get(it.id);
       if(!c || eacAnoDe(c.data)!==ano){
         if(!p) return;
@@ -211,8 +215,11 @@ Object.assign(APP, {
       }
       const a = acc(cat);
       if(v.pag!==p){
+        // Com filtro por pessoa, mudança da divisão de uma compartilhada também é reajuste
+        const div = filtro && filtro!=='Leo & Pri' && c.resp==='Leo & Pri' && it.resp==='Leo & Pri' && divLeo(c)!==divLeo(it)
+          ? ` · divisão ${fmtDivisao(it)} → ${fmtDivisao(c)}` : '';
         a.causas.rea += v.pag-p;
-        a.det.rea.push({id:c.id, t:c.conta, s:`Na LB ${eacFmt(p)} · hoje ${eacFmt(v.pag)}`, v:v.pag-p});
+        a.det.rea.push({id:c.id, t:c.conta, s:`Na LB ${eacFmt(p)} · hoje ${eacFmt(v.pag)}${div}`, v:v.pag-p});
       }
       const jd = v.ef-v.pag;
       if(jd){

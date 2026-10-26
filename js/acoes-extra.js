@@ -99,7 +99,7 @@ Object.assign(APP, {
       const atr=isOverdue(c);
       return [
         i+1,
-        (c.conta||'')+(c._split?' ÷2':''),
+        (c.conta||'')+(c._split?` (${fmtPct(c._pct)})`:''),
         c.resp,
         CACHE.resolveForma(c.formaId||c.forma),
         CACHE.resolveCat(c.catId||c.cat),

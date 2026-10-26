@@ -120,11 +120,11 @@ Object.assign(APP, {
     document.getElementById('tbodyRel').innerHTML=data.map((c,i)=>{
       const ef=vEfetivo(c); const pend=vPendente(c); const atr=isOverdue(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat); const formaNome=CACHE.resolveForma(c.formaId||c.forma);
-      const splitBadge=c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);font-size:9px;margin-left:4px">÷2</span>':'';
+      const splitBadge=this.seloParte(c);   // parte da pessoa filtrada (60%), js/divisao.js
       return`<tr class="mob-card">
         <td data-label="#" style="color:var(--t4)">${i+1}</td>
         <td data-label="Descrição" style="max-width:140px;white-space:normal">${c.conta}${splitBadge}</td>
-        <td data-label="Resp.">${c.resp}</td>
+        <td data-label="Resp.">${this.respHtml(c)}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria">${catNome}</td>
         <td data-label="A Pagar" class="money neg">${fmt(ef)}</td>
@@ -144,13 +144,20 @@ Object.assign(APP, {
     this.atualizarContextoTopbar();   // selo de período no topbar
   },
 
+  // Coluna Divisão do CSV: "Leo 60% / Pri 40%" (não "60/40", que o Excel pode ler como data)
+  _divCsv(c){
+    if(c.resp!=='Leo & Pri') return '';
+    const d=divisaoDe(c);
+    return `Leo ${fmtPct(d.Leo)} / Pri ${fmtPct(d.Pri)}`;
+  },
+
   exportCSV(){
     const { data, anoVal, mesVal } = this._filtrarRelatorio();
     const todosAnos  = anoVal==='todos';
     const todosMeses = mesVal==='todos';
 
-    const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
-    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
+    const hdr=['#','Descrição','Responsável','Divisão','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
+    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,this._divCsv(c),CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=todosMeses?(todosAnos?'completo':'ano_'+anoVal):MESES[parseInt(mesVal)]+'_'+anoVal;
     const a=document.createElement('a');const url=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));
@@ -162,8 +169,8 @@ Object.assign(APP, {
     const ano=document.getElementById('filtroAnoContas').value;
     const mes=document.getElementById('filtroMesContas').value;
     const data=CACHE.getByAnoMes(ano,mes);
-    const hdr=['#','Descrição','Responsável','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
-    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
+    const hdr=['#','Descrição','Responsável','Divisão','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
+    const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,this._divCsv(c),CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');
     const label=mes==='todos'?(ano==='todos'?'todos':'ano_'+ano):`${MESES[parseInt(mes)]}_${ano}`;
     const a=document.createElement('a');const url=URL.createObjectURL(new Blob(['﻿'+csv],{type:'text/csv;charset=utf-8'}));

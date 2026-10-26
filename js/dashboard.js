@@ -101,7 +101,7 @@ Object.assign(APP, {
     document.getElementById('tbodyPendentes').innerHTML=pendTotal.slice(0,PEND_MAX).map(c=>{
       const atr=isOverdue(c);const catNome=CACHE.resolveCat(c.catId||c.cat);
       return`<tr class="mob-card pend-mob-row">
-        <td data-label="Descrição"><strong>${c.conta}</strong>${c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':''}</td>
+        <td data-label="Descrição"><strong>${c.conta}</strong>${this.seloParte(c)}</td>
         <td data-label="Responsável">${c.resp}</td>
         <td data-label="Categoria">${catNome}</td>
         <td data-label="Vencimento" style="${atr?'color:var(--orange);font-weight:600':''}">${fmtDate(c.data)}</td>

@@ -35,23 +35,58 @@ const FS = {
   },
 
   // ── CONTAS ──
+  /**
+   * Divisão (README 8.3): só conta "Leo & Pri" guarda `divisao`, sempre normalizada a partir
+   * da parte do Leo (a da Pri é o resto). Faixa 1% a 99%; fora dela, erro.
+   */
+  _divisaoNormal(divisao){
+    const leo = divisao ? divisao.Leo : DIV_PADRAO;
+    if(!divValida(leo)) throw new Error('Divisão inválida: cada parte deve ficar entre 1% e 99%');
+    return montarDivisao(leo);
+  },
+
   async addConta(data){
-    const ref = await fbDb.collection('contas').add({...data, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
-    await this._log('cadastro', ref.id, data.conta,
-      `Cadastrado por ${STATE.usuario}`,
-      {valor:data.vPagar, resp:data.resp, parcela:data.parcela||'1 de 1'}
+    const doc = {...data};
+    if(doc.resp==='Leo & Pri') doc.divisao = this._divisaoNormal(doc.divisao);
+    else delete doc.divisao;
+    const ref = await fbDb.collection('contas').add({...doc, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
+    await this._log('cadastro', ref.id, doc.conta,
+      `Cadastrado por ${STATE.usuario}${doc.divisao?` · divisão ${fmtDivisao(doc)}`:''}`,
+      {valor:doc.vPagar, resp:doc.resp, parcela:doc.parcela||'1 de 1'}
     );
     return ref.id;
   },
 
+  /**
+   * Edição de uma conta, em transação: a trava da divisão lê o estado atual da conta, então um
+   * pagamento registrado ao mesmo tempo pelo outro usuário não escapa da regra.
+   * Divisão: compartilhada guarda `divisao` (a recebida, ou a atual); deixou de ser
+   * compartilhada → o campo é apagado. Conta com pagamento não muda a divisão.
+   */
   async updateConta(id, data){
-    const antes = await fbDb.collection('contas').doc(id).get().catch(()=>null);
-    await fbDb.collection('contas').doc(id).update({...data, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+    const ref = fbDb.collection('contas').doc(id);
+    const ant = await fbDb.runTransaction(async tx => {
+      const snap = await tx.get(ref);
+      if(!snap.exists) throw new Error('Conta não encontrada');
+      const d = snap.data(), upd = {...data};
+      const respFinal = upd.resp !== undefined ? upd.resp : d.resp;
+      if(respFinal==='Leo & Pri'){
+        if(upd.divisao!==undefined || d.resp!=='Leo & Pri'){
+          upd.divisao = this._divisaoNormal(upd.divisao!==undefined ? upd.divisao : d.divisao);
+          if(d.resp==='Leo & Pri' && temPagamento(d) && upd.divisao.Leo!==divLeo(d))
+            throw new Error('Conta com pagamento: desfaça o pagamento para mudar a divisão');
+        }
+      } else {
+        delete upd.divisao;
+        if(d.divisao) upd.divisao = firebase.firestore.FieldValue.delete();
+      }
+      tx.update(ref, {...upd, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+      return d;
+    });
 
     const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota',dataCompra:'Data da compra'};
     let alteracoes = [];
-    if(antes && antes.exists){
-      const ant = antes.data();
+    if(ant){
       Object.keys(CAMPOS).forEach(campo=>{
         const de   = String(ant[campo]||'');
         const para = String(data[campo]!==undefined ? data[campo] : (ant[campo]||''));
@@ -68,8 +103,15 @@ const FS = {
           alteracoes.push(`${label}: "${deLabel}" → "${paraLabel}"`);
         }
       });
+      // Divisão: objeto, comparado pela parte do Leo ("50/50" → "60/40")
+      const respFinal = data.resp!==undefined ? data.resp : ant.resp;
+      if(respFinal==='Leo & Pri' && data.divisao!==undefined){
+        const novo = {divisao:montarDivisao(data.divisao.Leo)};
+        if(ant.resp!=='Leo & Pri') alteracoes.push(`Divisão: "—" → "${fmtDivisao(novo)}"`);
+        else if(divLeo(ant)!==novo.divisao.Leo) alteracoes.push(`Divisão: "${fmtDivisao(ant)}" → "${fmtDivisao(novo)}"`);
+      }
     }
-    const nome = data.conta || (antes?.exists ? antes.data().conta : '—');
+    const nome = data.conta || ant?.conta || '—';
     const detalhes = alteracoes.length ? alteracoes.join(' | ') : 'Atualização sem alterações detectadas';
     await this._log('edicao', id, nome, detalhes, {valor:data.vPagar, alteracoes});
   },
@@ -143,14 +185,14 @@ const FS = {
         paidAt,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      return {nome:d.conta, parcela:d.parcela, quitada:Object.keys(pagamentos).length>=2};
+      return {nome:d.conta, parcela:d.parcela, quitada:Object.keys(pagamentos).length>=2, pct:divisaoDe(d)[resp]};
     });
     if(!result) return;
     if(result.erro) throw new Error(result.erro);
     const evento = result.quitada ? 'pagamento_complementar' : 'pagamento_individual';
     const status = result.quitada ? 'conta integralmente quitada' : 'pagamento parcial';
     await this._log(evento, id, result.nome,
-      `Pagamento de ${fmt(valorPago)} (${resp}) em ${fmtDate(paidAt)} por ${quem}${result.parcela?' ('+result.parcela+')':''} — ${status}`,
+      `Pagamento de ${fmt(valorPago)} (${resp}, parte de ${fmtPct(result.pct)}) em ${fmtDate(paidAt)} por ${quem}${result.parcela?' ('+result.parcela+')':''} — ${status}`,
       {valor:valorPago, resp, tipoPagamento:result.quitada?'complementar':'individual'}
     );
   },
@@ -333,7 +375,7 @@ const FS = {
    * revisões com o mesmo número. As contas da foto vão para eac_lb_itens em lotes de 400.
    * Revisões são imutáveis: não existe método para editar ou apagar.
    * @param {Object} cab   cabeçalho (ano, rev, escopo, catIds, justificativa, totalCent, porCat...)
-   * @param {Array}  itens [{id, conta, catId, resp, mes, vCent}]
+   * @param {Array}  itens [{id, conta, catId, resp, mes, vCent, div?}] (div: divisão da compartilhada)
    */
   async salvarLB(cab, itens){
     this._exigirAdminEac();

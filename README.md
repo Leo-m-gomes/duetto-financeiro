@@ -102,6 +102,7 @@ js/
   ui-*.js             Toast/tema/privacidade, modais, tabelas/ordenação, gráficos, período, máscara monetária, filtro de formas (4.8)
   dashboard.js        Dashboard (KPIs, insights, gráficos, pendentes)
   contas.js           Contas (lista, pagamento, parcelas, cadastro)
+  divisao.js          Divisão das compartilhadas: régua, responsável com foto, parcelamento, selos (8.3)
   receitas.js         Receitas (lista unificada, gráfico, outras receitas)
   salarios.js         Salários, cálculo detalhado, tabelas fiscais
   relatorios.js       Relatório (filtros, busca, CSV) e helpers de texto
@@ -121,6 +122,7 @@ js/
   avatares.js         Fotos de perfil: aplica nos avatares e modal "Meu perfil" (recorte com foco no rosto)
 css/eac.css           Tela EAC e seus modais
 css/filtro-formas.css Filtro de forma de pagamento: botão da barra de filtros e painel de distribuição
+css/divisao.css       Divisão das compartilhadas: régua, linha de resumo, selo da parte, mini barra
 views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
 
@@ -189,7 +191,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 
 * Fecham no **X**, nos botões de cancelar ou com clique no fundo escuro. O clique no fundo só fecha quando o botão do mouse é **pressionado e solto no fundo** (`ligarFecharNoFundo`, em `js/ui-modals.js`). Selecionar texto arrastando de dentro da caixa para fora (ou o contrário) não fecha o modal nem perde o que foi digitado. Vale para todos os modais do app e de Notas.
 * Modal que espera uma decisão (Duplicatas) trata o clique no fundo como "não cadastrar" (`ov._aoFecharNoFundo`), liberando o botão Salvar.
-* Modais podem empilhar: o "Confirmar Pagamento" aberto pelo botão Pagar do modal da conta fica por cima dele (ordem no `views/modals.html`).
+* Modais podem empilhar: o "Confirmar Pagamento" aberto pelo botão Pagar do modal da conta fica por cima dele, e o "➗ Divisão do Parcelamento" por cima do Gerenciar Parcelamento (ordem no `views/modals.html`).
 
 ### 4.6 Responsivo
 
@@ -260,6 +262,7 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 | `conta` | string | Descrição. Obrigatório |
 | `nota` | string | Opcional |
 | `resp` | `'Leo'` \| `'Pri'` \| `'Leo & Pri'` | Obrigatório. `Leo & Pri` = compartilhada |
+| `divisao` | `{Leo, Pri}` inteiros | Só em `Leo & Pri` (8.3). Parte de cada um em centésimos de ponto percentual (10000 = 100%; 6000 = 60%). `Pri = 10000 − Leo` (o sistema grava a partir do Leo). Faixa 1% a 99%. Sem o campo = 50/50 (contas antigas e importadas). Apagado quando a conta deixa de ser compartilhada. Não muda com a conta paga |
 | `catId` | string | ID em `categorias`. Obrigatório. Legado: campo `cat` com o nome |
 | `formaId` | string | ID em `formas`. Obrigatório. Legado: campo `forma` com o nome |
 | `data` | `YYYY-MM-DD` | **Vencimento.** Obrigatório. Define o mês da conta |
@@ -285,7 +288,7 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 | `categorias` | `{nome, grupoId?}` (nome único, sem diferenciar maiúsculas). `grupoId` liga ao grupo da EAC; sem ele a categoria fica em "Sem grupo" |
 | `categoria_grupos` | `{nome, ordem, cor, createdBy, createdAt, updatedBy?, updatedAt?}`. Grupos da tabela EAC; `ordem` define a numeração 1.x; `cor` é uma chave da paleta (`cat-1`..`cat-6`, `eac-g7`, `eac-g8`) |
 | `eac_lb` | Linha de base (revisão), ID `<ano>-r<rev>`: `{ano, rev, escopo:'geral'\|'categorias', catIds, justificativa, criadaPor, criadaEm, criadaEmIso, foraDoPrazo, base, totalCent, qtdContas, lotes, porCat:{catId:{mesesCent[12], verbaMesCent, qtd, totalCent}}}`. **Imutável**: o sistema não edita nem apaga |
-| `eac_lb_itens` | Contas da foto de cada LB em lotes de até 400, ID `<lbId>-<n>`: `{lbId, ano, rev, lote, itens:[{id, conta, catId, resp, mes, vCent}]}` |
+| `eac_lb_itens` | Contas da foto de cada LB em lotes de até 400, ID `<lbId>-<n>`: `{lbId, ano, rev, lote, itens:[{id, conta, catId, resp, mes, vCent, div?}]}`. `div` só nas compartilhadas: parte do Leo (centésimos de %) no dia da foto; item sem `div` vale 50/50 |
 | `eac_exclusoes` | Classificação de conta excluída, ID = ID da conta: `{contaId, ano, conta, catId, resp, vCent, classificacao:'cancelada'\|'indevida', definidoPor, definidoEm, definidoEmIso}` |
 | `eac_log` | Auditoria da EAC: `{evento:'lb_salva'\|'exclusao_classificada'\|'grupo_criado'\|'grupo_renomeado'\|'grupo_excluido'\|'grupo_ordem'\|'categoria_movida', usuario, detalhes, timestamp, ...}` |
 | `formas` | `{nome}` (formas de pagamento; nome único) |
@@ -324,7 +327,8 @@ Só quando a coleção está vazia: 30 categorias padrão (`SEED_CATS`), 12 form
   * A máscara roda na **captura do `document`**, antes de qualquer listener de `input` do campo: cálculos ao vivo leem sempre o valor já formatado. Cálculos em tela usam `moneyCents(valor)` (centavos inteiros, mesma regra da máscara).
   * **Valor Total (auto)** do modal de conta = `moneyCents(valor da parcela) × Qtd. de Parcelas` (todas as parcelas, inclusive as anteriores à atual; regras em 8.5).
   * Moeda (BRL, USD, EUR) muda **só símbolo e formatação**; não converte valores.
-* **Responsáveis:** `Leo`, `Pri` e `Leo & Pri` (compartilhada). Em receitas, "Ambos" é `resp:''`.
+* **Responsáveis:** `Leo`, `Pri` e `Leo & Pri` (compartilhada, com a parte de cada um em `divisao`, 8.3). Em receitas, "Ambos" é `resp:''` e vale sempre 50/50.
+* **Percentuais da divisão** em centésimos de ponto percentual inteiros (6000 = 60%), como os centavos do dinheiro.
 
 ---
 
@@ -335,7 +339,7 @@ Fonte única em `js/fin-state.js`. Nenhuma tela deve reimplementar essas regras.
 ### 8.1 Status da conta
 
 ```
-temPgIndividual(c) = c.resp == 'Leo & Pri' e não é metade ÷2 e (pagamentos.Leo ou pagamentos.Pri)
+temPgIndividual(c) = c.resp == 'Leo & Pri' e não é a parte de uma pessoa (_split) e (pagamentos.Leo ou pagamentos.Pri)
 isQuitada(c)       = temPgIndividual(c) ? (pagamentos.Leo E pagamentos.Pri) : vPago > 0
 isOverdue(c)       = c.data < hoje E não isQuitada(c)          → "Atrasada"
 pendente           = não isQuitada(c) e não atrasada
@@ -355,20 +359,38 @@ vPendente(c) = quitada ? 0
 * `vEfetivo` é o valor que a conta **pesa nas despesas**: o pago quando quitada (com juros ou desconto), o previsto quando não.
 * Compartilhada parcialmente paga pesa o valor cheio (`vPagar`) até as duas partes pagarem.
 
-### 8.3 Filtro de responsável e divisão ÷2 (`filtrarPorResp`)
+### 8.3 Divisão das compartilhadas e filtro de responsável (`filtrarPorResp`)
+
+**Divisão** (`divisao`, 6.1): parte do Leo em centésimos de ponto percentual; a da Pri é o restante. Padrão **50/50** (conta nova e contas sem o campo). Faixa **1% a 99%**: 100% é conta individual, e 0% geraria uma parte de R$ 0, que o pagamento por parte não aceita. Funções em `fin-state.js`: `divLeo`, `divisaoDe`, `parteCent`, `parteValor`, `fmtPct`, `fmtDivisao`, `temPagamento`.
+
+**Arredondamento (centavos inteiros):** parte do Leo = `round(valor em centavos × Leo ÷ 10000)`; parte da Pri = valor − parte do Leo. Leo + Pri = valor exato. Ex.: R$ 99,99 com 33,33% para o Leo → Leo R$ 33,33 e Pri R$ 66,66; R$ 99,99 em 50/50 → Leo R$ 50,00 e Pri R$ 49,99.
 
 | Filtro | Contas incluídas | Valor |
 |---|---|---|
 | Todos | todas | cheio |
 | Leo & Pri | só `resp == 'Leo & Pri'` | cheio |
-| Leo (ou Pri) | as da pessoa + as compartilhadas | compartilhada vira **metade** (`_split`, selo ÷2) |
+| Leo (ou Pri) | as da pessoa + as compartilhadas | compartilhada vira **a parte da pessoa** (`_split`, `_pct`); selo com o percentual (ex.: 60%) |
 
-Na metade ÷2 de uma compartilhada:
-* se a pessoa pagou sua parte: `vPagar = metade`, `vPago = valor pago por ela`;
-* se só a outra pessoa pagou: `vPagar = metade`, `vPago = null` (a parte desta pessoa segue pendente);
-* se foi paga integralmente (sem pagamentos individuais): `vPago = vPago / 2`.
+Na parte de uma compartilhada:
+* se a pessoa pagou sua parte: `vPagar = parte`, `vPago = valor pago por ela`;
+* se só a outra pessoa pagou: `vPagar = parte`, `vPago = null` (a parte desta pessoa segue pendente);
+* se foi paga integralmente (sem pagamentos individuais): `vPago` = parte do valor pago, pela mesma divisão.
 
 Resultado: Leo + Pri soma exatamente o total da casa.
+
+**Trava:** conta compartilhada com qualquer pagamento (integral ou de uma parte) **não muda a divisão**; é preciso desfazer o pagamento antes. Vale na tela (linha com cadeado) e em `FS.updateConta`, que edita em transação e recusa a mudança. Sem a trava, Leo + Pri deixaria de bater com a casa (ex.: 50/50, Leo pagou R$ 50 de R$ 100 e a divisão vira 70/30).
+
+**Onde a divisão é escolhida**
+* **Modal da conta:** o responsável é escolhido em três botões com foto (Leo, Pri, Leo & Pri). Com Leo & Pri aparece o campo **Divisão**:
+  * Conta nova: ao tocar em Leo & Pri, a **régua** abre já em 50/50. Verde (Leo) à esquerda e rosa (Pri) à direita; o divisor arrasta com mouse ou toque e aceita teclado (setas 1%, Shift + seta 5%, PageUp/PageDown 10%, Home/End nos limites).
+  * **Sua parte:** só quem está logado digita (o Leo à esquerda, a Pri à direita), em %, com até 2 casas; a outra parte é o restante. Os valores em reais saem do Valor da Parcela.
+  * **Atalhos da sua parte:** 30%, 40%, 50%, 60%, 70% e **Pela renda** (proporção dos salários líquidos vigentes de Leo e Pri, arredondada para % inteiro; desativado sem os dois salários).
+  * **Recolhe** numa linha de resumo, da altura de um campo, ao tocar num atalho, em Concluir, com Enter ou ao ir para outro campo do modal. **Esc** desfaz o ajuste e recolhe. Arrastar não recolhe. Valor fora de 1% a 99% não recolhe, mostra o erro e bloqueia o Salvar.
+  * **Linha de resumo:** "Leo 60% R$ … ━━ R$ … 40% Pri" e **Ajustar**, que abre a régua de novo. No celular mostra só os percentuais e o lápis. Edição e modo ver abrem recolhidas; no modo ver não há Ajustar; conta com pagamento mostra **🔒 Paga** e não abre (o clique explica quem já pagou).
+  * O cadastro parcelado grava a mesma divisão em todas as parcelas.
+* **Gerenciar Parcelamento:** coluna **Sua parte** (editável nas parcelas Leo & Pri sem pagamento; 🔒 com a divisão nas que têm pagamento) e botão **➗ Divisão**, que aplica a mesma divisão a todas as editáveis. Grava no Salvar do parcelamento; valor inválido não grava nada.
+* **Importação:** a planilha não tem coluna de divisão; contas importadas como Leo & Pri entram 50/50 (11).
+* **Listas** (Contas e Relatório): o responsável compartilhado mostra uma mini barra verde e rosa e o texto "60/40".
 
 ### 8.4 Pagamento
 
@@ -380,12 +402,12 @@ Resultado: Leo + Pri soma exatamente o total da casa.
   * Ex. (hoje 20/04/2026): vence 10/04 → grava 10/04; vence 25/04 → grava 20/04; vence 10/03/2026, 05/05/2026 ou 10/04/2025 → data obrigatória.
   * Vale também para o pagamento por parte da compartilhada (`pagamentos.<resp>.paidAt`). O log registra a data.
 * **Conta individual** (`FS.pagarConta`): grava `vPago`, `paidBy`, `paidAt`. O valor pago pode diferir do previsto; o modal mostra "acréscimo" ou "desconto".
-* **Compartilhada:** escolha Leo, Pri ou "Ambos de uma vez".
+* **Compartilhada:** escolha Leo, Pri ou "Ambos de uma vez". Os botões mostram o percentual de cada um; o Valor Previsto da parte vem da divisão, na regra de centavos de 8.3 (ex.: "R$ 1.920,00 · 60% de R$ 3.200,00").
   * Por parte (`FS.pagarContaIndividual`, transação): grava `pagamentos.<resp>`, e `vPago` = soma das partes. Uma pessoa não paga duas vezes. Quitada quando as duas partes existem (log `pagamento_complementar`).
   * Ambos: pagamento integral normal.
   * **Blindagem:** compartilhada com só uma parte paga **não aceita** pagamento integral (erro); a parte faltante vai pelo pagamento individual. Baixas automáticas (parcelas, massa) completam a parte que falta (`_pagarContaAuto`).
 * **Desfazer pagamento:** limpa `vPago`, `paidBy`, `paidAt`; **`vPagar` original é preservado**. Em compartilhada, desfaz a parte de Leo, de Pri ou ambas.
-* **Pagamento em massa** (Contas, desktop): seleciona várias contas em aberto; valores editáveis por linha; `paidAt` = data do dia (não usa o modal). Com filtro "Leo"/"Pri", compartilhadas recebem baixa só da parte filtrada; sem filtro (ou "Leo & Pri"), baixa integral. Executa uma por uma e informa erros.
+* **Pagamento em massa** (Contas, desktop): seleciona várias contas em aberto; valores editáveis por linha; `paidAt` = data do dia (não usa o modal). Com filtro "Leo"/"Pri", compartilhadas recebem baixa só da parte filtrada (valor pela divisão, percentual na linha); sem filtro (ou "Leo & Pri"), baixa integral. Executa uma por uma e informa erros.
 * **Parcelas** (modal de parcelamento): pagar uma, pagar todas (valor pendente de cada), **pagamento antecipado** (valor total dividido igualmente; o resto de arredondamento vai para a última parcela), editar descrição/responsável/data/valor/parcela, aplicar categoria, forma ou nota a todas, excluir uma ou todas.
 
 ### 8.5 Cadastro e parcelamento
@@ -516,15 +538,15 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 | KPI | Cálculo (centavos inteiros) |
 |---|---|
 | Receita | Σ `getReceitaMes(ano, m, resp)` para cada ano e mês da seleção (período: mesIni..mesFim do ano do período; ano completo: 12 meses; mês: 1; "Todos os anos": cada ano com movimento) |
-| Total Despesas | Σ `vEfetivo` das contas com vencimento na seleção (÷2 quando filtrado) |
+| Total Despesas | Σ `vEfetivo` das contas com vencimento na seleção (parte da pessoa nas compartilhadas quando filtrado, 8.3) |
 | Pendente | Σ `vPendente` do período **+ atrasadas de meses anteriores** |
 | Saldo | Receita − Total Despesas. Linha extra "Após atrasadas anteriores" = Saldo − pendente das atrasadas anteriores |
 
 * **Atrasadas de meses anteriores:** contas atrasadas com vencimento antes do 1º dia do mês de referência (mês selecionado ou mês inicial do período). Só existem com mês específico ou período. Entram em Pendente e na tabela de pendentes; **não** entram em Total Despesas nem no Saldo principal (já pesaram no mês delas).
-* **Banner de atraso:** todas as atrasadas de qualquer mês (com filtro de responsável e ÷2), quantidade e soma do que falta pagar. O clique abre Contas só com as atrasadas (`APP.filtrarAtrasadas`).
+* **Banner de atraso:** todas as atrasadas de qualquer mês (com filtro de responsável e a parte da pessoa nas compartilhadas), quantidade e soma do que falta pagar. O clique abre Contas só com as atrasadas (`APP.filtrarAtrasadas`).
 * **Pendentes do mês:** atrasadas anteriores primeiro (mais antigas no topo), depois as do período; mostra até 8 com link "Ver todas".
 * **Insights automáticos:**
-  1. Variação das despesas contra o mês anterior (só com mês específico): acima de +5% "acima", abaixo de −5% "abaixo", senão "estáveis". Usa o mesmo ÷2.
+  1. Variação das despesas contra o mês anterior (só com mês específico): acima de +5% "acima", abaixo de −5% "abaixo", senão "estáveis". Usa a mesma divisão.
   2. Categoria com maior gasto no período.
   3. Saldo negativo: "Despesas superam a receita em X".
   4. Contas em aberto que vencem de hoje até 3 dias (qualquer mês; compartilhadas contam para os dois).
@@ -538,19 +560,19 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
 * **Clique na descrição** abre o modal da conta em **modo ver** (`APP.verConta`): todos os campos só leitura, sem a barra Gerenciar, com a situação no topo (paga com valor, data e quem pagou; parcialmente paga; atrasada; pendente). Rodapé: **Fechar**, **Editar** (libera os campos, como o ícone ✏; o parcelamento segue só leitura) e **Pagar** (some se a conta está quitada; abre o "Confirmar Pagamento" por cima e, ao confirmar, fecha os dois). O ícone ✏ continua abrindo direto a edição.
-* **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (÷2 nas compartilhadas; a metade já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
+* **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (parte da pessoa nas compartilhadas; a parte já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
 * Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma (seleção múltipla, 4.8), recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
 * Com mês específico ou período, as **atrasadas de meses anteriores** entram na lista.
 * Totais: Total = Σ `vEfetivo`; Pago = Σ `vPago`; Pendente = Σ `vPendente`.
 * Paginação: 20 por página (configurável em Preferências).
-* Exportar CSV: todas as contas do ano/mês filtrados, **ignorando** busca, status, categoria, forma, período e responsável (separador `;`, UTF-8 com BOM). Colunas: #, Descrição, Responsável, Forma, Categoria, A Pagar (`vEfetivo`), Pago, Pendente, Vencimento, Parcela, Por, Nota. Para exportar um recorte filtrado, use o CSV do Relatório.
+* Exportar CSV: todas as contas do ano/mês filtrados, **ignorando** busca, status, categoria, forma, período e responsável (separador `;`, UTF-8 com BOM). Colunas: #, Descrição, Responsável, Divisão ("Leo 60% / Pri 40%", só nas compartilhadas; não "60/40", que o Excel pode ler como data), Forma, Categoria, A Pagar (`vEfetivo`), Pago, Pendente, Vencimento, Parcela, Por, Nota. Para exportar um recorte filtrado, use o CSV do Relatório.
 
 ### 10.3 Relatório
 
 * Filtros: ano, mês, período, categoria, forma (seleção múltipla, 4.8), status, responsável global e **busca** (sem acento; vários termos com E; inclui valores e datas). A busca vale só dentro do período escolhido.
 * Atrasadas de meses anteriores entram quando há mês específico ou período.
 * KPIs: quantidade, Total a pagar (Σ `vEfetivo`), Total pago (Σ `vPago`), Pendente (Σ `vPendente`).
-* Tabela, CSV e PDF usam **o mesmo recorte** (`_filtrarRelatorio`). PDF em A4 paisagem com cabeçalho, KPIs, tabela, totais e paginação. O cabeçalho do PDF cita as formas filtradas: até 2 pelo nome; acima disso, só a quantidade ("5 formas").
+* Tabela, CSV e PDF usam **o mesmo recorte** (`_filtrarRelatorio`). Com filtro Leo ou Pri, a compartilhada aparece com a parte da pessoa: selo (60%) na tabela e "(60%)" após a descrição no PDF. O CSV tem as colunas do CSV de Contas, inclusive Divisão. PDF em A4 paisagem com cabeçalho, KPIs, tabela, totais e paginação. O cabeçalho do PDF cita as formas filtradas: até 2 pelo nome; acima disso, só a quantidade ("5 formas").
 * **Pareto:** soma `vEfetivo` por categoria, ordena do maior para o menor, calcula % e % acumulado; destaca as categorias até atingir 80% do total.
 
 ### 10.4 Receitas
@@ -579,7 +601,7 @@ Objetivo: saber se o que foi planejado no início do ano está se cumprindo. Vis
 | Realizado | Σ `vPago` das contas do ano (inclui a parte já paga de compartilhadas) |
 | Desvio | Comprometido − Planejado. > 0 gasto acima do plano (vermelho); < 0 economia (verde). % = Desvio ÷ Planejado; categoria sem planejado mostra "novo" |
 
-* **Filtro de responsável:** mesma regra do Dashboard (compartilhada ÷2 para Leo ou Pri). Vale para a LB porque cada conta da foto guarda o responsável; a verba conta como compartilhada.
+* **Filtro de responsável:** mesma regra do Dashboard (compartilhada pela divisão da conta, 8.3). Vale para a LB porque cada conta da foto guarda o responsável e, nas compartilhadas, a divisão do dia (`div`); LBs salvas antes da divisão personalizada não têm `div` e valem 50/50, que era a regra delas. A verba conta como compartilhada 50/50. No filtro por pessoa, uma divisão alterada depois da LB aparece em **Reajustes**, com o detalhe "divisão 50/50 → 60/40". Sem filtro (casa), a divisão não muda nenhum valor.
 * **Tabela EAP:** 1 Consolidado (destaque verde), 1.x Grupo (tinta da cor do grupo, faixa lateral) e 1.x.y Categoria (recuada, com linha-guia). Seta recolhe/expande (← e → no teclado); segmentado "Nível" mostra 1, 2 ou 3 níveis; ordem EAP ou "Maior desvio". Categorias sem valor no ano não aparecem. O clique no nome abre o detalhe.
 * **Farol:** desvio ≤ 0 dentro do plano; até 5% atenção; acima de 5% (ou gasto sem planejado) acima do plano (`EAC_FAROL_PCT`).
 * **Ponte do desvio** (fecha exatamente em centavos): Planejado [+ Revisões, quando comparando com a Rev 0] + Contas novas além da verba + Reajustes de valor + Juros e multas + Descontos + Exclusões e saídas do ano + Troca de categoria = Comprometido. Cada conta da foto é cruzada pelo ID com a conta atual:
@@ -625,6 +647,7 @@ Somente admin.
 * **Por linha:** Status "Nova" importa, "Existente" ignora, vazio com dados é erro. Responsável, forma e categoria precisam existir no sistema. Data em dd/mm/aaaa (ano com 4 dígitos, sem limite). Data Compra válida e não posterior ao vencimento. Valor > 0. Total e Parcela Atual inteiros > 0, com Parcela Atual ≤ Total. **Qualquer erro bloqueia o lote inteiro.**
 * **Geração:** cada linha vira as parcelas de Parcela Atual até Total, mês a mês a partir do vencimento informado, todas com o valor da parcela e um grupo por linha.
 * Duplicatas são verificadas contra o banco e entre linhas da própria planilha; o usuário decide.
+* Responsável **Leo & Pri** entra com divisão **50/50**: a planilha não tem coluna de divisão. Para mudar, use a conta ou o ➗ Divisão do Gerenciar Parcelamento (8.3).
 * Gravação em lotes de 400 e registro em `importacoes`.
 
 ---
@@ -659,13 +682,14 @@ Somente admin.
 ### 13.3 Logs
 
 * `logs` (contas): `cadastro`, `edicao` (com a lista de campos alterados), `exclusao`, `pagamento`, `pagamento_individual`, `pagamento_complementar`, `desfazer_pagamento`, `desfazer_pagamento_individual`, `restauracao`.
+* Divisão nos logs: `cadastro` de compartilhada cita a divisão ("divisão 60/40"); `edicao` registra `Divisão: "50/50" → "60/40"`; pagamento por parte cita o percentual ("Leo, parte de 60%").
 * Tela de log: sem período mostra os 50 mais recentes (de até 500 lidos); com período lê até 10.000. Filtros de pessoa (filtro global), evento e datas aplicados no navegador (evita índices compostos).
 * `logs_acesso`: uma linha a cada abertura do app (usuário, e-mail, data, navegador; exibe Mobile/Desktop).
 * Falha ao gravar log nunca bloqueia a operação principal.
 
 ### 13.4 Backup (admin)
 
-* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log, avatares`. `avatares` (fotos) vai só no JSON; o Excel não tem aba para ela. O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
+* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log, avatares`. `avatares` (fotos) vai só no JSON; o Excel não tem aba para ela. A aba Contas do Excel tem as colunas "Div. Leo %" e "Div. Pri %" (só nas compartilhadas). O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
 * **JSON** (versão 2): timestamps serializados como `{__tipo:'timestamp', iso, seconds, nanoseconds}`; `meta` com data, autor, contagem e falhas.
 * **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos, salários por período (mês e ano de início) e outras receitas com Ano e "Ano confirmado" (Não = ano ainda inferido).
 * Coleção que falhar não derruba o backup: entra em `meta.falhas` e o usuário é avisado.
@@ -691,7 +715,10 @@ Somente admin.
 
 * **Segurança no servidor:** o controle de acesso no código é só do lado do cliente. A proteção real depende das **Regras do Firestore**, configuradas no Firebase Console e **não versionadas neste repositório**. Elas devem refletir: só os dois e-mails, logs imutáveis e permissões de Notas.
 * **Receitas antigas sem `ano`** usam um ano inferido (9.1) até a confirmação. Se alguma foi cadastrada num ano para valer em outro, confira na revisão antes de comparar anos.
-* **Novos campos no Firestore** (`outras_receitas.ano`, `historico[].anoInicio`): se as Regras do Firestore validarem campos, precisam aceitá-los.
+* **Novos campos no Firestore** (`outras_receitas.ano`, `historico[].anoInicio`, `contas.divisao`, `eac_lb_itens.itens[].div`): se as Regras do Firestore validarem campos, precisam aceitá-los. `contas.divisao` é um mapa `{Leo, Pri}` de inteiros que somam 10000, cada um entre 100 e 9900.
+* **Trava da divisão** (conta com pagamento não muda a divisão, 8.3) é do cliente, em transação no `FS.updateConta`. A proteção real dependeria de uma regra do Firestore.
+* **Centavo ímpar nas compartilhadas 50/50:** antes, cada um via a metade com meio centavo (R$ 99,99 → R$ 49,995 exibido como R$ 50,00 para os dois). Agora o Leo fica com o centavo arredondado e a Pri com o resto (R$ 50,00 + R$ 49,99), e a soma bate com a casa. Totais por pessoa podem mudar 1 centavo em relação ao que era exibido.
+* **Receitas "Ambos"** continuam 50/50: a divisão personalizada vale só para contas.
 * **Dinheiro em float** nas contas e receitas gravadas. Contas, Relatório e Receitas somam em reais (float); o Dashboard soma em centavos. Diferença de 1 centavo é possível em casos raros. Migrar para centavos inteiros exige migração de dados.
 * **Salários não recalculam** ao mudar as tabelas fiscais (9.3).
 * **Moeda** só muda a formatação, sem conversão.
@@ -730,6 +757,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-26 | **Divisão personalizada das contas compartilhadas** (8.3): novo campo `contas.divisao` (`{Leo, Pri}` em centésimos de %, padrão 50/50, faixa 1% a 99%). Modal da conta com responsável em botões com foto; ao escolher Leo & Pri abre a régua (arrastar, teclado, "Sua parte" digitada só por quem está logado, outra parte = restante, atalhos 30% a 70% e Pela renda), que recolhe numa linha de resumo depois da escolha. Conta com pagamento trava a divisão (tela e `FS.updateConta` em transação). Cálculo em centavos: Leo arredondado, Pri = resto (Leo + Pri = casa). `filtrarPorResp`, pagamento por parte, pagamento em massa, Dashboard, Contas, Relatório, PDF e EAC usam a parte real no lugar do ÷2; selo com o percentual e mini barra no responsável. Gerenciar Parcelamento ganha a coluna Sua parte e o botão ➗ Divisão. LB da EAC guarda `div` nas compartilhadas (LB antiga = 50/50); verba segue 50/50. CSV com coluna Divisão, backup Excel com Div. Leo % e Div. Pri %, logs com a divisão. Importação e receitas "Ambos" seguem 50/50. Novos `js/divisao.js` e `css/divisao.css`. |
 | 2026-10-22 | **Filtro de forma com seleção múltipla** (Contas e Relatório): o select de forma vira o botão "Formas" com painel de distribuição (`js/ui-filtro-formas.js`, `css/filtro-formas.css`, 4.8). Marca uma ou várias formas; cada forma mostra barra, valor (centavos de `vEfetivo`), % e contas do recorte sem o filtro de forma; atalhos Todas, Cartões e Pareto 80%; ordem por valor ou A–Z. Popover no desktop e painel inferior até 640px. Forma passa a ser o último filtro aplicado (resultado igual ao anterior). PDF do Relatório cita as formas filtradas. Aviso de atrasadas e "Ver contas no Relatório" da EAC limpam a seleção. Novo token `--ui-z-popover`. |
 | 2026-10-21 | **Cartões no celular:** a faixa do título de Contas e do Relatório passa a ocupar a largura toda do cartão (antes ficava na metade esquerda por causa do `max-width` da tabela do computador; a Nota do Relatório tinha o mesmo corte). Em Contas, a Parcela aparece ao lado do Vencimento, no espaço que ficava vazio. Tabela do computador sem mudança. |
 | 2026-10-21 | **Fotos de perfil:** pasta `img/` com as fotos padrão de Leo e Pri (recortadas no rosto, 512 px, sem EXIF/GPS). Avatares do trilho e do filtro de responsável mostram a foto, com anel na cor de identidade. Novo modal **Meu perfil** (`js/avatares.js`): clique no avatar do trilho, avatar no topbar até 768px (no lugar do Sair, que passa para dentro do modal) ou busca rápida; recorte com foco no rosto (FaceDetector quando houver, toque centraliza e aproxima, arrastar, zoom), prévia e Usar foto padrão. Nova coleção `avatares` (JPEG 320 px em data URL; cada usuário só altera a própria), incluída no backup JSON. Regra recomendada do Firestore em 15. |

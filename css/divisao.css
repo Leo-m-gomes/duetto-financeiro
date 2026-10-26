@@ -1,0 +1,128 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, MÓDULO divisao.css
+   ═══════════════════════════════════════════════════════════════════════════
+   Divisão das contas compartilhadas (js/divisao.js, README 8.3):
+     - responsável em botões com foto no modal da conta (.resp-seg)
+     - linha de resumo recolhida (.div-resumo) e régua aberta (.div-painel)
+     - selo da parte e mini barra do responsável nas listas
+     - coluna "Sua parte" do Gerenciar Parcelamento
+   Cores de identidade: --id-leo e --id-pri (css/shell.css), que não mudam com o tema.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Título de grupo no formulário (mesmo visual de .fg label) ── */
+.fg .fg-tit{font-size:10px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--t4)}
+
+/* ── Responsável em botões com foto (radios) ── */
+.resp-seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;padding:4px;background:var(--bg);border:1px solid var(--border);border-radius:12px}
+.fg label.resp-op{position:relative;display:flex;align-items:center;justify-content:center;gap:8px;min-height:34px;padding:6px 8px;border-radius:9px;font-size:13px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--t2);cursor:pointer;white-space:nowrap;transition:background .15s,box-shadow .15s,color .15s}
+.fg .resp-op input{position:absolute;opacity:0;width:1px;height:1px;padding:0;margin:0;border:0;pointer-events:none}
+.fg label.resp-op:hover{color:var(--t1)}
+.fg label.resp-op:has(input:checked){background:var(--surface);color:var(--t1);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08),0 0 0 1px var(--border2)}
+.dark .fg label.resp-op:has(input:checked){background:rgba(255,255,255,.1)}
+.fg label.resp-op:has(input:focus-visible){box-shadow:0 0 0 2px var(--palm)}
+.fg label.resp-op:has(input:disabled){cursor:default}
+#ovConta.modo-ver .resp-op:not(:has(input:checked)){opacity:.45}
+.resp-op .who-av{width:22px;height:22px}
+.resp-op .who-duo i{box-shadow:0 0 0 2px var(--bg)}
+.resp-op:has(input:checked) .who-duo i{box-shadow:0 0 0 2px var(--surface)}
+
+/* ── Campo da divisão ── */
+.div-campo[hidden],.div-resumo[hidden],#fDivPainel[hidden]{display:none}
+
+/* Linha de resumo (recolhida): "Leo 60% R$ … ━━━━ R$ … 40% Pri ✏ Ajustar" */
+.div-resumo{display:flex;align-items:center;gap:12px;width:100%;min-height:42px;padding:6px 8px 6px 12px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);color:var(--t2);font-family:var(--font-b);font-size:13px;text-align:left;cursor:pointer;transition:border-color .15s}
+.div-resumo:hover{border-color:var(--border2)}
+.div-resumo:focus-visible{outline:none;border-color:var(--palm);box-shadow:0 0 0 2px var(--palm-lt)}
+.div-resumo[aria-disabled="true"]{cursor:default}
+.div-resumo[aria-disabled="true"]:hover{border-color:var(--border)}
+.div-r-p{display:flex;align-items:center;gap:7px;white-space:nowrap}
+.div-r-p b{color:var(--t1);font-weight:700;font-variant-numeric:tabular-nums}
+.div-r-p small{font-size:12px;color:var(--t3);font-variant-numeric:tabular-nums}
+.div-r-av{width:20px;height:20px;font-size:9px}
+.div-r-bar{--leo:50%;flex:1;min-width:32px;height:6px;border-radius:6px;background:linear-gradient(90deg,var(--id-leo) 0 var(--leo),var(--id-pri) var(--leo) 100%)}
+.div-r-acao{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:8px;background:var(--surface);border:1px solid var(--border);font-size:12px;font-weight:600;color:var(--palm);white-space:nowrap}
+.div-resumo.travada .div-r-bar{filter:grayscale(1);opacity:.5}
+.div-resumo.travada .div-r-acao{color:var(--t3)}
+
+/* Régua aberta */
+.div-painel{--id-ed:var(--id-leo);--id-outro:var(--id-pri);border:1px solid var(--border);border-radius:14px;padding:14px 16px 12px;background:var(--surface);animation:divAbre .18s ease}
+.div-painel[data-editor="Pri"]{--id-ed:var(--id-pri);--id-outro:var(--id-leo)}
+@keyframes divAbre{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.div-painel{animation:none}}
+.div-topo{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;margin-bottom:14px}
+.div-tit{font-size:13px;font-weight:600;color:var(--t1)}
+.div-atalhos{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.div-atalhos-lb{font-size:11px;color:var(--t3);margin-right:2px}
+.div-chip{font-family:var(--font-b);font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:var(--ui-radius-pill);border:1px solid var(--border);color:var(--t2);background:var(--bg);cursor:pointer;font-variant-numeric:tabular-nums;transition:background .15s,color .15s,border-color .15s}
+.div-chip:hover:not(:disabled){border-color:var(--border2);color:var(--t1)}
+.div-chip.on{background:var(--t1);border-color:var(--t1);color:var(--surface)}
+.div-chip.renda{border-style:dashed}
+.div-chip.renda.on{border-style:solid}
+.div-chip:disabled{opacity:.5;cursor:not-allowed}
+.div-chip:focus-visible{outline:2px solid var(--palm);outline-offset:1px}
+
+/* A régua: verde (Leo) até --leo, rosa (Pri) depois; o divisor é arrastável.
+   touch-action pan-y: arrastar na horizontal move o divisor; na vertical, rola o modal. */
+.div-regua{--leo:50%;position:relative;height:42px;margin-bottom:18px;border-radius:13px;background:linear-gradient(90deg,var(--id-leo) 0 var(--leo),var(--id-pri) var(--leo) 100%);cursor:ew-resize;touch-action:pan-y;user-select:none;-webkit-user-select:none;outline:none}
+.div-av{position:absolute;top:50%;width:30px;height:30px;margin-top:-15px;font-size:12px;box-shadow:0 0 0 2px rgba(255,255,255,.95)!important;pointer-events:none}
+.div-av.esq{left:6px}
+.div-av.dir{right:6px}
+.div-knob{position:absolute;left:var(--leo);top:-6px;bottom:-6px;width:16px;margin-left:-8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;background:#fff;border-radius:9px;box-shadow:0 3px 8px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.08);pointer-events:none;transition:box-shadow .15s}
+.div-knob i{width:6px;height:1.5px;border-radius:2px;background:#9ca3af}
+.div-regua:focus-visible .div-knob,.div-regua.arrastando .div-knob{box-shadow:0 3px 8px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.08),0 0 0 5px color-mix(in srgb,var(--id-ed) 35%,transparent)}
+.div-m50{position:absolute;left:50%;bottom:-17px;transform:translateX(-50%);font-size:10px;font-weight:600;color:var(--t4);pointer-events:none}
+.div-m50::before{content:'';position:absolute;left:50%;top:-5px;width:1px;height:4px;background:var(--t4)}
+
+/* Partes: Leo à esquerda, Pri à direita; quem está logado digita a própria */
+.div-partes{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px}
+.div-parte{display:flex;flex-direction:column;gap:6px;min-width:0}
+.div-parte.dir{align-items:flex-end;text-align:right}
+.div-quem{font-size:12px;color:var(--t3)}
+.div-quem b{color:var(--t1);font-weight:600}
+.div-linha{display:flex;align-items:center;gap:10px}
+.div-painel label.div-in{display:inline-flex;align-items:baseline;gap:3px;padding:4px 10px;border-radius:10px;background:var(--surface);border:1.5px solid var(--id-ed);box-shadow:0 0 0 3px color-mix(in srgb,var(--id-ed) 14%,transparent);font-size:14px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--t3);cursor:text}
+.div-painel .div-in input{width:2.3ch;min-width:0;padding:0;border:0;border-radius:0;background:transparent;box-shadow:none;font-family:var(--font-b);font-size:22px;font-weight:700;color:var(--t1);text-align:right;font-variant-numeric:tabular-nums;resize:none}
+.div-painel .div-in input:focus{background:transparent;box-shadow:none;border:0}
+.div-painel label.div-in:has(input[aria-invalid="true"]){border-color:var(--orange);box-shadow:0 0 0 3px var(--orange-lt)}
+.div-ro{font-size:14px;font-weight:600;color:var(--t3);padding:4px 0;font-variant-numeric:tabular-nums}
+.div-ro b{font-size:22px;font-weight:700;color:var(--id-outro)}
+.div-rs{font-size:13.5px;font-weight:600;color:var(--t2);font-variant-numeric:tabular-nums}
+.div-rest{display:inline-flex;align-self:flex-start;font-size:10.5px;font-weight:600;color:var(--t3);background:var(--bg);border:1px solid var(--border);border-radius:var(--ui-radius-pill);padding:2px 8px}
+.div-parte.dir .div-rest{align-self:flex-end}
+.div-pe{display:flex;align-items:center;justify-content:space-between;gap:8px 12px;margin-top:12px}
+.div-dica{font-size:11.5px;color:var(--t3);line-height:1.45}
+.div-dica.erro{color:var(--orange);font-weight:600}
+
+/* ── Listas: selo da parte e responsável com mini barra ── */
+.badge.selo-parte{background:var(--yellow-lt);color:var(--yellow);margin-left:5px;padding:1px 6px;font-size:9px;font-variant-numeric:tabular-nums}
+.resp-div{display:inline-flex;flex-direction:column;gap:3px;line-height:1.2}
+.resp-div-bar{--leo:50%;display:block;width:60px;height:4px;border-radius:4px;background:linear-gradient(90deg,var(--id-leo) 0 var(--leo),var(--id-pri) var(--leo) 100%)}
+.resp-div small{font-size:10px;color:var(--t4);font-variant-numeric:tabular-nums}
+
+/* ── Confirmar Pagamento: percentual nos botões Leo e Pri ── */
+#pgRespBtns .pg-resp-btn{justify-content:center}
+.pg-resp-pct{font-size:10.5px;font-weight:600;opacity:.75}
+
+/* ── Gerenciar Parcelamento ── */
+/* A coluna "Sua parte" ocupa espaço: o modal ganha largura (max-width:100% continua valendo) */
+#ovParcelas .modal-xl{width:960px}
+.parc-div-in{display:inline-flex;align-items:center;gap:3px;color:var(--t3);font-size:11.5px;white-space:nowrap}
+.parcs-table .parc-div-in input[type="text"]{width:46px;text-align:right}
+.parcs-table .parc-div-in input[aria-invalid="true"]{border-color:var(--orange)}
+.parc-div-trava{font-size:11.5px;color:var(--t3);white-space:nowrap;font-variant-numeric:tabular-nums}
+.parcs-div-aviso{font-size:12px;line-height:1.5;color:var(--t3);margin-bottom:14px}
+
+/* ── Celular ── */
+@media (max-width:640px){
+  .fg label.resp-op{gap:6px;padding:6px 4px;font-size:12.5px}
+  .div-resumo{gap:8px}
+  .div-r-p small,.div-r-av,.div-r-acao-tx{display:none}
+  .div-painel{padding:12px}
+  .div-regua{height:38px}
+  .div-av{width:26px;height:26px;margin-top:-13px}
+  .div-partes{gap:10px}
+  .div-linha{flex-wrap:wrap;gap:4px 8px}
+  .div-parte.dir .div-linha{justify-content:flex-end}
+  .div-pe{flex-wrap:wrap}
+  .div-pe .btn{margin-left:auto}
+}

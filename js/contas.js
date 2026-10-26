@@ -74,14 +74,14 @@ Object.assign(APP, {
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
       const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
-      const splitBadge=c._split?'<span class="badge" style="background:var(--yellow-lt);color:var(--yellow);margin-left:5px;font-size:9px">÷2</span>':'';
+      const splitBadge=this.seloParte(c);   // parte da pessoa filtrada (60%), js/divisao.js
       const pgBadge=isShared&&!c._split&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
         ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
         <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal"><button type="button" class="conta-link" onclick="APP.verConta('${c.id}')" title="Ver dados da conta">${c.conta}</button>${splitBadge}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
-        <td data-label="Responsável">${c.resp}</td>
+        <td data-label="Responsável">${this.respHtml(c)}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
         <td data-label="A Pagar" class="money neg">${fmt(ef)}</td>
@@ -119,7 +119,8 @@ Object.assign(APP, {
     const c    = CACHE.contas.find(x=>x.id===id);
     const pago = parseMoney(document.getElementById('pgValorPago').value);
     const respSel = document.getElementById('pgRespSelecionado')?.value||'';
-    const prev = c ? (c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos' ? c.vPagar/2 : c.vPagar) : 0;
+    // Pagamento de uma parte: compara com a parte da pessoa pela divisão da conta
+    const prev = c ? (c.resp==='Leo & Pri'&&respSel&&respSel!=='ambos' ? parteValor(c.vPagar, divLeo(c), respSel) : c.vPagar) : 0;
     const diff = pago - prev;
     const el   = document.getElementById('pgDiff');
     if(!pago || Math.abs(diff) < 0.01){ el.style.display='none'; return; }
@@ -151,10 +152,12 @@ Object.assign(APP, {
 
     if(isShared){
       respGroup.style.display='block';
+      const div=divisaoDe(c);
       document.querySelectorAll('.pg-resp-btn').forEach(b=>{
         b.classList.remove('btn-primary');b.classList.add('btn-secondary');
         b.disabled=false;
-        b.textContent=b.dataset.resp==='ambos'?'Ambos de uma vez':b.dataset.resp;
+        const r=b.dataset.resp;
+        b.innerHTML=r==='ambos'?'Ambos de uma vez':`${r}<small class="pg-resp-pct">${fmtPct(div[r])}</small>`;
       });
       const pgLeo=c.pagamentos?.Leo;
       const pgPri=c.pagamentos?.Pri;
@@ -217,8 +220,9 @@ Object.assign(APP, {
     });
     const id=document.getElementById('pgContaId').value;
     const c=CACHE.contas.find(x=>x.id===id);if(!c)return;
-    const val=resp==='ambos'?c.vPagar:(c.vPagar/2);
-    document.getElementById('pgValorPrevisto').textContent=fmt(val)+(resp!=='ambos'?' (metade)':'');
+    // Parte da pessoa pela divisão da conta (centavos: Leo arredondado, Pri = resto)
+    const val=resp==='ambos'?c.vPagar:parteValor(c.vPagar, divLeo(c), resp);
+    document.getElementById('pgValorPrevisto').textContent=fmt(val)+(resp!=='ambos'?` · ${fmtPct(divisaoDe(c)[resp])} de ${fmt(c.vPagar)}`:'');
     setMoneyValue(document.getElementById('pgValorPago'),val);
     document.getElementById('pgDiff').style.display='none';
   },
@@ -279,13 +283,13 @@ Object.assign(APP, {
     STATE.parcGrupo=grupo;
     const parcs=CACHE.getByGrupo(grupo);if(!parcs.length)return;
     document.getElementById('titleParcelas').textContent=`Parcelamento: ${parcs[0].conta}`;
-    const respOpts=['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}">${r}</option>`).join('');
     document.getElementById('tbodyParcelas').innerHTML=parcs.map(c=>{
       const pago=isQuitada(c);const parcial=!pago&&c.vPago>0;const atr=isOverdue(c);
       return`<tr style="${atr?'background:rgba(234,88,12,.04)':''}">
         <td><input type="text" value="${c.parcela||''}" id="parc_parc_${c.id}" style="width:80px"></td>
         <td><input type="text" value="${c.conta}" id="parc_desc_${c.id}"></td>
-        <td><select id="parc_resp_${c.id}" style="min-width:90px">${['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}"${c.resp===r?' selected':''}>${r}</option>`).join('')}</select></td>
+        <td><select id="parc_resp_${c.id}" style="min-width:90px" onchange="APP.parcsRespMudou('${c.id}',this.value)">${['Leo','Pri','Leo & Pri'].map(r=>`<option value="${r}"${c.resp===r?' selected':''}>${r}</option>`).join('')}</select></td>
+        <td id="parc_divcel_${c.id}">${this._parcDivCelula(c)}</td>
         <td><input type="date" value="${c.data}" id="parc_data_${c.id}"></td>
         <td><input type="text" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" id="parc_val_${c.id}" class="money-input" style="width:100px"></td>
         <td>${pago?'<span class="badge bg-pago">Pago</span>':atr?`<span class="badge bg-atr">Atrasado${parcial?' (parcial)':''}</span>`:`<span class="badge bg-pend">Pendente${parcial?' (parcial)':''}</span>`}</td>
@@ -402,7 +406,10 @@ Object.assign(APP, {
   },
   async parcsSaveAll(){
     const parcs=CACHE.getByGrupo(STATE.parcGrupo);
-    await Promise.all(parcs.map(c=>{
+    // Divisão das linhas compartilhadas sem pagamento; valor inválido não grava nada
+    const divs=this._parcsDivisoes(parcs);
+    if(!divs)return;
+    const res=await Promise.allSettled(parcs.map(c=>{
       const desc=document.getElementById(`parc_desc_${c.id}`)?.value;
       const resp=document.getElementById(`parc_resp_${c.id}`)?.value;
       const data=document.getElementById(`parc_data_${c.id}`)?.value;
@@ -411,11 +418,15 @@ Object.assign(APP, {
       const formaId=document.getElementById(`parc_formaId_${c.id}`)?.value||c.formaId||'';
       const catId=document.getElementById(`parc_catId_${c.id}`)?.value||c.catId||'';
       const upd={conta:desc||c.conta,resp:resp||c.resp,data:data||c.data,vPagar:parseMoney(val)||c.vPagar,parcela:parc||c.parcela,formaId,catId,updatedBy:STATE.usuario};
+      if(divs[c.id]) upd.divisao=divs[c.id];
       // Nota só entra no update quando mudou (evita gravação/log desnecessários)
       const notaEl=document.getElementById(`parc_nota_${c.id}`);
       if(notaEl&&notaEl.value!==(c.nota||'')) upd.nota=notaEl.value;
       return FS.updateConta(c.id,upd);
     }));
+    // Ex.: parcela que recebeu pagamento enquanto a divisão era editada (FS.updateConta recusa)
+    const erros=res.filter(r=>r.status==='rejected');
+    if(erros.length){this.toast(`${parcs.length-erros.length} parcela(s) salvas, ${erros.length} com erro: ${erros[0].reason?.message||''}`,'error');return;}
     this.toast('Alterações salvas','success');
     APP.closeModal('ovParcelas');
   },
@@ -436,7 +447,7 @@ Object.assign(APP, {
       const c=CACHE.contas.find(x=>x.id===id);
       if(c){
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
-        document.getElementById('fResp').value=c.resp;document.getElementById('fData').value=c.data;
+        document.getElementById('fData').value=c.data;
         const fDc=document.getElementById('fDataCompra');if(fDc)fDc.value=c.dataCompra||'';
         setMoneyValue(document.getElementById('fVP'),c.vPagar);
         // Parcelamento só para leitura: a edição altera esta parcela, "i de n" não muda
@@ -445,6 +456,7 @@ Object.assign(APP, {
         this._travarParcelamento(true);
         const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=!!c.recorrente;
         this.populateContaSelects(c.catId||c.cat,c.formaId||c.forma);this.calcTotal();
+        this._respConta(c.resp);   // depois do valor: o resumo da divisão mostra as partes em reais
       }
     }
     this._modoConta(modo);
@@ -474,6 +486,7 @@ Object.assign(APP, {
     document.getElementById('btnFecharConta').textContent=ver?'Fechar':'Cancelar';
     const st=document.getElementById('contaStatus');
     st.innerHTML=c?this._statusContaHtml(c):''; st.hidden=!c;
+    this._divSincronizar(false);   // resumo da divisão: Ajustar some no modo ver
   },
 
   // Situação da conta no topo do modal (ver e editar): paga, parcial, atrasada ou pendente
@@ -493,9 +506,12 @@ Object.assign(APP, {
   },
 
   clearConta(){
-    ['fDesc','fNota','fResp','fForma','fCat','fData','fDataCompra','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
+    ['fDesc','fNota','fForma','fCat','fData','fDataCompra','fVP','fParc'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
     document.getElementById('fQP').value=1;document.getElementById('fVT').value='';
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
+    this._respConta('');
+    // Divisão: 50/50 na conta nova; na edição, a gravada (travada se a conta tem pagamento)
+    this._divCarregar(STATE.editContaId?CACHE.contas.find(x=>x.id===STATE.editContaId):null);
     this._travarParcelamento(!!STATE.editContaId);this.calcTotal();
   },
   _travarParcelamento(travar){
@@ -515,6 +531,7 @@ Object.assign(APP, {
       : '';
     info.classList.toggle('erro',!!erro);
     info.hidden=!info.textContent;
+    this.divAtualizarValores();   // partes em reais da divisão (js/divisao.js)
   },
   // Qtd. de Parcelas e Parcela Atual (só dígitos; vazio ou 0 = 1). erro bloqueia o cadastro.
   _parcelamento(){
@@ -533,9 +550,15 @@ Object.assign(APP, {
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
     const dataCompra=document.getElementById('fDataCompra')?.value||null;
-    const c={dataCompra,conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:document.getElementById('fResp').value,formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),recorrente,createdBy:STATE.usuario};
+    const c={dataCompra,conta:document.getElementById('fDesc').value.trim(),nota:document.getElementById('fNota').value.trim(),resp:this._respConta(),formaId,catId,data:document.getElementById('fData').value,vPagar:parseMoney(document.getElementById('fVP').value),recorrente,createdBy:STATE.usuario};
     if(!c.conta){this.toast('Descrição é obrigatória','error');return;}
     if(!c.resp){this.toast('Selecione o responsável','error');return;}
+    if(c.resp==='Leo & Pri'){
+      // Divisão (README 8.3): travada não é enviada; inválida bloqueia o salvar
+      const divisao=this._divParaSalvar();
+      if(divisao===null){this.toast('Divisão: sua parte deve ficar entre 1% e 99%','error');return;}
+      if(divisao) c.divisao=divisao;
+    }
     if(!catId){this.toast('Selecione a categoria','error');return;}
     if(!formaId){this.toast('Selecione a forma de pagamento','error');return;}
     if(!c.data){this.toast('Informe a data','error');return;}
@@ -573,6 +596,9 @@ Object.assign(APP, {
       this.toast(candidatos.length>1?`${candidatos.length} parcelas cadastradas ✅`:'Conta cadastrada ✅','success');
     }
     APP.closeModal('ovConta');STATE.editContaId=null;
+    }catch(e){
+      // Ex.: divisão de conta que acabou de receber pagamento (FS.updateConta recusa)
+      this.toast(e.message||'Erro ao salvar a conta','error');
     }finally{ if(btn) btn.classList.remove('loading'); }
   },
 
