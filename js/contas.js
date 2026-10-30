@@ -77,10 +77,13 @@ Object.assign(APP, {
       const splitBadge=this.seloParte(c);   // parte da pessoa filtrada (60%), js/divisao.js
       const pgBadge=isShared&&!c._split&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
         ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
+      // Permissões (README 5): ação travada continua visível e, no clique, abre o alerta (js/permissoes.js)
+      const perm=this.permContaAtual(c), LK=' is-locked', SO='🔒 Somente o administrador: ';
+      const podeDesf=hasPg&&this._podeDesfazerAlgum(c);
       return`<tr class="mob-card" style="${atr?'background:rgba(234,88,12,.04)':''}">
-        <td class="td-chk desk-only">${!fullyPaid?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
+        <td class="td-chk desk-only">${!fullyPaid&&perm.pagar?`<input type="checkbox" class="chk-conta" data-id="${c.id}" data-val="${pend}" onchange="APP.atualizarBarraPagamento()" style="accent-color:var(--palm);width:14px;height:14px;cursor:pointer">`:''}</td>
         <td data-label="#" style="color:var(--t4);font-size:10.5px">${start+i+1}</td>
-        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal"><button type="button" class="conta-link" onclick="APP.verConta('${c.id}')" title="Ver dados da conta">${c.conta}</button>${splitBadge}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
+        <td data-label="Descrição" style="max-width:180px"><div style="font-weight:600;color:var(--t1);line-height:1.3;white-space:normal"><button type="button" class="conta-link" onclick="APP.verConta('${c.id}')" title="Ver dados da conta">${c.conta}</button>${splitBadge}${this.seloAprovacao(c)}${FEATURES.recorrentes&&c.recorrente?'<span class="badge-rec" style="margin-left:6px">🔁 REC</span>':''}</div>${c.nota?`<div style="font-size:10px;color:var(--t4);margin-top:1px">${c.nota}</div>`:''}${pgBadge}</td>
         <td data-label="Responsável">${this.respHtml(c)}</td>
         <td data-label="Forma" style="font-size:11px;color:var(--t3)">${formaNome}</td>
         <td data-label="Categoria"><span class="badge bg-cat">${catNome}</span></td>
@@ -91,11 +94,11 @@ Object.assign(APP, {
         <td data-label="Parcela" class="col-hide mob-mostrar" style="font-size:10.5px;color:var(--t4)">${c.parcela||'—'}</td>
         <td data-label="Por" class="col-hide">${auditBy?`<span class="audit-chip">${auditBy}</span>`:''}</td>
         <td data-label="Ações" style="white-space:nowrap">
-          <button class="action-btn edit" title="Editar" onclick="APP.openConta('${c.id}')">✏</button>
-          ${!fullyPaid?`<button class="action-btn pay" title="Pagar" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
-          ${hasPg?`<button class="action-btn" title="Desfazer" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
-          ${hasGrupo?`<button class="action-btn parcs" title="Parcelamento" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
-          <button class="action-btn del" title="Excluir" onclick="APP.deleteConta('${c.id}')">✕</button>
+          <button class="action-btn edit${perm.nota?'':LK}" title="${perm.editar?'Editar':perm.nota?'Editar nota':SO+'editar'}" onclick="APP.openConta('${c.id}')">✏</button>
+          ${!fullyPaid?`<button class="action-btn pay${perm.pagar?'':LK}" title="${perm.pagar?'Pagar':SO+'pagar'}" onclick="APP.marcarPago('${c.id}')">✓</button>`:''}
+          ${hasPg?`<button class="action-btn${podeDesf?'':LK}" title="${podeDesf?'Desfazer':SO+'desfazer'}" onclick="APP.desfazerPagamento('${c.id}')" style="background:var(--orange-lt);color:var(--orange);border:1px solid #fed7aa">↩</button>`:''}
+          ${hasGrupo?`<button class="action-btn parcs${perm.editar?'':LK}" title="${perm.editar?'Parcelamento':SO+'parcelamento'}" onclick="APP.openParcelas('${c.grupo}')">≡</button>`:''}
+          <button class="action-btn del${perm.excluir?'':LK}" title="${perm.excluir?'Excluir':SO+'excluir'}" onclick="APP.deleteConta('${c.id}')">✕</button>
         </td></tr>`;
     }).join('')||`<tr><td colspan="13" style="padding:0;border:none"><div class="empty-state"><div class="empty-icon">📋</div><div class="empty-title">Nenhuma conta encontrada</div><div class="empty-sub">Tente ajustar os filtros ou adicione uma nova conta.</div></div></td></tr>`;
 
@@ -136,6 +139,7 @@ Object.assign(APP, {
 
   marcarPago(id){
     const c=CACHE.contas.find(x=>x.id===id); if(!c)return;
+    if(!this._podeOuAvisa(c,'pagar'))return;
     const isShared=c.resp==='Leo & Pri';
     document.getElementById('pgContaId').value          = id;
     const pgData=document.getElementById('pgData');pgData.value='';pgData.max=today();
@@ -260,9 +264,11 @@ Object.assign(APP, {
   async deleteConta(id){
     const c=CACHE.contas.find(x=>x.id===id);
     if(!c)return;
+    if(!this._podeOuAvisa(c,'excluir'))return;
     const r=await this.confirmarExclusaoConta([c],`Excluir "${c.conta}"?`);
     if(!r)return;
-    await FS.deleteConta(id,r.motivo);
+    try{ await FS.deleteConta(id,r.motivo); }
+    catch(e){ this.toast(e.message||'Erro ao excluir a conta','error'); return; }
     await this.eacRegistrarExclusao([c],r.classificacao);
     this.toast('Conta excluída','success');
   },
@@ -280,8 +286,12 @@ Object.assign(APP, {
 
   // ── PARCELAS ──
   openParcelas(grupo){
-    STATE.parcGrupo=grupo;
     const parcs=CACHE.getByGrupo(grupo);if(!parcs.length)return;
+    // Gerenciar parcelamento edita e exclui: exige acesso total em todas as parcelas.
+    // Na compartilhada do admin, cada parcela continua sendo paga pelo ✓ da lista.
+    const travada=parcs.find(c=>!this.permContaAtual(c).editar);
+    if(travada){ this.avisarSoAdmin(travada,'parcelamento'); return; }
+    STATE.parcGrupo=grupo;
     document.getElementById('titleParcelas').textContent=`Parcelamento: ${parcs[0].conta}`;
     document.getElementById('tbodyParcelas').innerHTML=parcs.map(c=>{
       const pago=isQuitada(c);const parcial=!pago&&c.vPago>0;const atr=isOverdue(c);
@@ -439,8 +449,13 @@ Object.assign(APP, {
     CACHE.getAllFormas().forEach(f=>{const o=new Option(f.nome,f.id);if(f.id===selectedFormaId||f.nome===selectedFormaId)o.selected=true;fForma.appendChild(o);});
   },
 
-  // modo: 'nova' (sem id), 'editar' (ícone ✏, busca rápida) ou 'ver' (clique na descrição)
+  // modo: 'nova' (sem id), 'editar' (ícone ✏, busca rápida) ou 'ver' (clique na descrição).
+  // Edição sem acesso total (README 5): 'nota' na compartilhada do admin; senão o alerta.
   openConta(id=null, modo=id?'editar':'nova'){
+    if(id&&modo==='editar'){
+      modo=this._modoEdicao(CACHE.contas.find(x=>x.id===id));
+      if(!modo)return;
+    }
     STATE.editContaId=id;
     this.clearConta();this.populateContaSelects();
     if(id){
@@ -462,31 +477,41 @@ Object.assign(APP, {
     this._modoConta(modo);
     document.getElementById('ovConta').classList.add('open');
     bindAllMoneyInputs(document.getElementById('ovConta'));
-    setTimeout(()=>document.getElementById(modo==='ver'?'btnEditarConta':'fDesc').focus(),100);
+    const foco=modo==='ver'?'btnEditarConta':modo==='nota'?'fNota':'fDesc';
+    setTimeout(()=>document.getElementById(foco).focus(),100);
   },
   verConta(id){ this.openConta(id,'ver'); },
-  editarConta(){ this._modoConta('editar'); document.getElementById('fDesc').focus(); },
+  editarConta(){
+    const modo=this._modoEdicao(CACHE.contas.find(x=>x.id===STATE.editContaId));
+    if(!modo)return;
+    this._modoConta(modo); document.getElementById(modo==='nota'?'fNota':'fDesc').focus();
+  },
+  /** Modal da conta sem edição dos campos principais: 'ver' (tudo só leitura) e 'nota' (só a nota). */
+  _contaSoLeitura(){ return STATE.contaModo==='ver'||STATE.contaModo==='nota'; },
 
   // 'ver': campos só leitura, sem Gerenciar, rodapé Fechar · Editar · Pagar (Pagar some se quitada).
+  // 'nota': como 'ver', mas a Nota fica editável e o rodapé é Cancelar · Salvar (README 5).
   // 'nova'/'editar': rodapé Cancelar · Limpar · Salvar; na edição o parcelamento segue só leitura.
   _modoConta(modo){
     STATE.contaModo=modo;
-    const ver=modo==='ver', ov=document.getElementById('ovConta');
+    const ver=modo==='ver', nota=modo==='nota', leitura=ver||nota, ov=document.getElementById('ovConta');
     const c=STATE.editContaId?CACHE.contas.find(x=>x.id===STATE.editContaId):null;
-    ov.classList.toggle('modo-ver',ver);
-    ov.querySelectorAll('.modal-body input, .modal-body select, .modal-body textarea').forEach(e=>{e.disabled=ver;});
-    if(!ver) this._travarParcelamento(!!STATE.editContaId);
-    document.getElementById('titleConta').textContent=ver?'Conta':modo==='editar'?'Editar Conta':'Nova Conta';
+    ov.classList.toggle('modo-ver',leitura);
+    ov.querySelectorAll('.modal-body input, .modal-body select, .modal-body textarea').forEach(e=>{e.disabled=leitura&&!(nota&&e.id==='fNota');});
+    if(!leitura) this._travarParcelamento(!!STATE.editContaId);
+    document.getElementById('titleConta').textContent=ver?'Conta':nota?'Editar nota':modo==='editar'?'Editar Conta':'Nova Conta';
     const mostrar=(el,v)=>{if(el)el.style.display=v?'':'none';};
-    mostrar(ov.querySelector('.modal-manage-bar'),!ver);
-    mostrar(document.getElementById('btnLimparConta'),!ver);
+    mostrar(ov.querySelector('.modal-manage-bar'),!leitura);
+    mostrar(document.getElementById('btnLimparConta'),!leitura);
     mostrar(document.getElementById('btnSalvarConta'),!ver);
     mostrar(document.getElementById('btnEditarConta'),ver);
     mostrar(document.getElementById('btnPagarConta'),ver&&c&&!isQuitada(c));
     document.getElementById('btnFecharConta').textContent=ver?'Fechar':'Cancelar';
     const st=document.getElementById('contaStatus');
     st.innerHTML=c?this._statusContaHtml(c):''; st.hidden=!c;
-    this._divSincronizar(false);   // resumo da divisão: Ajustar some no modo ver
+    const av=document.getElementById('contaAviso');
+    if(av){ av.innerHTML=this._contaAvisoHtml(c); av.hidden=!av.innerHTML; }
+    this._divSincronizar(false);   // resumo da divisão: Ajustar some nos modos ver e nota
   },
 
   // Situação da conta no topo do modal (ver e editar): paga, parcial, atrasada ou pendente
@@ -547,6 +572,13 @@ Object.assign(APP, {
     const btn=document.getElementById('btnSalvarConta');
     if(btn) btn.classList.add('loading');
     try{
+    // Compartilhada do admin para quem não é admin: grava só a nota (FS.updateConta confere)
+    if(STATE.contaModo==='nota'){
+      await FS.updateConta(STATE.editContaId,{nota:document.getElementById('fNota').value.trim(),updatedBy:STATE.usuario});
+      this.toast('Nota atualizada ✅','success');
+      APP.closeModal('ovConta');STATE.editContaId=null;
+      return;
+    }
     const catId=document.getElementById('fCat').value;const formaId=document.getElementById('fForma').value;
     const recorrente=document.getElementById('fRecorrente')?.checked||false;
     const dataCompra=document.getElementById('fDataCompra')?.value||null;

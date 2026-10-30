@@ -2,12 +2,30 @@
 
 Object.assign(APP, {
 
+  // Permissão (README 5): acesso total desfaz qualquer pagamento; na compartilhada do admin,
+  // quem não é admin desfaz só os pagamentos que ele mesmo registrou (podeDesfazerPg).
   async desfazerPagamento(id){
     const c = CACHE.contas.find(x=>x.id===id);
     if(!c) return;
+    try{ await this._desfazerPagamento(c); }
+    catch(e){ this.toast(e.message||'Erro ao desfazer o pagamento','error'); }
+  },
+
+  async _desfazerPagamento(c){
+    const id = c.id;
+    const pode = r => podeDesfazerPg(c, r, STATE.usuario);
     if(c.resp==='Leo & Pri'&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)){
       const pgLeo=c.pagamentos.Leo;
       const pgPri=c.pagamentos.Pri;
+      const desfaziveis=['Leo','Pri'].filter(r=>c.pagamentos[r]&&pode(r));
+      if(!desfaziveis.length) return this.avisarSoAdmin(c,'desfazer');
+      if(pgLeo&&pgPri&&desfaziveis.length===1){
+        const resp=desfaziveis[0];
+        if(!confirm(`Desfazer o pagamento de ${resp} (${fmt(c.pagamentos[resp].valor)}) em "${c.conta}"?\n\nO pagamento da outra parte, só o administrador desfaz.`)) return;
+        await FS.desfazerPagamentoIndividual(id,resp);
+        this.toast(`Pagamento de ${resp} desfeito`,'success');
+        return;
+      }
       if(pgLeo&&pgPri){
         const escolha=prompt(`Ambos pagaram.\nDigite quem deseja desfazer:\n• "Leo" (${fmt(pgLeo.valor)})\n• "Pri" (${fmt(pgPri.valor)})\n• "ambos" para desfazer tudo`);
         if(!escolha) return;
@@ -28,6 +46,7 @@ Object.assign(APP, {
       }
       return;
     }
+    if(!pode('')) return this.avisarSoAdmin(c,'desfazer');
     if(!confirm(`Desfazer pagamento de "${c.conta}"?\n\nA conta voltará ao status pendente.`)) return;
     await FS.desfazerPagamento(id);
     this.toast(`Pagamento desfeito: ${c.conta}`,'success');

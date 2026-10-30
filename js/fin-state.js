@@ -11,7 +11,9 @@
  *   SEED_FORMAS, STATE, FEATURES, anoValido, anosJanela, preencherAnos, PARCELAS_MAX,
  *   PARCELAS_ALERTA, lerParcela, planoParcelas, dataPagamentoPadrao,
  *   DIV_* (divisão das compartilhadas), divLeo, divisaoDe, montarDivisao, divValida,
- *   parteCent, parteValor, fmtPct, fmtDivisao, temPagamento
+ *   parteCent, parteValor, fmtPct, fmtDivisao, temPagamento,
+ *   permissões das contas: ehAdmin, respInclui, permConta, podeDesfazerPg, precisaAprovacao,
+ *   aprovacaoPendente
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -198,6 +200,48 @@ const fmtDivisao = c => {
 /** Conta com qualquer pagamento (integral ou de uma parte): a divisão fica travada. */
 const temPagamento = c => !!(c && (c.vPago > 0 || c.pagamentos?.Leo || c.pagamentos?.Pri));
 
+// ── PERMISSÕES DAS CONTAS (README 5) ──
+// Fonte única: telas (js/permissoes.js) e gravações (FS.* em fin-db.js) usam permConta.
+//   • Admin: tudo, em qualquer conta.
+//   • Conta cadastrada por um não admin: acesso total para os usuários.
+//   • Conta do admin (createdBy admin; sem createdBy = do admin, contas antigas):
+//       responsável é a própria pessoa → total;
+//       compartilhada ("Leo & Pri")     → só registra pagamento, desfaz os pagamentos que ela
+//                                         mesma registrou e edita a nota (o % e os demais
+//                                         campos não mudam, não exclui);
+//       demais                          → só visualiza.
+const ehAdmin = u => typeof ADMIN_USERS !== 'undefined' && ADMIN_USERS.includes(u);   // ADMIN_USERS: security.js
+const respInclui = (resp, u) => resp === u || (resp === 'Leo & Pri' && (u === 'Leo' || u === 'Pri'));
+const contaDoAdmin = c => !c.createdBy || ehAdmin(c.createdBy);
+const PERM_TOTAL   = Object.freeze({nivel:'total',    editar:true,  nota:true,  excluir:true,  pagar:true});
+const PERM_PARCIAL = Object.freeze({nivel:'parcial',  editar:false, nota:true,  excluir:false, pagar:true});
+const PERM_LEITURA = Object.freeze({nivel:'leitura',  editar:false, nota:false, excluir:false, pagar:false});
+/**
+ * O que o usuário pode fazer na conta.
+ * @param {Object} c conta (do CACHE ou do Firestore; a parte _split de filtrarPorResp também serve)
+ * @param {string} u usuário ('Leo', 'Pri')
+ * @returns {{nivel:'total'|'parcial'|'leitura', editar:boolean, nota:boolean, excluir:boolean, pagar:boolean}}
+ */
+const permConta = (c, u) => {
+  if(!c || ehAdmin(u) || !contaDoAdmin(c) || c.resp === u) return PERM_TOTAL;
+  return c.resp === 'Leo & Pri' && respInclui(c.resp, u) ? PERM_PARCIAL : PERM_LEITURA;
+};
+/**
+ * Pode desfazer o pagamento? Acesso total: sim. Parcial: só o que a própria pessoa registrou
+ * (parte `resp` em pagamentos, ou o pagamento integral quando resp é vazio).
+ */
+const podeDesfazerPg = (c, resp, u) => {
+  const p = permConta(c, u);
+  if(p.nivel === 'total') return true;
+  if(!p.pagar) return false;
+  return (resp ? c.pagamentos?.[resp]?.paidBy : c.paidBy) === u;
+};
+// Aprovação do admin: um não admin que cadastra (ou edita) conta com o admin como responsável,
+// mesmo compartilhada, deixa a conta pendente para o admin aprovar (README 5).
+const precisaAprovacao = (resp, u) => !!u && !ehAdmin(u)
+  && typeof ADMIN_USERS !== 'undefined' && ADMIN_USERS.some(a => respInclui(resp, a));
+const aprovacaoPendente = c => c?.aprovacao?.status === 'pendente';
+
 /**
  * DUP-004: helper centralizado para filtrar contas por responsável, com a parte de cada
  * um nas despesas compartilhadas ("Leo & Pri"), pela divisão gravada na conta.
@@ -278,3 +322,7 @@ window.parteValor    = parteValor;
 window.fmtPct        = fmtPct;
 window.fmtDivisao    = fmtDivisao;
 window.temPagamento  = temPagamento;
+window.permConta     = permConta;
+window.podeDesfazerPg = podeDesfazerPg;
+window.precisaAprovacao = precisaAprovacao;
+window.aprovacaoPendente = aprovacaoPendente;
