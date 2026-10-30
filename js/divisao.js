@@ -260,7 +260,7 @@ Object.assign(APP, {
     const comp = this._respConta() === 'Leo & Pri';
     campo.hidden = !comp;
     if(!comp){ this.divRecolher(false); return; }
-    if(abrir && !DIVC.travada && STATE.contaModo !== 'ver') this.divAbrir(false);
+    if(abrir && !DIVC.travada && !this._contaSoLeitura()) this.divAbrir(false);
     else if(!DIVC.regua) this._divResumo();
   },
 
@@ -274,6 +274,8 @@ Object.assign(APP, {
   /** Abre a régua (clique em Ajustar ou escolha de Leo & Pri). */
   divAbrir(focar = true){
     if(STATE.contaModo === 'ver') return;
+    // Compartilhada do admin aberta por quem não é admin: o % só o admin muda (README 5)
+    if(STATE.contaModo === 'nota'){ this.avisarSoAdmin(CACHE.contas.find(x => x.id === STATE.editContaId), 'divisao'); return; }
     if(DIVC.travada){ this.toast(this._divTravadaMsg(), 'info'); return; }
     const painel = document.getElementById('fDivPainel'), resumo = document.getElementById('fDivResumo');
     if(!painel || DIVC.regua) return;
@@ -329,16 +331,19 @@ Object.assign(APP, {
     if(!r) return;
     const d = montarDivisao(DIVC.leo), t = moneyCents(document.getElementById('fVP')?.value || '');
     const rs = p => t > 0 ? `<small class="money">${fmt(parteCent(t, DIVC.leo, p) / 100)}</small>` : '';
-    const ver = STATE.contaModo === 'ver';
+    const ver = STATE.contaModo === 'ver', soAdm = STATE.contaModo === 'nota';
     r.innerHTML = `<span class="div-r-p"><span class="who-av who-leo div-r-av" data-avatar="Leo" aria-hidden="true">L</span><b>Leo ${fmtPct(d.Leo)}</b>${rs('Leo')}</span>`
       + `<span class="div-r-bar" style="--leo:${d.Leo / 100}%" aria-hidden="true"></span>`
       + `<span class="div-r-p">${rs('Pri')}<b>${fmtPct(d.Pri)} Pri</b><span class="who-av who-pri div-r-av" data-avatar="Pri" aria-hidden="true">P</span></span>`
-      + (DIVC.travada ? '<span class="div-r-acao">🔒 Paga</span>' : ver ? '' : '<span class="div-r-acao">✏<span class="div-r-acao-tx">Ajustar</span></span>');
+      + (DIVC.travada ? '<span class="div-r-acao">🔒 Paga</span>' : ver ? ''
+        : soAdm ? '<span class="div-r-acao">🔒<span class="div-r-acao-tx">Admin</span></span>'
+        : '<span class="div-r-acao">✏<span class="div-r-acao-tx">Ajustar</span></span>');
     r.classList.toggle('travada', DIVC.travada);
-    r.setAttribute('aria-disabled', String(DIVC.travada || ver));
+    r.classList.toggle('so-admin', soAdm && !DIVC.travada);
+    r.setAttribute('aria-disabled', String(DIVC.travada || ver || soAdm));
     r.setAttribute('aria-label', `Divisão: Leo ${fmtPct(d.Leo)}, Pri ${fmtPct(d.Pri)}.`
-      + (DIVC.travada ? ' Travada: a conta tem pagamento.' : ver ? '' : ' Ajustar.'));
-    r.title = DIVC.travada ? this._divTravadaMsg() : '';
+      + (DIVC.travada ? ' Travada: a conta tem pagamento.' : ver ? '' : soAdm ? ' Somente o administrador muda.' : ' Ajustar.'));
+    r.title = DIVC.travada ? this._divTravadaMsg() : soAdm ? 'Somente o administrador muda a divisão' : '';
     this.aplicarAvatares?.();
   },
 

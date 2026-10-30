@@ -35,6 +35,9 @@
     ovEacDetalhe, ovEacLB, ovEacExcl, ovEacGrupos   Modais da tela EAC (js/eac-gestao.js)
     ovExcluirConta Motivo da exclusão de conta de ano com linha de base
     ovPerfil       Meu perfil: foto (recorte com foco no rosto) e Sair (js/avatares.js)
+    ovAprovacoes   Contas para o admin aprovar (js/permissoes.js). Fica ANTES de ovConta: "Ver"
+                   abre a conta por cima e, ao fechar, a lista continua aberta
+    ovSoAdmin      Alerta "somente o administrador" (js/permissoes.js). Último: fica por cima de todos
 
   ATENÇÃO PARA INTEGRAÇÃO:
    • Quando este fragmento é injetado em <div id="appModals"></div>, o
@@ -48,6 +51,18 @@
 ═══════════════════════════════════════════════════════════════════════════
 -->
 
+<!-- ══ CONTAS PARA APROVAR (só o admin, README 5) ══ Lista montada por APP.renderAprovacoes -->
+<div class="modal-overlay" id="ovAprovacoes">
+  <div class="modal modal-md" role="dialog" aria-modal="true" aria-labelledby="aprovTitulo">
+    <div class="modal-header"><h2 id="aprovTitulo">Contas para aprovar</h2><button class="modal-close" data-close="ovAprovacoes" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body">
+      <p class="aprov-intro">Contas cadastradas ou alteradas por outro usuário com você como responsável. Elas já valem nas telas; aprovar confirma que você conferiu. Para corrigir ou excluir, abra a conta.</p>
+      <div id="aprovLista" aria-live="polite"></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-ghost" data-close="ovAprovacoes">Fechar</button><button class="btn btn-primary" id="aprovTodas" onclick="APP.aprovarTodas()">✓ Aprovar todas</button></div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="ovConta">
   <div class="modal">
     <div class="modal-header"><h2 id="titleConta">Nova Conta</h2><button class="modal-close" data-close="ovConta">&times;</button></div>
@@ -58,6 +73,8 @@
     </div>
     <div class="modal-body">
       <div class="conta-status" id="contaStatus" role="status" hidden></div>
+      <!-- Permissão (usuário sem acesso total) ou aprovação pendente (admin): APP._contaAvisoHtml -->
+      <div class="conta-aviso" id="contaAviso" hidden></div>
       <div class="form-grid">
         <div class="fg full"><label>Descrição *</label><textarea id="fDesc" rows="2" placeholder="Ex: Financiamento Honda Fit..."></textarea></div>
         <!-- Responsável em botões com foto (js/divisao.js, APP._respConta). Leo & Pri mostra a Divisão:
@@ -641,5 +658,20 @@
       <button class="btn btn-ghost" onclick="APP.fecharPerfil()">Cancelar</button>
       <button class="btn btn-primary" id="perfilSalvar" onclick="APP.perfilSalvar()" disabled>Salvar</button>
     </div>
+  </div>
+</div>
+
+<!-- ══ SOMENTE O ADMINISTRADOR (js/permissoes.js) ══
+     Aberto ao tentar editar, excluir, pagar, desfazer ou gerenciar parcelamento numa conta
+     travada. Último do arquivo: fica por cima de qualquer modal (ex.: modal da conta em modo ver). -->
+<div class="modal-overlay" id="ovSoAdmin">
+  <div class="modal modal-sm" role="alertdialog" aria-modal="true" aria-labelledby="soAdmTitulo" aria-describedby="soAdmTexto">
+    <div class="modal-header"><h2 id="soAdmTitulo">🔒 Somente o administrador</h2><button class="modal-close" data-close="ovSoAdmin" aria-label="Fechar">&times;</button></div>
+    <div class="modal-body">
+      <p class="soadm-conta" id="soAdmConta"></p>
+      <p class="soadm-texto" id="soAdmTexto"></p>
+      <p class="soadm-pode" id="soAdmPode"></p>
+    </div>
+    <div class="modal-footer"><button class="btn btn-primary" data-close="ovSoAdmin" id="soAdmOk">Entendi</button></div>
   </div>
 </div>

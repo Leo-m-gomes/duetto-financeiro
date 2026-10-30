@@ -29,6 +29,8 @@
 <link rel="stylesheet" href="css/eac.css">
 <link rel="stylesheet" href="css/filtro-formas.css">
 <link rel="stylesheet" href="css/divisao.css">
+<link rel="stylesheet" href="css/permissoes.css">
+<link rel="stylesheet" href="css/uso.css">
 </head>
 <body>
 
@@ -155,6 +157,11 @@
         <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnGerarRec" data-feature="recorrentes" style="display:none" onclick="APP.openRecorrentes()" title="Gerar contas recorrentes" aria-label="Gerar contas recorrentes"><svg viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 014-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg></button>
         <button type="button" class="btn btn-primary btn-sm" id="btnNovaReceita" style="display:none"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova receita</span></button>
         <button type="button" class="btn btn-primary btn-sm" id="btnNovaConta"><svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>Nova conta</span></button>
+        <!-- Contas para aprovar (README 5): só o admin, só com pendência. APP.atualizarAprovacoes (js/permissoes.js) -->
+        <button type="button" class="btn btn-ghost btn-sm tb-icon tb-aprov" id="btnAprovacoes" onclick="APP.abrirAprovacoes()" hidden title="Contas para aprovar" aria-label="Contas para aprovar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 00-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+          <span class="tb-aprov-n" id="aprovCount" aria-hidden="true"></span>
+        </button>
         <button type="button" class="btn btn-ghost btn-sm tb-icon" id="btnTogglePrivacy" onclick="APP.togglePrivacy()" title="Ocultar valores" aria-label="Ocultar valores">
           <svg id="iconPrivacyOn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
           <svg id="iconPrivacyOff" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:none"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
@@ -169,7 +176,7 @@
     <div id="appMain"></div>
   </main>
 
-  <!-- BOTTOM NAV (mobile ≤768px) -->
+  <!-- BOTTOM NAV (mobile ≤768px). Upload Cards não aparece aqui (fica no trilho do computador): sobra espaço na barra -->
   <nav class="bottom-nav" id="bottomNav">
     <a class="nav-item active" data-page="dashboard"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg><span>Dashboard</span></a>
     <a class="nav-item" data-page="contas"><svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg><span>Contas</span></a>
@@ -177,7 +184,6 @@
     <a class="nav-item" data-page="notas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg><span>Notas</span></a>
     <a class="nav-item" data-page="eac"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/></svg><span>EAC</span></a>
     <a class="nav-item" data-page="relatorio"><svg viewBox="0 0 24 24"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg><span>Relatório</span></a>
-    <a class="nav-item" data-page="upload" id="navUploadMob" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0018 9h-1.26A8 8 0 103 16.3"/></svg><span>Upload</span></a>
     <a class="nav-item" data-page="config" id="navConfigMob" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg><span>Config</span></a>
   </nav>
 
@@ -190,6 +196,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 <script src="js/firebase-config.js"></script>
+<script src="js/uso.js"></script>
 <script src="js/fin-state.js"></script>
 <script src="js/fin-cache.js"></script>
 <script src="js/security.js"></script>
@@ -207,6 +214,7 @@
 <script src="js/upload.js"></script>
 <script src="js/backup.js"></script>
 <script src="js/configuracoes.js"></script>
+<script src="js/uso-tela.js"></script>
 <script src="js/lixeira.js"></script>
 <script src="js/duplicatas.js"></script>
 <script src="js/recorrentes.js"></script>
@@ -216,6 +224,7 @@
 <script src="js/dashboard.js"></script>
 <script src="js/contas.js"></script>
 <script src="js/divisao.js"></script>
+<script src="js/permissoes.js"></script>
 <script src="js/receitas.js"></script>
 <script src="js/salarios.js"></script>
 <script src="js/relatorios.js"></script>

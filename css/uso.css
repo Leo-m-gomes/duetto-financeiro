@@ -1,0 +1,52 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, uso.css
+   Aba "📈 Uso" de Configurações (js/uso-tela.js, README 13.5).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.uso-acoes{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.uso-acoes a.btn{text-decoration:none}
+.uso-corpo{padding:18px;display:flex;flex-direction:column;gap:14px}
+.uso-callout{padding:10px 14px}
+.uso-callout code,.uso-tab code{font-size:10.5px;padding:1px 5px;border-radius:4px;background:color-mix(in srgb,var(--t1) 7%,transparent);color:var(--t3)}
+.uso-vazio{color:var(--t4);font-size:12.5px;text-align:center;padding:14px}
+.uso-nota{font-size:11.5px;color:var(--t4);line-height:1.55;margin-top:-4px}
+
+.uso-tit{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:6px;font-family:var(--font-d);font-size:14px;font-weight:700;color:var(--t1)}
+.uso-tit span{font-family:var(--font-b);font-size:11.5px;font-weight:500;color:var(--t4)}
+
+/* Cards de hoje × cota */
+.uso-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.uso-kpi{display:flex;flex-direction:column;gap:5px;padding:14px 16px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg)}
+.uso-kpi-tit{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--t4)}
+.uso-kpi-v{font-family:var(--font-d);font-size:24px;font-weight:700;color:var(--t1);font-variant-numeric:tabular-nums;line-height:1.1}
+.uso-kpi-de{font-size:11.5px;color:var(--t3)}
+.uso-kpi-de b{color:var(--t1);font-variant-numeric:tabular-nums}
+.uso-kpi-quem{font-size:11px;color:var(--t4)}
+.uso-st{display:inline-block;margin-left:4px;padding:0 7px;border-radius:var(--ui-radius-pill);font-size:10px;font-weight:700}
+.uso-st.ok{background:var(--green-lt);color:var(--green)}
+.uso-st.medio{background:var(--yellow-lt);color:var(--yellow)}
+.uso-st.alto{background:var(--red-lt);color:var(--red)}
+.uso-barra{display:block;height:6px;border-radius:6px;background:color-mix(in srgb,var(--t1) 8%,transparent);overflow:hidden}
+.uso-barra i{display:block;height:100%;min-width:3px;border-radius:6px;background:var(--palm)}
+.uso-barra.medio i{background:var(--yellow)}
+.uso-barra.alto i{background:var(--red)}
+
+.uso-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.uso-stat .sv{font-variant-numeric:tabular-nums}
+.uso-stat .sv small{font-family:var(--font-b);font-size:11px;font-weight:500;color:var(--t4)}
+
+.uso-grafico{position:relative;height:240px}
+.uso-det summary{cursor:pointer;font-size:12px;font-weight:600;color:var(--palm);padding:4px 0}
+.uso-det[open] summary{margin-bottom:8px}
+
+.uso-duas{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.uso-tab th.num,.uso-tab td.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.uso-tab tfoot td{font-weight:700;color:var(--t1);border-top:1px solid var(--border2)}
+.uso-mini{display:inline-block;width:44px;height:5px;margin-right:6px;vertical-align:middle;border-radius:5px;background:color-mix(in srgb,var(--t1) 8%,transparent);overflow:hidden}
+.uso-mini i{display:block;height:100%;background:var(--cat-1)}
+
+@media(max-width:640px){
+  .uso-corpo{padding:14px}
+  .uso-kpis{grid-template-columns:minmax(0,1fr)}
+  .uso-grafico{height:200px}
+}

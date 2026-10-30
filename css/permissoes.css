@@ -1,0 +1,66 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, permissoes.css
+   Permissões das contas e aprovação do admin (js/permissoes.js, README 5):
+   ações travadas na lista, aviso no modal da conta, alerta "Somente o administrador",
+   sino de aprovações no topbar e modal "Contas para aprovar".
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Ação travada na lista: continua clicável (abre o alerta), mas apagada */
+.action-btn.is-locked{opacity:.38}
+.action-btn.is-locked:hover{opacity:.6;color:var(--t3);border-color:var(--border2);background:var(--bg)}
+
+/* Aviso do modal da conta (mesmo formato de .conta-status) */
+.conta-aviso{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin:-6px 0 14px;padding:9px 12px;border:1px dashed var(--border2);border-radius:var(--r-sm);background:var(--surface);font-size:12.5px;color:var(--t2)}
+.conta-aviso[hidden]{display:none}
+.conta-aviso-btn{margin-left:auto}
+.cs-tag.trava{background:color-mix(in srgb,var(--t1) 7%,transparent);color:var(--t2)}
+
+/* Divisão em modo nota: o % só o admin muda */
+.div-resumo.so-admin .div-r-acao{color:var(--t3)}
+
+/* Selo "⏳ aprovar" na lista de Contas (só o admin) */
+.selo-aprov{all:unset;cursor:pointer;display:inline-block;margin-left:6px;padding:1px 7px;border-radius:var(--ui-radius-pill);background:var(--orange-lt);color:var(--orange);border:1px solid var(--orange-border);font-size:9.5px;font-weight:700;line-height:1.5;vertical-align:1px;white-space:nowrap}
+.selo-aprov:hover{background:var(--orange);color:#fff}
+.selo-aprov:focus-visible{outline:2px solid var(--orange);outline-offset:2px}
+
+/* Sino do topbar: número sobre o ícone. O seletor com #topbarBtns vence o
+   "#topbarBtns .btn span{display:none}" do celular (style.css). */
+#topbarBtns .tb-aprov{position:relative;color:var(--orange)}
+#topbarBtns .tb-aprov[hidden]{display:none}
+#topbarBtns .tb-aprov .tb-aprov-n{
+  position:absolute;top:2px;right:1px;min-width:16px;height:16px;padding:0 4px;border-radius:8px;
+  display:grid;place-items:center;background:var(--orange);color:#fff;
+  font-size:9.5px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;
+  box-shadow:0 0 0 2px var(--surface);
+}
+#topbarBtns .tb-aprov svg{animation:aprovSino 2.4s ease-in-out 2}
+@keyframes aprovSino{0%,70%,100%{transform:none}75%{transform:rotate(14deg)}85%{transform:rotate(-12deg)}92%{transform:rotate(6deg)}}
+@media(prefers-reduced-motion:reduce){#topbarBtns .tb-aprov svg{animation:none}}
+
+/* Modal "Contas para aprovar" */
+.aprov-intro{font-size:12.5px;color:var(--t3);line-height:1.55;margin-bottom:14px}
+.aprov-vazio{padding:28px 12px;text-align:center;color:var(--t3);font-size:13px}
+.aprov-item{padding:12px 14px;border:1px solid var(--border);border-radius:var(--r-sm);background:var(--bg);margin-bottom:10px}
+.aprov-top{display:flex;align-items:center;gap:8px}
+.aprov-tag{flex-shrink:0;padding:2px 8px;border-radius:var(--ui-radius-pill);font-size:10.5px;font-weight:700}
+.aprov-tag.cad{background:var(--blue-lt);color:var(--blue)}
+.aprov-tag.edi{background:var(--yellow-lt);color:var(--yellow)}
+.aprov-nome{all:unset;cursor:pointer;flex:1;min-width:0;font-weight:700;font-size:13.5px;color:var(--t1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.aprov-nome:hover{color:var(--palm);text-decoration:underline;text-underline-offset:2px}
+.aprov-nome:focus-visible{outline:2px solid var(--palm);outline-offset:2px;border-radius:3px}
+.aprov-valor{flex-shrink:0;font-weight:700;font-size:13.5px;color:var(--t1);font-variant-numeric:tabular-nums}
+.aprov-meta{margin-top:5px;font-size:11.5px;color:var(--t3);line-height:1.55}
+.aprov-det{margin-top:6px;padding:6px 9px;border-radius:7px;background:var(--surface);border:1px solid var(--border);font-size:11.5px;color:var(--t2);line-height:1.5;word-break:break-word}
+.aprov-acoes{display:flex;justify-content:flex-end;gap:8px;margin-top:10px}
+
+/* Alerta "Somente o administrador" */
+#ovSoAdmin .modal-body{display:flex;flex-direction:column;gap:10px;font-size:13px;color:var(--t2);line-height:1.55}
+.soadm-conta{padding:8px 11px;border-radius:var(--r-sm);background:var(--bg);border:1px solid var(--border);color:var(--t1);word-break:break-word}
+.soadm-pode{color:var(--t3);font-size:12.5px}
+
+@media(max-width:640px){
+  .aprov-top{flex-wrap:wrap}
+  .aprov-nome{white-space:normal}
+  .aprov-acoes .btn{flex:1;justify-content:center;min-height:40px}
+  .conta-aviso-btn{margin-left:0;width:100%;justify-content:center}
+}

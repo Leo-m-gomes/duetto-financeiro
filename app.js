@@ -66,12 +66,11 @@ const APP = {
       if(navUp) navUp.style.display='flex';
       const divAdmin=document.getElementById('railDivAdmin');
       if(divAdmin) divAdmin.style.display='block';
-      // Espelha visibilidade nos itens da bottom nav mobile
+      // Bottom nav mobile: só Config (Upload fica no trilho do computador)
       const navCfgMob=document.getElementById('navConfigMob');
       if(navCfgMob) navCfgMob.style.display='flex';
-      const navUpMob=document.getElementById('navUploadMob');
-      if(navUpMob) navUpMob.style.display='flex';
     }
+    this.atualizarAprovacoes?.();   // sino de contas para aprovar (só o admin; js/permissoes.js)
     this.initTopbarScroll();
     this.initMobileNavScroll();
     if(isShellMode && window.ROUTER){

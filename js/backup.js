@@ -52,6 +52,7 @@ Object.assign(APP, {
     'logs','notes_log','activity_log','logs_acesso',  // históricos de auditoria
     'categoria_grupos','eac_lb','eac_lb_itens','eac_exclusoes','eac_log',  // EAC
     'avatares',                       // fotos de perfil (só no JSON: o Excel não tem aba para elas)
+    'uso_diario',                     // medição de uso do Firebase (só no JSON)
   ],
 
   /**
@@ -174,9 +175,10 @@ Object.assign(APP, {
 
       // Contas (com nomes resolvidos além dos IDs)
       addAba('Contas',
-        ['ID','Descrição','Responsável','Categoria','Categoria ID','Forma','Forma ID','Vencimento','Data Compra','A Pagar','Pago','Pgto Leo','Pgto Pri','Div. Leo %','Div. Pri %','Parcela','Grupo','Recorrente','Nota','Criado por','Atualizado por','Pago por','Data Pgto','Origem'],
-        dados.contas.map(c=>[c._id,c.conta,c.resp,cat(c.catId||c.cat),c.catId||c.cat||'',forma(c.formaId||c.forma),c.formaId||c.forma||'',c.data,c.dataCompra||'',c.vPagar,c.vPago??'',c.pagamentos?.Leo?.valor??'',c.pagamentos?.Pri?.valor??'',c.resp==='Leo & Pri'?divisaoDe(c).Leo/100:'',c.resp==='Leo & Pri'?divisaoDe(c).Pri/100:'',c.parcela||'',c.grupo||'',c.recorrente?'Sim':'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'',c.origem||'']),
-        [24,36,12,18,22,20,22,12,12,12,12,10,10,10,10,10,26,10,30,12,12,12,12,12]);
+        ['ID','Descrição','Responsável','Categoria','Categoria ID','Forma','Forma ID','Vencimento','Data Compra','A Pagar','Pago','Pgto Leo','Pgto Pri','Div. Leo %','Div. Pri %','Parcela','Grupo','Recorrente','Nota','Criado por','Atualizado por','Pago por','Data Pgto','Origem','Aprovação'],
+        dados.contas.map(c=>[c._id,c.conta,c.resp,cat(c.catId||c.cat),c.catId||c.cat||'',forma(c.formaId||c.forma),c.formaId||c.forma||'',c.data,c.dataCompra||'',c.vPagar,c.vPago??'',c.pagamentos?.Leo?.valor??'',c.pagamentos?.Pri?.valor??'',c.resp==='Leo & Pri'?divisaoDe(c).Leo/100:'',c.resp==='Leo & Pri'?divisaoDe(c).Pri/100:'',c.parcela||'',c.grupo||'',c.recorrente?'Sim':'',c.nota||'',c.createdBy||'',c.updatedBy||'',c.paidBy||'',c.paidAt||'',c.origem||'',
+          c.aprovacao?(c.aprovacao.status==='pendente'?`Pendente (${c.aprovacao.por})`:`Aprovada por ${c.aprovacao.aprovadaPor||''}`):'']),
+        [24,36,12,18,22,20,22,12,12,12,12,10,10,10,10,10,26,10,30,12,12,12,12,12,18]);
 
       // Salários: uma linha por período do histórico. Ano de início: gravado ou, em entradas
       // antigas, o inferido pelo sistema (CACHE.anoInicioSalario)

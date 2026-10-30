@@ -53,7 +53,11 @@ const SEC = {
 
   signOut() {
     if (!confirm('Sair do Duetto Financeiro?')) return;
-    fbAuth.signOut();
+    // Grava o uso pendente (js/uso.js) enquanto ainda há login; offline não segura a saída
+    const espera = new Promise(r => setTimeout(r, 1500));
+    Promise.race([Promise.resolve(window.USO && USO.gravar()), espera])
+      .catch(() => {})
+      .finally(() => fbAuth.signOut());
   },
 
   getUsuario() {

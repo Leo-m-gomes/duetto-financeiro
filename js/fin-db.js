@@ -18,6 +18,11 @@
  */
 "use strict";
 
+// Permissões das contas (permConta em fin-state.js, README 5). As telas avisam antes;
+// estas mensagens só aparecem se uma gravação escapar da tela (ex.: dado mudou nesse meio-tempo).
+const MSG_CONTA_ADMIN = 'Somente o administrador pode alterar esta conta';
+const MSG_CONTA_NOTA  = 'Nesta conta você pode alterar só a nota e registrar pagamento; o restante, somente o administrador';
+
 const FS = {
 
   async _log(evento, contaId, contaNome, detalhes, extras){
@@ -45,30 +50,84 @@ const FS = {
     return montarDivisao(leo);
   },
 
+  /**
+   * Cadastro. O autor (`createdBy`) é sempre quem está logado: é a base das permissões.
+   * Não admin que põe o admin como responsável (inclusive compartilhada) deixa a conta
+   * pendente de aprovação; o cadastro acontece normalmente.
+   */
   async addConta(data){
-    const doc = {...data};
+    const doc = {...data, createdBy:STATE.usuario};
     if(doc.resp==='Leo & Pri') doc.divisao = this._divisaoNormal(doc.divisao);
     else delete doc.divisao;
+    delete doc.aprovacao;
+    const pendente = precisaAprovacao(doc.resp, STATE.usuario);
+    if(pendente) doc.aprovacao = this._aprovacaoPendente('cadastro', '');
     const ref = await fbDb.collection('contas').add({...doc, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     await this._log('cadastro', ref.id, doc.conta,
-      `Cadastrado por ${STATE.usuario}${doc.divisao?` · divisão ${fmtDivisao(doc)}`:''}`,
+      `Cadastrado por ${STATE.usuario}${doc.divisao?` · divisão ${fmtDivisao(doc)}`:''}${pendente?' · aguarda aprovação do administrador':''}`,
       {valor:doc.vPagar, resp:doc.resp, parcela:doc.parcela||'1 de 1'}
     );
     return ref.id;
   },
 
+  /** Marca de pendência de aprovação (campo `aprovacao` da conta, README 6.1). */
+  _aprovacaoPendente(motivo, detalhes){
+    return {status:'pendente', motivo, por:STATE.usuario, detalhes:detalhes||'',
+      emIso:new Date().toISOString(), em:firebase.firestore.FieldValue.serverTimestamp()};
+  },
+
   /**
-   * Edição de uma conta, em transação: a trava da divisão lê o estado atual da conta, então um
-   * pagamento registrado ao mesmo tempo pelo outro usuário não escapa da regra.
+   * Trava de permissão da edição (permConta). Acesso parcial só altera a nota.
+   * @param {Object} d   conta como está no Firestore
+   * @param {Object} upd campos enviados
+   */
+  _exigirPermConta(d, upd){
+    const p = permConta(d, STATE.usuario);
+    if(p.editar) return;
+    if(p.nota && Object.keys(upd).every(k=>k==='nota'||k==='updatedBy')) return;
+    throw new Error(p.nota ? MSG_CONTA_NOTA : MSG_CONTA_ADMIN);
+  },
+
+  /** Campos alterados ("Valor: "R$ 10,00" → "R$ 12,00""), para o log e a aprovação. */
+  _alteracoesConta(ant, data){
+    const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota',dataCompra:'Data da compra'};
+    const rotulo = (campo, v) => campo==='formaId' ? CACHE.resolveForma(v)
+                               : campo==='catId'   ? CACHE.resolveCat(v)
+                               : campo==='vPagar'  ? fmt(parseFloat(v)||0)
+                               : v;
+    const alteracoes = [];
+    Object.keys(CAMPOS).forEach(campo=>{
+      if(data[campo]===undefined) return;
+      // ?? '': dataCompra null virava "null" e toda edição registrava uma alteração falsa
+      const de = String(ant[campo]??''), para = String(data[campo]??'');
+      if(de!==para) alteracoes.push(`${CAMPOS[campo]}: "${rotulo(campo,de)}" → "${rotulo(campo,para)}"`);
+    });
+    // Divisão: objeto, comparado pela parte do Leo ("50/50" → "60/40")
+    const respFinal = data.resp!==undefined ? data.resp : ant.resp;
+    if(respFinal==='Leo & Pri' && data.divisao!==undefined){
+      const novo = {divisao:montarDivisao(data.divisao.Leo)};
+      if(ant.resp!=='Leo & Pri') alteracoes.push(`Divisão: "—" → "${fmtDivisao(novo)}"`);
+      else if(divLeo(ant)!==novo.divisao.Leo) alteracoes.push(`Divisão: "${fmtDivisao(ant)}" → "${fmtDivisao(novo)}"`);
+    }
+    return alteracoes;
+  },
+
+  /**
+   * Edição de uma conta, em transação: as travas (permissão e divisão) leem o estado atual da
+   * conta, então um pagamento registrado ao mesmo tempo pelo outro usuário não escapa da regra.
    * Divisão: compartilhada guarda `divisao` (a recebida, ou a atual); deixou de ser
    * compartilhada → o campo é apagado. Conta com pagamento não muda a divisão.
+   * Autor (`createdBy`) não muda. Aprovação: edição de um não admin que altera algo numa conta
+   * com o admin como responsável volta a ficar pendente; sem o admin, a pendência sai.
    */
   async updateConta(id, data){
     const ref = fbDb.collection('contas').doc(id);
-    const ant = await fbDb.runTransaction(async tx => {
+    const {ant, alteracoes} = await fbDb.runTransaction(async tx => {
       const snap = await tx.get(ref);
       if(!snap.exists) throw new Error('Conta não encontrada');
       const d = snap.data(), upd = {...data};
+      delete upd.createdBy; delete upd.aprovacao;
+      this._exigirPermConta(d, upd);
       const respFinal = upd.resp !== undefined ? upd.resp : d.resp;
       if(respFinal==='Leo & Pri'){
         if(upd.divisao!==undefined || d.resp!=='Leo & Pri'){
@@ -80,40 +139,58 @@ const FS = {
         delete upd.divisao;
         if(d.divisao) upd.divisao = firebase.firestore.FieldValue.delete();
       }
+      const alteracoes = this._alteracoesConta(d, data);
+      if(!ehAdmin(STATE.usuario) && permConta(d, STATE.usuario).editar){
+        if(precisaAprovacao(respFinal, STATE.usuario)){
+          // Cadastro ainda não aprovado continua "cadastro": o admin revisa a conta como está
+          const motivo = aprovacaoPendente(d) && d.aprovacao.motivo==='cadastro' ? 'cadastro' : 'edicao';
+          if(alteracoes.length) upd.aprovacao = this._aprovacaoPendente(motivo, motivo==='edicao' ? alteracoes.join(' | ') : '');
+        } else if(aprovacaoPendente(d)){
+          upd.aprovacao = firebase.firestore.FieldValue.delete();
+        }
+      }
       tx.update(ref, {...upd, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
-      return d;
+      return {ant:d, alteracoes};
     });
 
-    const CAMPOS = {conta:'Descrição',resp:'Responsável',formaId:'Forma',catId:'Categoria',data:'Data',vPagar:'Valor',parcela:'Parcela',nota:'Nota',dataCompra:'Data da compra'};
-    let alteracoes = [];
-    if(ant){
-      Object.keys(CAMPOS).forEach(campo=>{
-        const de   = String(ant[campo]||'');
-        const para = String(data[campo]!==undefined ? data[campo] : (ant[campo]||''));
-        if(data[campo]!==undefined && de!==para){
-          const label = CAMPOS[campo];
-          const deLabel   = campo==='formaId'  ? CACHE.resolveForma(de)
-                          : campo==='catId'     ? CACHE.resolveCat(de)
-                          : campo==='vPagar'    ? fmt(parseFloat(de)||0)
-                          : de;
-          const paraLabel = campo==='formaId'  ? CACHE.resolveForma(para)
-                          : campo==='catId'     ? CACHE.resolveCat(para)
-                          : campo==='vPagar'    ? fmt(parseFloat(para)||0)
-                          : para;
-          alteracoes.push(`${label}: "${deLabel}" → "${paraLabel}"`);
-        }
-      });
-      // Divisão: objeto, comparado pela parte do Leo ("50/50" → "60/40")
-      const respFinal = data.resp!==undefined ? data.resp : ant.resp;
-      if(respFinal==='Leo & Pri' && data.divisao!==undefined){
-        const novo = {divisao:montarDivisao(data.divisao.Leo)};
-        if(ant.resp!=='Leo & Pri') alteracoes.push(`Divisão: "—" → "${fmtDivisao(novo)}"`);
-        else if(divLeo(ant)!==novo.divisao.Leo) alteracoes.push(`Divisão: "${fmtDivisao(ant)}" → "${fmtDivisao(novo)}"`);
-      }
-    }
     const nome = data.conta || ant?.conta || '—';
     const detalhes = alteracoes.length ? alteracoes.join(' | ') : 'Atualização sem alterações detectadas';
     await this._log('edicao', id, nome, detalhes, {valor:data.vPagar, alteracoes});
+  },
+
+  /**
+   * Aprova contas pendentes (somente admin). Em transação: só aprova a conta que continua
+   * pendente na mesma versão vista na tela (emIso). Se o outro usuário editou nesse meio-tempo,
+   * ela fica de fora e volta para a lista. Lotes de 100 (100 leituras + 100 gravações).
+   * @param {{id:string, emIso:string}[]} itens
+   * @returns {Promise<{ok:number, mudaram:number}>}
+   */
+  async aprovarContas(itens){
+    this._exigirAdmin('Somente o administrador aprova contas');
+    const aprovadas = [];
+    for(let i=0;i<itens.length;i+=100){
+      const lote = itens.slice(i,i+100);
+      const refs = lote.map(x=>fbDb.collection('contas').doc(x.id));
+      const iso  = new Date().toISOString();
+      aprovadas.push(...await fbDb.runTransaction(async tx => {
+        const snaps = await Promise.all(refs.map(r=>tx.get(r)));
+        const out = [];
+        snaps.forEach((s,k)=>{
+          const d = s.exists ? s.data() : null;
+          if(!d || !aprovacaoPendente(d) || d.aprovacao.emIso!==lote[k].emIso) return;
+          tx.update(refs[k], {
+            'aprovacao.status':'aprovada', 'aprovacao.aprovadaPor':STATE.usuario, 'aprovacao.aprovadaEmIso':iso,
+            'aprovacao.aprovadaEm':firebase.firestore.FieldValue.serverTimestamp(),
+          });
+          out.push({id:refs[k].id, conta:d.conta, resp:d.resp, vPagar:d.vPagar, parcela:d.parcela, por:d.aprovacao.por, motivo:d.aprovacao.motivo});
+        });
+        return out;
+      }));
+    }
+    await Promise.all(aprovadas.map(a=>this._log('aprovacao', a.id, a.conta,
+      `Aprovada por ${STATE.usuario} (${a.motivo==='edicao'?'edição':'cadastro'} de ${a.por})`,
+      {valor:a.vPagar, resp:a.resp, parcela:a.parcela})));
+    return {ok:aprovadas.length, mudaram:itens.length-aprovadas.length};
   },
 
   async deleteConta(id, motivo){
@@ -122,6 +199,7 @@ const FS = {
       const snap = await tx.get(contaRef);
       if(!snap.exists) return null;
       const d = snap.data();
+      if(!permConta(d, STATE.usuario).excluir) throw new Error(MSG_CONTA_ADMIN);
       const lixRef = fbDb.collection('lixeira').doc();
       tx.set(lixRef, {
         ...d,
@@ -152,6 +230,7 @@ const FS = {
     // quitada por sobrescrita — a parte faltante deve ir por pagarContaIndividual.
     if(snap?.exists){
       const d = snap.data();
+      if(!permConta(d, STATE.usuario).pagar) throw new Error(MSG_CONTA_ADMIN);
       if(d.resp==='Leo & Pri' && d.pagamentos && (!!d.pagamentos.Leo !== !!d.pagamentos.Pri)){
         throw new Error('Conta compartilhada com pagamento parcial — registre a parte faltante pelo pagamento individual');
       }
@@ -174,6 +253,7 @@ const FS = {
       const snap = await tx.get(contaRef);
       if(!snap.exists) return null;
       const d = snap.data();
+      if(!permConta(d, STATE.usuario).pagar) return {erro:MSG_CONTA_ADMIN};
       if(d.pagamentos?.[resp]) return {erro:`${resp} já registrou pagamento nesta conta`};
       const pgNovo = {valor:valorPago, paidBy:quem, paidAt};
       const pagamentos = {...(d.pagamentos||{}), [resp]:pgNovo};
@@ -204,6 +284,7 @@ const FS = {
       if(!snap.exists) return null;
       const d = snap.data();
       if(!d.pagamentos?.[resp]) return null;
+      if(!podeDesfazerPg(d, resp, STATE.usuario)) return {erro:MSG_CONTA_ADMIN};
       const valor = d.pagamentos[resp].valor;
       const restantes = {...d.pagamentos};
       delete restantes[resp];
@@ -226,6 +307,7 @@ const FS = {
       return {nome:d.conta, valor};
     });
     if(!result) return;
+    if(result.erro) throw new Error(result.erro);
     await this._log('desfazer_pagamento_individual', id, result.nome,
       `Pagamento de ${resp} (${fmt(result.valor)}) desfeito por ${STATE.usuario}`,
       {valor:result.valor, resp}
@@ -238,6 +320,7 @@ const FS = {
     const snap = await fbDb.collection('contas').doc(id).get().catch(()=>null);
     const d    = snap?.exists ? snap.data() : {};
     const nome = d.conta || '—';
+    if(snap?.exists && !podeDesfazerPg(d, '', STATE.usuario)) throw new Error(MSG_CONTA_ADMIN);
     await fbDb.collection('contas').doc(id).update({
       vPago:  null,
       paidBy: firebase.firestore.FieldValue.delete(),
@@ -299,9 +382,11 @@ const FS = {
    * EAC: toda alteração (linha de base, classificação de excluídas, grupos) é do administrador.
    * Trava do lado do cliente; a regra do Firestore deve repetir a restrição (README, seção 15).
    */
-  _exigirAdminEac(){
+  _exigirAdminEac(){ this._exigirAdmin('Somente o administrador pode alterar a EAC'); },
+
+  _exigirAdmin(msg){
     const ok = (typeof SEC!=='undefined' && SEC.isAdmin && SEC.isAdmin()) || STATE.usuario==='Leo';
-    if(!ok) throw new Error('Somente o administrador pode alterar a EAC');
+    if(!ok) throw new Error(msg);
   },
 
   /** Grava em lotes de 400 operações (limite do Firestore: 500 por lote). */
@@ -465,6 +550,7 @@ function setupListeners(){
       CACHE.contas=snap.docs.map(d=>({id:d.id,...d.data()}));
       CACHE.markReady('contas');
       if(_canReRender()) APP.renderPage(STATE.page);
+      APP.atualizarAprovacoes?.();   // sino do admin (contas para aprovar) em qualquer tela
     }),
     fbDb.collection('salarios').onSnapshot(snap=>{
       CACHE.salarios=snap.docs.map(d=>({id:d.id,...d.data()}));

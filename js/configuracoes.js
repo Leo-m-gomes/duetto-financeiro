@@ -22,6 +22,7 @@ Object.assign(APP, {
     if(tab==='log') this.cfgCarregarLog();
     if(tab==='acesso') this.cfgCarregarLogAcesso();
     if(tab==='lixeira') this.lixeiraCarregar();
+    if(tab==='uso') this.cfgUsoCarregar();   // js/uso-tela.js (redesenhos usam o que já foi lido)
   },
 
   // ── USUÁRIOS ──
@@ -289,6 +290,7 @@ Object.assign(APP, {
       desfazer_pagamento:{icon:'↩',  label:'Desfazer pgto.',   cor:'var(--yellow)'},
       exclusao:          {icon:'🗑', label:'Exclusão',          cor:'var(--red)'},
       restauracao:       {icon:'↺',  label:'Restauração',      cor:'var(--palm)'},
+      aprovacao:         {icon:'☑',  label:'Aprovação',        cor:'var(--palm)'},
     };
 
     tbody.innerHTML = registros.map(r=>{

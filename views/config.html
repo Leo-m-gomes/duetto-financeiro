@@ -46,6 +46,7 @@
         <button class="cfg-tab"        data-tab="lixeira"   onclick="APP.cfgTab('lixeira')">🗑️ Excluídos</button>
         <button class="cfg-tab"        data-tab="log"       onclick="APP.cfgTab('log')">📋 Log de Atividades</button>
         <button class="cfg-tab"        data-tab="acesso"    onclick="APP.cfgTab('acesso')">🔑 Log de Acesso</button>
+        <button class="cfg-tab"        data-tab="uso"       onclick="APP.cfgTab('uso')">📈 Uso</button>
         <button class="cfg-tab"        data-tab="prefs"     onclick="APP.cfgTab('prefs')">⚙️ Preferências</button>
       </div>
 
@@ -186,6 +187,7 @@
                 <option value="desfazer_pagamento">↩ Desfazer pagamento</option>
                 <option value="exclusao">🗑 Exclusão</option>
                 <option value="restauracao">↺ Restauração</option>
+                <option value="aprovacao">☑ Aprovação</option>
               </select>
             </div>
             <button class="btn btn-primary btn-sm" onclick="APP.cfgCarregarLog()">🔍 Filtrar</button>
@@ -240,6 +242,20 @@
               </table>
             </div>
           </div>
+        </div>
+      </div>
+
+      <!-- TAB: USO DO FIREBASE (README 13.5): js/uso.js mede, js/uso-tela.js monta o conteúdo -->
+      <div class="cfg-panel" id="cfgPanel-uso">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>📈 Uso do Firebase</h3>
+            <div class="uso-acoes">
+              <a class="btn btn-ghost btn-sm" id="cfgUsoConsole" href="#" target="_blank" rel="noopener">Console do Firebase ↗</a>
+              <button class="btn btn-ghost btn-sm" id="cfgUsoAtualizar" onclick="APP.cfgUsoCarregar(true)">🔄 Atualizar</button>
+            </div>
+          </div>
+          <div class="uso-corpo" id="cfgUsoCorpo"><p class="uso-vazio">Carregando…</p></div>
         </div>
       </div>
 

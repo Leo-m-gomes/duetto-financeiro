@@ -93,6 +93,7 @@ css/
   shell.css           Trilho de navegação, topbar e busca rápida (Ctrl K)
 js/
   firebase-config.js  Inicializa Firebase (fbAuth, fbDb)
+  uso.js              USO: mede leituras, gravações e exclusões do Firestore e grava uso_diario (13.5)
   fin-state.js        Constantes, formatação, REGRAS DE NEGÓCIO CENTRAIS, STATE
   fin-cache.js        CACHE: espelho local do Firestore + consultas + cálculo INSS/IR
   security.js         Login Google, e-mails permitidos, papéis (SEC / AUTH)
@@ -113,7 +114,9 @@ js/
   acoes-extra.js      Desfazer pagamento e PDF do Relatório
   upload.js           Upload Cards (modelo Excel, importação)
   backup.js           Backup JSON/Excel
-  configuracoes.js    Configurações (usuários, backup, tabelas, logs, lixeira, preferências)
+  configuracoes.js    Configurações (usuários, backup, tabelas, logs, lixeira, uso, preferências)
+  uso-tela.js         Aba "Uso" de Configurações: cota, 30 dias, por coleção/usuário, armazenamento (13.5)
+  permissoes.js       Permissões das contas (alerta "somente o administrador", modo nota) e aprovações do admin (5)
   lixeira.js          Lixeira de contas
   gerenciar.js        Categorias e formas de pagamento
   command-palette.js  Busca rápida e ações (Ctrl K / ⌘K / "/")
@@ -123,6 +126,8 @@ js/
 css/eac.css           Tela EAC e seus modais
 css/filtro-formas.css Filtro de forma de pagamento: botão da barra de filtros e painel de distribuição
 css/divisao.css       Divisão das compartilhadas: régua, linha de resumo, selo da parte, mini barra
+css/permissoes.css    Ações travadas, aviso do modal da conta, alerta "somente o administrador", sino e modal de aprovações
+css/uso.css           Aba "Uso" de Configurações
 views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
 
@@ -130,7 +135,7 @@ views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.ht
 
 ### 3.2 Inicialização
 
-1. `index.html` carrega os scripts **em ordem** (a ordem importa: módulos usam globais dos anteriores): firebase-config → fin-state → fin-cache → security → fin-db → router → notes → app → ui-* → features → command-palette.
+1. `index.html` carrega os scripts **em ordem** (a ordem importa: módulos usam globais dos anteriores): firebase-config → uso → fin-state → fin-cache → security → fin-db → router → notes → app → ui-* → features → command-palette. `uso.js` vem logo depois do firebase-config: instrumenta o SDK antes de qualquer leitura (13.5).
 2. `security.js` observa o login. E-mail fora da lista → tela "Acesso negado". E-mail permitido → grava acesso em `logs_acesso`, roda `seedIfEmpty()` e liga os listeners.
 3. Os listeners (`onSnapshot`) preenchem o `CACHE`. Quando 5 coleções ficam prontas (contas, salarios, outras, cats, formas), `APP.onCacheReady()` mostra o app e roda `APP.boot()`. Os listeners da EAC (`categoria_grupos`, `eac_lb`, `eac_exclusoes`) não entram nessa contagem: o app abre sem esperar por eles e, se a regra do Firestore negar a leitura, só há aviso no console.
 4. `boot()` injeta `views/modals.html`, liga navegação/topbar/filtros e abre o Dashboard.
@@ -159,11 +164,12 @@ views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.ht
 
 ### 4.2 Topbar
 
-`[Duetto / Tela  selo de período] · [busca Ctrl K] · [filtro de responsável | ações da tela | privacidade | sair]`
+`[Duetto / Tela  selo de período] · [busca Ctrl K] · [filtro de responsável | ações da tela | sino de aprovações | privacidade | sair]`
 
 * **Selo de período:** mostra o período da tela atual, lido dos filtros da própria tela (período personalizado tem prioridade sobre ano/mês):
   `Out 2026`, `2026 inteiro`, `Out · todos os anos`, `Todo o histórico`, `Jan → Mar 2026`. Vale para Dashboard, Contas, Relatório e Receitas. Na EAC mostra o ano e a LB vigente (`2026 · LB Rev 2` ou `2026 · sem LB`). Some em Notas, Upload, Backup e Config.
 * **Filtro global de responsável:** avatares Todos · Leo · Pri · Leo & Pri (só compartilhadas), com a foto de cada um (4.7) ou a inicial. O ativo mostra o nome. Vale para Dashboard, Contas, Receitas, Relatório, EAC e logs da Config; fica desativado em Notas, Upload e Backup; não afeta modais; **não é salvo** (volta para Todos ao recarregar).
+* **Sino de aprovações (só o admin):** aparece só com conta pendente de aprovação (5), com a quantidade sobre o ícone, em todas as telas e também no celular. O clique abre "Contas para aprovar". Pendência nova com o app aberto (e as pendentes ao abrir o app) também avisa num toast. Quem não é admin nunca vê o sino.
 * **Ações por tela** (`APP.updateTopbarBtns`): Contas → Nova conta, Exportar CSV (Gerar recorrentes só com o recurso ligado, 8.7). Receitas → Nova receita, Gerenciar salários. Ações secundárias aparecem só como ícone (com dica e `aria-label`).
 
 ### 4.3 Busca rápida (Ctrl K / ⌘K / "/")
@@ -177,7 +183,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 * **Outras receitas:** até 3 por descrição, responsável ou ano (as de ano mais recente primeiro); o ano aparece na linha; Enter abre a edição.
 * **Ações rápidas:** Nova conta, Nova receita, Ver contas em atraso (abre Contas com status atrasado e todo o histórico), Gerar recorrentes (só com o recurso ligado, 8.7), Gerenciar salários, Exportar CSV (só na tela Contas), modo claro/escuro, ocultar/mostrar valores, Meu perfil e foto (4.7).
 * **Ir para:** telas do app, incluindo EAC (Upload e Config só para o admin).
-* **Teclado:** ↑/↓ ou Tab navegam, Enter abre (conta: modal da conta em modo ver, 10.2), **Shift+Enter abre o pagamento** da conta selecionada, Esc fecha e devolve o foco.
+* **Teclado:** ↑/↓ ou Tab navegam, Enter abre (conta: modal da conta em modo ver, 10.2), **Shift+Enter abre o pagamento** da conta selecionada (conta travada para o usuário abre o alerta "somente o administrador", 5), Esc fecha e devolve o foco.
 
 ### 4.4 Temas
 
@@ -200,7 +206,7 @@ Módulo `js/command-palette.js`. **Somente leitura:** não grava nada, toda aç�
 | > 1100px | Topbar completo, filtro de responsável em avatares |
 | ≤ 1100px | Filtro de responsável vira select compacto |
 | ≤ 900px | Busca vira só o ícone de lupa |
-| ≤ 768px | Trilho some; navegação pela **bottom nav** flutuante (esconde ao rolar para baixo). No topbar, o avatar do usuário ocupa o lugar do botão Sair e abre Meu perfil, que tem o **Sair** |
+| ≤ 768px | Trilho some; navegação pela **bottom nav** flutuante (esconde ao rolar para baixo). A bottom nav **não tem Upload Cards** (a importação fica no trilho do computador): Dashboard, Contas, Receitas, Notas, EAC, Relatório e, para o admin, Config. No topbar, o avatar do usuário ocupa o lugar do botão Sair e abre Meu perfil, que tem o **Sair** |
 | ≤ 640px | Topbar compacto (botões só ícone, 40px de toque), filtros recolhíveis, tabelas viram cartões. No cartão, o título ocupa a faixa de cima na largura toda e nenhuma célula usa a largura máxima da tabela do computador (`max-width` inline vale só lá); em Contas, **Parcela** aparece ao lado do Vencimento (classe `mob-mostrar`; na tabela ela some até 1100px, `col-hide`) |
 
 A coluna principal tem `min-width:0`: conteúdo largo (tabela de Contas) rola dentro do próprio contêiner, sem rolagem horizontal da página.
@@ -241,7 +247,8 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 | Mapeamento e-mail → usuário | `EMAIL_TO_USUARIO` |
 | Admin: **Leo** | `ADMIN_USERS` |
 | Telas só do admin: Upload Cards, Backup, Configurações | `router.js` (`adminOnly`) e `APP.renderPage` |
-| Itens Upload/Config da navegação só aparecem para Leo | `APP.boot` |
+| Itens Upload/Config da navegação só aparecem para Leo (no celular, só Config: Upload não fica na bottom nav) | `APP.boot` |
+| Contas: o que cada usuário pode alterar e a aprovação do admin (5.1 e 5.2) | `permConta` (`fin-state.js`), `FS.*` (`fin-db.js`), `js/permissoes.js` |
 | Notas: admin edita/exclui qualquer nota; autor edita a própria; nota com responsável "Leo & Pri" libera os dois | `notes.js` → `ntCanEdit` |
 | Todo acesso (abertura do app) é registrado | coleção `logs_acesso` |
 | Foto de perfil: **cada usuário altera só a própria** (Leo não troca a da Pri e vice-versa) | `FS._exigirDonoAvatar` |
@@ -250,6 +257,38 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 * Login por popup Google; se o navegador bloquear o popup, cai para redirect.
 * Sair pede confirmação.
 * Usuários extras cadastrados em Configurações (`config/usuarios`) **não ganham acesso** por isso: o acesso depende de `ALLOWED_EMAILS` no código e das regras do Firestore (ver [Restrições](#15-restrições-e-limitações-conhecidas)).
+
+### 5.1 Permissões das contas
+
+Todos **visualizam todas as contas** (listas, modal em modo ver, busca, relatórios). O que muda é quem altera. Fonte única: `permConta(conta, usuario)` em `fin-state.js`; as telas (`js/permissoes.js`) e as gravações (`FS.updateConta`, `deleteConta`, `pagarConta`, `pagarContaIndividual`, `desfazerPagamento`, `desfazerPagamentoIndividual`, que leem a conta do Firestore, em transação quando a operação já era transacional) usam a mesma regra.
+
+* **Autor** = `createdBy`, gravado sempre como o usuário logado no cadastro (`FS.addConta`) e **imutável** na edição. Conta sem `createdBy` (antigas) vale como **do admin**.
+* **Admin (Leo):** altera tudo, em qualquer conta.
+
+| Conta | Para quem não é admin | Nível |
+|---|---|---|
+| Cadastrada por um não admin (ex.: a Pri) | edita, exclui, paga, desfaz e gerencia o parcelamento livremente | total |
+| Do admin, com a própria pessoa como responsável (ex.: resp `Pri`) | o mesmo: acesso total | total |
+| Do admin, compartilhada (`Leo & Pri`) | **registra pagamento** (qualquer parte), **desfaz só os pagamentos que ela mesma registrou** (`paidBy`) e **edita a nota**. Não muda a divisão (%), os outros campos, nem exclui | parcial |
+| Do admin, só do Leo | só visualiza | leitura |
+
+* **Ação travada continua visível:** na lista de Contas o botão fica apagado (dica "🔒 Somente o administrador: …") e o clique abre o alerta **"Somente o administrador"** (`ovSoAdmin`), que diz quem cadastrou, o que só o admin faz e o que a pessoa pode fazer. Vale também para o Editar e o Pagar do modal em modo ver, o Shift+Enter da busca rápida e o ✓ de pagar. Conta travada para pagamento não tem caixa de seleção do pagamento em massa.
+* **Modo nota** (nível parcial): o ✏ abre o modal "Editar nota", com todos os campos só leitura menos a Nota; a divisão mostra "🔒 Admin" e o clique nela abre o alerta. Salvar grava só `nota` e `updatedBy`. O topo do modal explica o que a pessoa pode fazer.
+* **Gerenciar Parcelamento** (≡) edita e exclui parcelas: exige acesso total em todas as parcelas do grupo; senão abre o alerta (na compartilhada do admin, cada parcela é paga pelo ✓ da lista).
+* **Desfazer** com as duas partes pagas, no nível parcial: pergunta só da parte que a pessoa registrou; a outra fica para o admin.
+* Se uma gravação escapar da tela (ex.: a conta mudou nesse meio-tempo), o `FS.*` recusa com "Somente o administrador pode alterar esta conta".
+
+### 5.2 Aprovação do admin
+
+Quando um usuário que **não é admin cadastra** uma conta com o admin como responsável (`Leo` ou `Leo & Pri`, mesmo compartilhada), ou **edita** uma conta com acesso total e o resultado tem o admin como responsável (com alguma mudança de campo), a conta é gravada normalmente e fica **pendente de aprovação** (campo `aprovacao`, 6.1).
+
+* **Quem cadastrou não vê nada:** sem aviso, sem selo, sem sino. A conta vale em todas as telas e totais desde o cadastro.
+* **Só o admin vê:** sino no topbar com a quantidade (4.2), toast ao abrir o app ou quando chega pendência nova, selo **"⏳ aprovar"** ao lado da descrição na lista de Contas e o aviso "Aguarda sua aprovação" com o botão **Aprovar** no modal da conta.
+* **Modal "Contas para aprovar":** mais recentes primeiro; parcelas pendentes do mesmo parcelamento viram um item só ("3 parcelas (1 de 3 a 3 de 3) · R$ 30,00 cada"). Cada item mostra Nova ou Alterada, quem e quando, responsável com a divisão, parcelas e vencimento, valor total e, na alteração, os campos que mudaram. Botões **Ver conta** (abre o modal da conta por cima da lista) e **Aprovar**; no rodapé, **Aprovar todas** (com confirmação). Para corrigir ou excluir, o admin abre a conta (tem acesso total).
+* **Aprovar** (`FS.aprovarContas`, só admin, transação em lotes de 100): aprova só a conta que continua pendente na **mesma versão** que a lista mostrou (`aprovacao.emIso`). Se o outro usuário editou nesse meio-tempo, ela fica de fora, volta para a lista e o admin é avisado. Cada conta aprovada registra o log `aprovacao`.
+* **Pendência renovada:** nova edição com mudança feita pelo não admin volta a deixar a conta pendente (motivo "edição", com os campos alterados); cadastro ainda não aprovado continua como "cadastro". Salvar sem mudança não renova.
+* **Pendência some sozinha** quando o responsável deixa de incluir o admin (pelo não admin, que tira a marca, ou pelo admin, que a lista ignora).
+* Pagamento e nota (nível parcial) não geram pendência. Edições do admin não mudam a aprovação.
 
 ---
 
@@ -274,7 +313,8 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 | `parcela` | string `"i de n"` | Padrão `"1 de 1"`. No cadastro manual é montado pelo sistema a partir de Qtd. e Parcela Atual (8.5) |
 | `grupo` | string `grp-<timestamp>[-sufixo]` | Liga as parcelas do mesmo parcelamento |
 | `recorrente` | boolean | Marca para "Gerar recorrentes". **Recurso desligado (8.7):** contas novas gravam `false`; o valor das existentes é preservado na edição |
-| `createdBy`, `updatedBy` | `'Leo'` \| `'Pri'` | Auditoria |
+| `createdBy`, `updatedBy` | `'Leo'` \| `'Pri'` | Auditoria. `createdBy` é o **autor** e base das permissões (5.1): gravado pelo `FS.addConta` como o usuário logado e imutável na edição; sem o campo = do admin |
+| `aprovacao` | `{status:'pendente'\|'aprovada', motivo:'cadastro'\|'edicao', por, detalhes, emIso, em, aprovadaPor?, aprovadaEmIso?, aprovadaEm?}` | Só em contas que um não admin cadastrou ou editou com o admin como responsável (5.2). `detalhes`: campos alterados (motivo edição). Gravado só pelo `FS`; o não admin só grava `pendente`. Apagado quando o responsável deixa de incluir o admin |
 | `createdAt`, `updatedAt` | timestamp do servidor | |
 | `origem`, `planilhaId` | string | Só em contas importadas (`origem:'importacao'`) |
 | `restauradoPor`, `restauradoEm` | string | Só em contas restauradas da lixeira |
@@ -304,6 +344,7 @@ Módulo `js/ui-filtro-formas.js` + `css/filtro-formas.css`. Vale em **Contas** e
 | `notes_trash` | Nota excluída + `{origemId, excluidoPor, excluidoEm, excluidoAt}` |
 | `notes_log` | `{evento, noteId, detalhes, usuario, timestamp, serverTimestamp}` |
 | `activity_log` | Legado: incluído no backup, não é mais gravado |
+| `uso_diario` | Medição de uso do Firebase (13.5), ID = dia de cota `YYYY-MM-DD` (horário do Pacífico): `{dia, leituras:{Leo,Pri}, gravacoes:{…}, exclusoes:{…}, sessoes:{…}, carga:{…}, colecoes:{<coleção>:{l,g,e}}, atualizadoEm}`. Somado com `FieldValue.increment` por cada aparelho; `sessoes` = aberturas do app no dia; `carga` = leituras da carga inicial dos listeners. Lido só pelo admin |
 
 ### 6.3 Carga inicial (`seedIfEmpty`)
 
@@ -559,6 +600,7 @@ Dedução por dependente: R$ 189,59. Teto INSS: R$ 908,86.
 ### 10.2 Contas
 
 * Ao abrir: status "Pendente" e ordenação por **vencimento crescente**.
+* **Permissões** (5.1): ações que o usuário não pode fazer ficam apagadas e abrem o alerta "Somente o administrador"; na compartilhada do admin o ✏ abre o modo nota. Para o admin, conta pendente de aprovação mostra o selo "⏳ aprovar" (5.2).
 * **Clique na descrição** abre o modal da conta em **modo ver** (`APP.verConta`): todos os campos só leitura, sem a barra Gerenciar, com a situação no topo (paga com valor, data e quem pagou; parcialmente paga; atrasada; pendente). Rodapé: **Fechar**, **Editar** (libera os campos, como o ícone ✏; o parcelamento segue só leitura) e **Pagar** (some se a conta está quitada; abre o "Confirmar Pagamento" por cima e, ao confirmar, fecha os dois). O ícone ✏ continua abrindo direto a edição.
 * **Aviso de atraso:** atrasadas de qualquer mês, **com o filtro global de responsável** (parte da pessoa nas compartilhadas; a parte já paga pela pessoa filtrada não conta), mostrando quantidade e soma do que falta pagar (`vPendente`, em centavos). Mesma regra do banner do Dashboard. O clique (`APP.filtrarAtrasadas`) aplica status "atrasado" com todos os anos e meses e limpa busca, categoria, forma, recorrente e período (o responsável continua): a lista bate com a contagem.
 * Filtros: busca (descrição, nota, responsável, categoria, forma, parcela, data, autores), ano, mês, período, categoria, forma (seleção múltipla, 4.8), recorrente (sim/não; oculto com o recurso desligado, 8.7), status (pago, pendente, atrasado: vencida e não quitada) e responsável global.
@@ -681,7 +723,7 @@ Somente admin.
 
 ### 13.3 Logs
 
-* `logs` (contas): `cadastro`, `edicao` (com a lista de campos alterados), `exclusao`, `pagamento`, `pagamento_individual`, `pagamento_complementar`, `desfazer_pagamento`, `desfazer_pagamento_individual`, `restauracao`.
+* `logs` (contas): `cadastro`, `edicao` (com a lista de campos alterados), `exclusao`, `pagamento`, `pagamento_individual`, `pagamento_complementar`, `desfazer_pagamento`, `desfazer_pagamento_individual`, `restauracao`, `aprovacao` (admin aprovou a conta, 5.2). O `cadastro` feito por um não admin com o admin como responsável cita "aguarda aprovação do administrador".
 * Divisão nos logs: `cadastro` de compartilhada cita a divisão ("divisão 60/40"); `edicao` registra `Divisão: "50/50" → "60/40"`; pagamento por parte cita o percentual ("Leo, parte de 60%").
 * Tela de log: sem período mostra os 50 mais recentes (de até 500 lidos); com período lê até 10.000. Filtros de pessoa (filtro global), evento e datas aplicados no navegador (evita índices compostos).
 * `logs_acesso`: uma linha a cada abertura do app (usuário, e-mail, data, navegador; exibe Mobile/Desktop).
@@ -689,11 +731,29 @@ Somente admin.
 
 ### 13.4 Backup (admin)
 
-* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log, avatares`. `avatares` (fotos) vai só no JSON; o Excel não tem aba para ela. A aba Contas do Excel tem as colunas "Div. Leo %" e "Div. Pri %" (só nas compartilhadas). O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
+* Coleções incluídas: `contas, salarios, outras_receitas, categorias, formas, cartoes, importacoes, config, notes, notes_trash, lixeira, logs, notes_log, activity_log, logs_acesso, categoria_grupos, eac_lb, eac_lb_itens, eac_exclusoes, eac_log, avatares, uso_diario`. `avatares` (fotos) e `uso_diario` (medição de uso) vão só no JSON; o Excel não tem aba para elas. A aba Contas do Excel tem as colunas "Div. Leo %" e "Div. Pri %" (só nas compartilhadas) e "Aprovação" ("Pendente (Pri)" ou "Aprovada por Leo", 5.2). O Excel ganha a coluna "Grupo (EAC)" em Categorias e abas EAC (grupos, linhas de base, itens, exclusões e histórico). **Coleção nova no sistema deve ser adicionada em `_BK_COLECOES` (`backup.js`).**
 * **JSON** (versão 2): timestamps serializados como `{__tipo:'timestamp', iso, seconds, nanoseconds}`; `meta` com data, autor, contagem e falhas.
 * **Excel:** uma aba por coleção, com nomes de categoria/forma resolvidos, salários por período (mês e ano de início) e outras receitas com Ano e "Ano confirmado" (Não = ano ainda inferido).
 * Coleção que falhar não derruba o backup: entra em `meta.falhas` e o usuário é avisado.
 * Não existe restauração automática a partir do backup.
+
+### 13.5 Uso do Firebase (Configurações → 📈 Uso, admin)
+
+O SDK do navegador não lê o faturamento oficial do Firebase. Por isso o app **mede o próprio uso** (`js/uso.js`) e soma por dia; a aba mostra a estimativa e tem o link para o Console (número oficial).
+
+* **Como mede:** `uso.js` instrumenta os protótipos do SDK compat (get e onSnapshot de consultas e documentos, set/update/delete/add, lotes e transações), sem mexer nos módulos. Regra de contagem igual à de cobrança: consulta = 1 leitura por documento (mínimo 1, também sem resultado); documento = 1; listener = carga inicial de 1 por documento (mínimo 1) e depois 1 por documento novo ou alterado; resposta só do cache local não conta; set/update/add = 1 gravação, delete = 1 exclusão, contadas quando o servidor confirma (lotes e transações por operação; leitura de transação conta mesmo se a tentativa repetir). A contagem nunca interrompe a operação do app.
+* **Gravação:** `uso_diario/{dia}` (6.2) com `increment`, a cada 5 min com uso pendente, ao esconder a aba, ao fechar e ao Sair (espera até 1,5 s). A própria gravação entra na conta. Sem permissão no Firestore, a gravação desliga na sessão e a tela avisa.
+* **Dia de cota:** o do Firebase, que vira à **meia-noite do horário do Pacífico** (entre 4h e 5h em Brasília). Os 30 dias são gerados por calendário (sem pular dia na troca de horário de verão).
+* **Cota grátis (Spark)**, constante `USO_COTA`: 50.000 leituras, 20.000 gravações e 20.000 exclusões por dia; 1 GB armazenado.
+* **Tela:**
+  * **Hoje:** leituras, gravações e exclusões × cota, com % e selo Folga (< 50%), Atenção (50% a 80%) ou Perto do limite (≥ 80%), barra e quanto foi de cada pessoa. Soma o que esta sessão ainda não gravou.
+  * Aberturas hoje, **leituras por abertura** (média de 30 dias da carga inicial: o custo de abrir o app), média de leituras de 7 dias e pico de 30 dias.
+  * **Últimos 30 dias:** linhas de % da cota diária de cada operação (um eixo só), com tooltip do valor e tabela dos dias.
+  * **Por usuário** e **por coleção** (30 dias), com % das leituras.
+  * **Esta sessão:** leituras, gravações, exclusões, carga ao abrir, listeners ativos e o que falta gravar.
+  * **Armazenamento estimado:** documentos e tamanho (regra de tamanho do Firestore) das coleções que o app mantém em memória; índices e coleções lidas sob demanda (logs, lixeira, importações, itens das LBs, uso) não entram.
+* **Leitura:** `uso_diario` dos 30 dias (até 30 documentos) ao abrir a aba, no Atualizar ou depois de 60 s; redesenhos por dados novos reaproveitam a última leitura. Intervalo crescente pelo ID do dia (o Firestore não faz varredura decrescente por ID).
+* **Fica de fora:** leituras e gravações feitas no Console ou fora do app e a nova cobrança de um listener que o servidor faz após mais de 30 min sem conexão.
 
 ---
 
@@ -713,7 +773,7 @@ Somente admin.
 
 ## 15. Restrições e limitações conhecidas
 
-* **Segurança no servidor:** o controle de acesso no código é só do lado do cliente. A proteção real depende das **Regras do Firestore**, configuradas no Firebase Console e **não versionadas neste repositório**. Elas devem refletir: só os dois e-mails, logs imutáveis e permissões de Notas.
+* **Segurança no servidor:** o controle de acesso no código é só do lado do cliente. A proteção real depende das **Regras do Firestore**, configuradas no Firebase Console e **não versionadas neste repositório**. Elas devem refletir: só os dois e-mails, logs imutáveis, permissões de Notas e as permissões das contas (5.1, regra abaixo).
 * **Receitas antigas sem `ano`** usam um ano inferido (9.1) até a confirmação. Se alguma foi cadastrada num ano para valer em outro, confira na revisão antes de comparar anos.
 * **Novos campos no Firestore** (`outras_receitas.ano`, `historico[].anoInicio`, `contas.divisao`, `eac_lb_itens.itens[].div`): se as Regras do Firestore validarem campos, precisam aceitá-los. `contas.divisao` é um mapa `{Leo, Pri}` de inteiros que somam 10000, cada um entre 100 e 9900.
 * **Trava da divisão** (conta com pagamento não muda a divisão, 8.3) é do cliente, em transação no `FS.updateConta`. A proteção real dependeria de uma regra do Firestore.
@@ -739,6 +799,36 @@ Somente admin.
   ```
   Sem a regra, o app abre com as fotos padrão de `img/` e salvar avisa que o banco recusou.
 * **Fotos padrão são públicas:** o repositório e o GitHub Pages são públicos, então `img/leo.jpg` e `img/pri.jpg` podem ser abertos por qualquer pessoa com o link (o resto do app exige login). As fotos enviadas pelo app ficam no Firestore, protegidas pelas regras. Para não expor as padrão, apague os arquivos de `img/` (o app usa a inicial até cada um enviar a sua); o histórico do Git continua guardando as versões já publicadas. Os arquivos de `img/` não têm EXIF nem GPS; fotos enviadas pelo app também não (o canvas descarta os metadados).
+* **Permissões das contas e aprovação** (5.1, 5.2) são travas do cliente (`permConta` + `FS.*`). A proteção real é a regra do Firestore. Sugestão, validada no emulador do Firestore (casos permitidos e negados, inclusive conta antiga sem `createdBy`), para juntar às regras atuais:
+  ```
+  function email()   { return request.auth.token.email; }
+  function familia() { return request.auth != null && email() in ['leonardo.phn7@gmail.com', 'pri.alverim@gmail.com']; }
+  function admin()   { return request.auth != null && email() == 'leonardo.phn7@gmail.com'; }
+  function usuario() { return email() == 'leonardo.phn7@gmail.com' ? 'Leo' : 'Pri'; }
+  function doAdmin(c)     { return c.get('createdBy', 'Leo') == 'Leo'; }
+  function mudou()        { return request.resource.data.diff(resource.data).affectedKeys(); }
+  function autorIntacto() { return request.resource.data.get('createdBy', 'Leo') == resource.data.get('createdBy', 'Leo'); }
+  function aprovacaoOk()  { return !('aprovacao' in request.resource.data) || request.resource.data.aprovacao.status == 'pendente'; }
+  function podeTudo(c)    { return !doAdmin(c) || c.resp == usuario(); }
+  function pagamentoOuNota() { return mudou().hasOnly(['nota', 'vPago', 'paidBy', 'paidAt', 'pagamentos', 'updatedBy', 'updatedAt']); }
+
+  match /contas/{id} {
+    allow read: if familia();
+    allow create: if admin() || (familia() && request.resource.data.createdBy == usuario() && aprovacaoOk());
+    allow update: if admin() || (familia() && autorIntacto() && (
+                       (podeTudo(resource.data) && (!mudou().hasAny(['aprovacao']) || aprovacaoOk()))
+                    || (resource.data.resp == 'Leo & Pri' && pagamentoOuNota())));
+    allow delete: if admin() || (familia() && podeTudo(resource.data));
+  }
+  match /uso_diario/{dia} {
+    allow read: if admin();
+    allow create, update: if familia();
+  }
+  ```
+  A regra não distingue **quem registrou** cada pagamento: "desfaz só os pagamentos que ela registrou" e "aprovar só a versão vista" ficam no app. Cuidado: regra mais ampla que case com `contas` (ex.: `match /{document=**}` liberando os dois e-mails) anula estas, porque no Firestore basta uma regra permitir. Sem a regra de `uso_diario`, o app funciona e a aba Uso mostra só a sessão atual.
+* **Conta antiga sem `createdBy`** vale como do admin: para a Pri, as antigas do Leo e as compartilhadas antigas ficam travadas como as novas (as com responsável Pri continuam livres para ela).
+* **Uso do Firebase é estimativa** (13.5): mede só o que este app faz; o número oficial está no Console. A instrumentação depende dos protótipos do SDK compat 9.23.0; ao trocar a versão do Firebase, confira se a aba continua contando.
+* **Aprovação não bloqueia:** a conta pendente já vale nas telas e totais; aprovar só registra que o admin conferiu. Não existe "recusar": o admin corrige ou exclui a conta.
 * **Detecção automática de rosto** usa o `FaceDetector` nativo, que só existe em alguns Chrome. Nos demais navegadores a foto nova abre no terço de cima e o usuário toca no rosto para centralizar e aproximar.
 * **HEIC:** Chrome e Firefox no computador não abrem fotos HEIC; o app avisa. No iPhone a galeria converte para JPEG ao enviar.
 * **Sem modo offline** (não há service worker) e **sem restauração** a partir do backup.
@@ -757,6 +847,7 @@ Registre aqui toda mudança de regra, dado, tela ou restrição (mais recente no
 
 | Data | Mudança |
 |---|---|
+| 2026-10-30 | **Permissões das contas e aprovação do admin** (5.1, 5.2): `permConta` em `fin-state.js` como fonte única. Conta do admin (sem `createdBy` = do admin): a Pri só altera as que têm ela como responsável; nas compartilhadas registra pagamento, desfaz os pagamentos que ela registrou e edita a nota (modo "Editar nota"; % e demais campos travados, não exclui); nas demais só visualiza. Ação travada continua visível e abre o alerta "Somente o administrador" (`ovSoAdmin`). Travas repetidas em `FS.*` (lendo a conta do Firestore); `createdBy` sempre o usuário logado e imutável. Conta cadastrada ou editada por não admin com o admin como responsável fica pendente (`contas.aprovacao`): só o admin vê o sino no topbar, o toast, o selo "⏳ aprovar" e o modal "Contas para aprovar" (parcelas agrupadas, Ver conta, Aprovar, Aprovar todas); `FS.aprovarContas` em transação aprova só a versão vista; log `aprovacao`. **Configurações → 📈 Uso** (13.5): `js/uso.js` instrumenta o SDK e grava `uso_diario` por dia de cota; aba com hoje × cota Spark, aberturas e leituras por abertura, 30 dias, por usuário e coleção, sessão e armazenamento estimado. **Bottom nav sem Upload** no celular. Backup: `uso_diario` no JSON e coluna "Aprovação" no Excel. Correção: edição registrava "Data da compra: "" → "null"" em toda conta sem data da compra (falsa alteração). Regras sugeridas do Firestore para `contas` e `uso_diario` (15). Novos `js/permissoes.js`, `js/uso.js`, `js/uso-tela.js`, `css/permissoes.css`, `css/uso.css`. |
 | 2026-10-26 | **Divisão personalizada das contas compartilhadas** (8.3): novo campo `contas.divisao` (`{Leo, Pri}` em centésimos de %, padrão 50/50, faixa 1% a 99%). Modal da conta com responsável em botões com foto; ao escolher Leo & Pri abre a régua (arrastar, teclado, "Sua parte" digitada só por quem está logado, outra parte = restante, atalhos 30% a 70% e Pela renda), que recolhe numa linha de resumo depois da escolha. Conta com pagamento trava a divisão (tela e `FS.updateConta` em transação). Cálculo em centavos: Leo arredondado, Pri = resto (Leo + Pri = casa). `filtrarPorResp`, pagamento por parte, pagamento em massa, Dashboard, Contas, Relatório, PDF e EAC usam a parte real no lugar do ÷2; selo com o percentual e mini barra no responsável. Gerenciar Parcelamento ganha a coluna Sua parte e o botão ➗ Divisão. LB da EAC guarda `div` nas compartilhadas (LB antiga = 50/50); verba segue 50/50. CSV com coluna Divisão, backup Excel com Div. Leo % e Div. Pri %, logs com a divisão. Importação e receitas "Ambos" seguem 50/50. Novos `js/divisao.js` e `css/divisao.css`. |
 | 2026-10-22 | **Filtro de forma com seleção múltipla** (Contas e Relatório): o select de forma vira o botão "Formas" com painel de distribuição (`js/ui-filtro-formas.js`, `css/filtro-formas.css`, 4.8). Marca uma ou várias formas; cada forma mostra barra, valor (centavos de `vEfetivo`), % e contas do recorte sem o filtro de forma; atalhos Todas, Cartões e Pareto 80%; ordem por valor ou A–Z. Popover no desktop e painel inferior até 640px. Forma passa a ser o último filtro aplicado (resultado igual ao anterior). PDF do Relatório cita as formas filtradas. Aviso de atrasadas e "Ver contas no Relatório" da EAC limpam a seleção. Novo token `--ui-z-popover`. |
 | 2026-10-21 | **Cartões no celular:** a faixa do título de Contas e do Relatório passa a ocupar a largura toda do cartão (antes ficava na metade esquerda por causa do `max-width` da tabela do computador; a Nota do Relatório tinha o mesmo corte). Em Contas, a Parcela aparece ao lado do Vencimento, no espaço que ficava vazio. Tabela do computador sem mudança. |
