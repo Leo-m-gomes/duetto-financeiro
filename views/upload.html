@@ -21,14 +21,20 @@
   ROTA RESTRITA: páginas Upload Cards são adminOnly:true em
   ROUTES (router.js). Apenas Leo acessa.
 
-  IDs preservados (consultados por APP.renderUpload e módulo Upload Cards):
-    upAlertErr, upAlertOk, upAlertAv, fileInput, dropZone, btnSelecionarArquivo,
-    upConfigCards, upPlanSelector, upGruposCards, upBtnNovoGrupo,
-    upTblPreview, btnSalvarUpload, upInfoLinhas, upStatsLeo, upStatsPri,
-    upInfoArquivo, upStepProgress.
+  IDs consultados por js/upload.js:
+    upAlertErr, upAlertOk, upAlertAv, upAlertVal, upZone, upFileInput,
+    upFileInfo, upFileName, upFileDetail, upFileId, upHistorico,
+    upSecaoPreview, upStats, upResumoArquivo, upLayout, upAbas, upBusca,
+    upAgrupar, upLista, upPainel, upTotal, upBarraInfo, upBarraPend,
+    upBtnConfirmar.
+
+  PRÉ-VISUALIZAÇÃO (bloco #upSecaoPreview, estilos em css/upload.css):
+    lista de leitura em duas linhas por conta, agrupada (situação, categoria
+    ou responsável), e painel lateral de edição da linha selecionada. No
+    celular o painel vira folha inferior. Barra fixa com total e confirmação.
 
   Classes preservadas: page, page-inner, overdue-alert, up-grid,
-  section-card, section-header, drop-zone, drop-icon, file-input.
+  section-card, section-header, up-zone.
 ═══════════════════════════════════════════════════════════════════════════
 -->
 
@@ -71,28 +77,49 @@
           </div>
         </div>
       </div>
-      <div id="upSecaoPreview" style="display:none">
-        <div class="section-card">
-          <div class="section-header">
-            <h3>📋 Pré-visualização — Contas a Cadastrar</h3>
-            <span style="font-size:12px;color:var(--t4)" id="upResumoLinha"></span>
-          </div>
-          <div style="padding:16px">
-            <div id="upStats" style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap"></div>
-            <div id="upAlertVal" class="overdue-alert alert-err" style="display:none;cursor:default"></div>
-            <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:var(--bg);border-radius:var(--r-sm);border:1px solid var(--border)">
-              <button class="btn btn-primary btn-sm" onclick="APP.upConfirmar()" id="upBtnConfirmar">✅ Confirmar Cadastro em Massa</button>
-              <button class="btn btn-danger btn-sm" onclick="APP.upCancelar()">✕ Cancelar</button>
-              <span style="flex:1"></span>
-              <span style="font-size:12px;color:var(--t4)">Edite ou exclua linhas antes de confirmar</span>
+      <!-- Pré-visualização: lista de leitura + painel de edição (css/upload.css).
+           Conteúdo montado por APP._upRenderPreview (js/upload.js). -->
+      <div id="upSecaoPreview" class="upr" style="display:none">
+        <div class="upr-head">
+          <h3 class="upr-tit">Revisar importação</h3>
+          <span class="upr-arq" id="upResumoArquivo" hidden></span>
+          <div class="upr-stats" id="upStats" aria-live="polite"></div>
+        </div>
+        <div id="upAlertVal" class="overdue-alert alert-err" style="display:none;cursor:default"></div>
+        <div class="upr-layout" id="upLayout">
+          <section class="upr-lista" aria-label="Contas da planilha">
+            <div class="upr-tools">
+              <div class="upr-abas" id="upAbas" role="group" aria-label="Filtrar contas"></div>
+              <label class="upr-busca">
+                <svg class="upr-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <input type="search" id="upBusca" placeholder="Filtrar…" aria-label="Filtrar por descrição, nota, categoria ou forma" autocomplete="off" oninput="APP.upBuscar(this.value)">
+              </label>
+              <label class="upr-agrupar">
+                <span>Agrupar:</span>
+                <select id="upAgrupar" onchange="APP.upAgrupar(this.value)">
+                  <option value="situacao">Situação</option>
+                  <option value="cat">Categoria</option>
+                  <option value="resp">Responsável</option>
+                </select>
+              </label>
             </div>
-            <div class="table-wrap">
-              <table class="data-table">
-                <thead><tr><th>#</th><th>Descrição</th><th>Responsável</th><th>Forma</th><th>Categoria</th><th>1ª Data Vcto</th><th>Valor R$</th><th>Parcelas</th><th>Nota</th><th>Duplicata?</th><th>Ação</th></tr></thead>
-                <tbody id="upTbodyPreview"></tbody>
-              </table>
-            </div>
+            <div id="upLista" class="upr-linhas" onkeydown="APP._upTeclaLista(event)"></div>
+          </section>
+          <div class="upr-fundo" onclick="APP.upFecharPainel()" aria-hidden="true"></div>
+          <aside class="upr-painel" id="upPainel" aria-label="Editar conta" onkeydown="APP._upTeclaPainel(event)"></aside>
+        </div>
+        <div class="upr-barra" id="upBarra">
+          <div class="upr-barra-tot">
+            <span>Total das linhas</span>
+            <strong id="upTotal"></strong>
           </div>
+          <div class="upr-barra-info" id="upBarraInfo"></div>
+          <button type="button" class="upr-barra-pend" id="upBarraPend" onclick="APP.upFiltrar('revisar')" hidden></button>
+          <span class="upr-sp"></span>
+          <button type="button" class="btn btn-ghost upr-btn-cancel" onclick="APP.upCancelar()" aria-label="Cancelar importação" title="Cancelar importação">
+            <svg class="upr-ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg><span>Cancelar importação</span>
+          </button>
+          <button type="button" class="btn btn-primary" onclick="APP.upConfirmar()" id="upBtnConfirmar">Confirmar cadastro</button>
         </div>
       </div>
     </div>

@@ -128,6 +128,7 @@ css/filtro-formas.css Filtro de forma de pagamento: botão da barra de filtros e
 css/divisao.css       Divisão das compartilhadas: régua, linha de resumo, selo da parte, mini barra
 css/permissoes.css    Ações travadas, aviso do modal da conta, alerta "somente o administrador", sino e modal de aprovações
 css/uso.css           Aba "Uso" de Configurações
+css/upload.css        Upload Cards: revisão da importação (lista, painel de edição, barra fixa)
 views/                Fragmentos HTML de cada tela (inclui eac.html) + modals.html (todos os modais)
 ```
 
@@ -689,6 +690,9 @@ Somente admin.
 * **Por linha:** Status "Nova" importa, "Existente" ignora, vazio com dados é erro. Responsável, forma e categoria precisam existir no sistema. Data em dd/mm/aaaa (ano com 4 dígitos, sem limite). Data Compra válida e não posterior ao vencimento. Valor > 0. Total e Parcela Atual inteiros > 0, com Parcela Atual ≤ Total. **Qualquer erro bloqueia o lote inteiro.**
 * **Geração:** cada linha vira as parcelas de Parcela Atual até Total, mês a mês a partir do vencimento informado, todas com o valor da parcela e um grupo por linha.
 * Duplicatas são verificadas contra o banco e entre linhas da própria planilha; o usuário decide.
+* **Revisão antes de gravar** (`css/upload.css`): lista com uma conta por linha (descrição e valor em destaque; forma, categoria com a cor do grupo EAC, vencimento e nota embaixo), agrupada por situação, categoria ou responsável, com abas (Todas, Revisar, Leo, Pri, Ambos) e busca. Clicar na linha abre o **painel de edição** ao lado (no celular, folha inferior): descrição, responsável, forma, categoria, valor e nota; o vencimento vem da planilha. Teclado: ↑ ↓ na lista, Esc fecha o painel.
+  * Linha com possível duplicata fica em **Requer revisão**, com comparação lado a lado (esta linha × banco ou outra linha da planilha). **Excluir linha** ou **Não é duplicata**; a marcação vale para aquele achado: se a edição mudar o achado, a linha volta a pendente.
+  * Ao confirmar, o aviso de duplicatas lista só as pendentes. A barra fixa mostra o total das linhas (1º vencimento), o total com parcelas futuras e as pendências.
 * Responsável **Leo & Pri** entra com divisão **50/50**: a planilha não tem coluna de divisão. Para mudar, use a conta ou o ➗ Divisão do Gerenciar Parcelamento (8.3).
 * Gravação em lotes de 400 e registro em `importacoes`.
 
