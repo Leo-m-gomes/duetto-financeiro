@@ -70,7 +70,7 @@ const CMD = (() => {
     {page:'contas',    titulo:'Contas',        ic:'conta'},
     {page:'receitas',  titulo:'Receitas',      ic:'receita'},
     {page:'relatorio', titulo:'Relatório',     ic:'rel'},
-    {page:'eac',       titulo:'EAC',           ic:'eac'},
+    {page:'eac',       titulo:'EAC',           ic:'eac', admin:true},
     {page:'notas',     titulo:'Notas e Ações', ic:'notas'},
     {page:'upload',    titulo:'Upload Cards',  ic:'upload', admin:true},
     {page:'config',    titulo:'Configurações', ic:'config', admin:true},
@@ -112,9 +112,11 @@ const CMD = (() => {
   }
 
   // ── ÍNDICE (montado a cada abertura: reflete o CACHE do momento) ──
+  // Só as contas já na memória (README 3.5): no modo 'on', o ano vigente do filtro e o que já foi
+  // carregado. "Procurar em todo o histórico" abre Contas em todos os anos, que carrega o resto.
   function montarIndice(){
     const hoje = new Date(today() + 'T12:00').getTime();
-    return CACHE.contas.map(c => {
+    return CACHE.contasCarregadas().map(c => {
       const t = new Date(c.data + 'T12:00').getTime();
       return {
         c,
@@ -200,10 +202,13 @@ const CMD = (() => {
 
     if(termos.length){
       const contas = buscarContas(q);
-      if(contas.length){
+      const parcial = !CACHE.cob.completa;   // só parte das contas na memória (README 3.5)
+      if(contas.length || parcial){
         const mostradas = contas.slice(0, MAX_CONTAS).map(x => itemConta(x.c));
         mostradas.push({
-          html: linha({ic:'busca', titulo:`Ver ${contas.length > MAX_CONTAS ? `os ${contas.length} resultados` : 'resultados'} em Contas`, sub:esc(`Busca “${q}” em todo o histórico`)}),
+          html: linha({ic:'busca',
+            titulo: contas.length ? `Ver ${contas.length > MAX_CONTAS ? `os ${contas.length} resultados` : 'resultados'} em Contas` : 'Procurar em todo o histórico',
+            sub: esc(parcial ? `Acima, só as contas já carregadas. Abre Contas com “${q}” em todos os anos` : `Busca “${q}” em todo o histórico`)}),
           run:  () => irParaContas({busca:q}),
         });
         grupos.push({nome:'Contas', itens:mostradas});
@@ -251,6 +256,7 @@ const CMD = (() => {
     const fn = pagar && it.pay ? it.pay : it.run;
     close(false);   // a ação abre um modal ou troca de tela: o foco vai para lá
     const falhou = err => {
+      if(APP.tratarDadosIncompletos?.(err)) return;   // carregando contas: a tela redesenha sozinha
       console.error('[CMD] ação falhou:', err);
       if(APP.toast) APP.toast('Não foi possível concluir a ação', 'error');
     };

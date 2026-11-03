@@ -62,7 +62,8 @@ Object.assign(APP, {
     const todosAnos  = anoVal==='todos';
     const p = STATE.periodo;
 
-    let data = CACHE.contas;
+    // Contrato de cobertura (README 3.5): só o ano da tela (ou todos) na visão do filtro global
+    let data = CACHE.contasDoAno(p ? p.ano : (todosAnos ? null : parseInt(anoVal)), resp);
 
     if(p){
       data = data.filter(c=>{
@@ -79,7 +80,7 @@ Object.assign(APP, {
     else if(!todosAnos&&!todosMeses) mergeRef={y:parseInt(anoVal),m:parseInt(mesVal)};
     if(mergeRef){
       const ids=new Set(data.map(c=>c.id));
-      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
+      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m,resp).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
     }
     if(cat)     data = data.filter(c=>CACHE.resolveCat(c.catId||c.cat)===cat);
     if(resp) data = filtrarPorResp(data, resp);
@@ -165,10 +166,11 @@ Object.assign(APP, {
     this.toast('CSV exportado ⬇','success');
   },
 
-  exportCSVContas(){
+  async exportCSVContas(){
     const ano=document.getElementById('filtroAnoContas').value;
     const mes=document.getElementById('filtroMesContas').value;
-    const data=CACHE.getByAnoMes(ano,mes);
+    // Exporta as contas dos dois (sem o filtro de responsável): carrega o que faltar antes
+    const data=await FS.comContas(()=>CACHE.getByAnoMes(ano,mes));
     const hdr=['#','Descrição','Responsável','Divisão','Forma','Categoria','A Pagar','Pago','Pendente','Vencimento','Parcela','Por','Nota'];
     const rows=data.map((c,i)=>[i+1,`"${c.conta}"`,c.resp,this._divCsv(c),CACHE.resolveForma(c.formaId||c.forma),CACHE.resolveCat(c.catId||c.cat),vEfetivo(c),(c.vPago||0),vPendente(c),c.data,(c.parcela||''),(c.updatedBy||c.createdBy||''),`"${c.nota||''}"`]);
     const csv=[hdr,...rows].map(r=>r.join(';')).join('\n');

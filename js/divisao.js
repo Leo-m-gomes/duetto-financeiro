@@ -265,7 +265,7 @@ Object.assign(APP, {
   },
 
   _divTravadaMsg(){
-    const c = STATE.editContaId ? CACHE.contas.find(x => x.id === STATE.editContaId) : null;
+    const c = STATE.editContaId ? CACHE.contaPorId(STATE.editContaId) : null;
     const quem = ['Leo', 'Pri'].filter(p => c?.pagamentos?.[p]);
     const ja = quem.length ? `${quem.join(' e ')} já ${quem.length > 1 ? 'pagaram' : 'pagou'} a parte` : 'A conta já foi paga';
     return `${ja}. Para mudar a divisão, desfaça o pagamento.`;
@@ -275,7 +275,7 @@ Object.assign(APP, {
   divAbrir(focar = true){
     if(STATE.contaModo === 'ver') return;
     // Compartilhada do admin aberta por quem não é admin: o % só o admin muda (README 5)
-    if(STATE.contaModo === 'nota'){ this.avisarSoAdmin(CACHE.contas.find(x => x.id === STATE.editContaId), 'divisao'); return; }
+    if(STATE.contaModo === 'nota'){ this.avisarSoAdmin(CACHE.contaPorId(STATE.editContaId), 'divisao'); return; }
     if(DIVC.travada){ this.toast(this._divTravadaMsg(), 'info'); return; }
     const painel = document.getElementById('fDivPainel'), resumo = document.getElementById('fDivResumo');
     if(!painel || DIVC.regua) return;
@@ -378,7 +378,7 @@ Object.assign(APP, {
 
   /** Select de responsável da linha mudou: mostra ou esconde a parte. */
   parcsRespMudou(id, resp){
-    const c = CACHE.contas.find(x => x.id === id), td = document.getElementById(`parc_divcel_${id}`);
+    const c = CACHE.contaPorId(id), td = document.getElementById(`parc_divcel_${id}`);
     if(c && td) td.innerHTML = this._parcDivCelula(c, resp);
   },
 

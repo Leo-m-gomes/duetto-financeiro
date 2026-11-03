@@ -23,7 +23,11 @@
  * Contagem nunca quebra a operação do app: cada passo fica em try/catch.
  *
  * EXPORTS: window.USO, window.USO_COTA
- * IMPORTAÇÃO: logo após firebase-config.js, antes de qualquer leitura do Firestore.
+ * IMPORTAÇÃO: depois de firebase-config.js e fin-state.js (FEATURES), antes de qualquer leitura
+ * do Firestore (as leituras só começam depois do login).
+ *
+ * RECURSO DESLIGADO (FEATURES.uso = false, README 13.5): não instrumenta o SDK nem grava
+ * uso_diario, para não gastar leituras e gravações. O código fica intacto para religar.
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -228,10 +232,15 @@ const USO = (() => {
     };
   }
 
-  try{ instrumentar(); }catch(e){ erro = e.message; desligado = true; }
-  setInterval(() => { gravar(); }, FLUSH_MS);
-  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') gravar(); });
-  window.addEventListener('pagehide', () => { gravar(); });
+  if(typeof FEATURES !== 'undefined' && !FEATURES.uso){
+    // Recurso desligado: sem instrumentação e sem gravação (gravar() sai logo por `desligado`)
+    erro = 'Medição desligada (FEATURES.uso)'; desligado = true;
+  } else {
+    try{ instrumentar(); }catch(e){ erro = e.message; desligado = true; }
+    setInterval(() => { gravar(); }, FLUSH_MS);
+    document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'hidden') gravar(); });
+    window.addEventListener('pagehide', () => { gravar(); });
+  }
 
   return {COLECAO, TIPOS, diaCota, gravar, lerDias, retrato};
 })();

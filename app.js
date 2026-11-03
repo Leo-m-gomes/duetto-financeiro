@@ -33,6 +33,24 @@ function show(screenId){
   });
 }
 
+// Filtros de cada tela guardados ao sair e devolvidos ao voltar (README 4.9). Os mesmos campos
+// ligados em APP.filtros; forma de pagamento e período personalizado são tratados à parte.
+const FILTROS_TELA = Object.freeze({
+  dashboard: ['filtroAnoDash','filtroMesDash'],
+  contas:    ['searchContas','filtroAnoContas','filtroMesContas','filtroCatContas','filtroStatus','filtroRecorrente'],
+  receitas:  ['searchReceitas','filtroAnoReceitas','filtroMesReceitas','filtroTipoReceitas'],
+  relatorio: ['relAno','relMes','relCat','relStatus','relBusca'],
+});
+
+// Contas ainda não carregadas (README 3.5) num redesenho chamado por evento (filtro, clique):
+// a carga já foi pedida; mostra "Carregando…" em vez de erro e a tela volta quando ela chega.
+window.addEventListener('error', e => {
+  if(e.error instanceof DadosIncompletos){ e.preventDefault(); APP.tratarDadosIncompletos(e.error); }
+});
+window.addEventListener('unhandledrejection', e => {
+  if(e.reason instanceof DadosIncompletos){ e.preventDefault(); APP.tratarDadosIncompletos(e.reason); }
+});
+
 // ============================================================
 // APP — inicializa após cache pronto
 // ============================================================
@@ -59,7 +77,16 @@ const APP = {
     localStorage.removeItem('dt_sb_collapsed');   // legado: o trilho tem largura fixa
     // Avatar do usuário logado (trilho e botão de perfil do celular) e fotos do filtro de responsável
     this.iniciarAvatares?.();
+    // Filtro global abre no usuário logado (README 4.2): as contas dele e as compartilhadas, que
+    // são as que a carga por janela traz (README 3.5). "Todos" ou a outra pessoa carregam o resto.
+    if(RESPS.includes(STATE.usuario)){
+      STATE.resp = STATE.usuario;
+      this._sincronizarRespGlobal();
+      this._aplicarTemaResp(STATE.resp);
+    }
     if(STATE.usuario==='Leo'){
+      // EAC: só o administrador (README 10.6)
+      ['navEac','navEacMob'].forEach(id=>{ const el=document.getElementById(id); if(el) el.style.display='flex'; });
       const navCfg=document.getElementById('navConfig');
       if(navCfg) navCfg.style.display='flex';
       const navUp=document.getElementById('navUpload');
@@ -337,7 +364,7 @@ const APP = {
   },
 
   renderPage(p){
-    if((p==='backup'||p==='config'||p==='upload') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
+    if((p==='backup'||p==='config'||p==='upload'||p==='eac') && STATE.usuario!=='Leo'){ this.toast('Acesso restrito','error'); return; }
     STATE.page=p;
     this.updateTopbarBtns(p);
     document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
@@ -346,6 +373,10 @@ const APP = {
 
     if(typeof this.selects === 'function') this.selects();
     if(typeof this.filtros === 'function') this.filtros();
+    // View recém-montada: volta com os filtros de quando o usuário saiu dela (README 4.9).
+    // 'novo' = 1ª visita; 'restaurado' = filtros devolvidos; null = mesma view (dados novos).
+    const vista = this.restaurarFiltros(p);
+    if(vista && p !== 'contas') this._iconeSort(p);   // ícone de ordenação da tabela (Receitas, Relatório)
 
     try {
       ({
@@ -353,7 +384,9 @@ const APP = {
         contas:    ()=>{
           const fs = document.getElementById('filtroStatus');
           if(fs && fs.value === '') fs.value = 'pendente';
-          this._ordenarContasPorVencimento();
+          // Ordem padrão (vencimento) só na 1ª visita; depois mantém a do usuário
+          if(vista === 'novo') this._ordenarContasPorVencimento();
+          else this._iconeSort(p);
           this.renderContas();
         },
         receitas:  ()=>this.renderReceitas(),
@@ -363,10 +396,86 @@ const APP = {
         backup:    ()=>this.renderBackup(),
         config:    ()=>this.renderConfig(),
       })[p]?.();
+      this.aguardandoDados(p, false);
     } catch(err) {
-      console.error('[renderPage] Erro ao renderizar ' + p + ':', err);
+      if(!this.tratarDadosIncompletos(err, p)) console.error('[renderPage] Erro ao renderizar ' + p + ':', err);
     }
     this.atualizarContextoTopbar();
+  },
+
+  // ── CARGA SOB DEMANDA DAS CONTAS (README 3.5) ──
+  /**
+   * Erro de contas ainda não carregadas (DadosIncompletos): cobre a tela com "Carregando…" em
+   * vez de mostrar números pela metade. A carga já foi pedida; quando chega, fin-db.js redesenha
+   * a tela (renderPage), que tira o aviso.
+   * @returns {boolean} true se era esse erro (tratado)
+   */
+  tratarDadosIncompletos(err, pagina = STATE.page){
+    if(!(err instanceof DadosIncompletos)) return false;
+    this.aguardandoDados(pagina, true);
+    return true;
+  },
+
+  /** Liga ou desliga o aviso "Carregando contas…" sobre a tela. */
+  aguardandoDados(pagina, ligar){
+    const el = document.getElementById(`page-${pagina}`);
+    if(el) el.classList.toggle('aguardando-dados', !!ligar);
+  },
+
+  /** Quantidade de contas para Backup e Configurações, sem carregar o histórico. */
+  qtdContasRotulo(){
+    const n = CACHE.contasCarregadas().length;
+    return CACHE.cob.completa ? String(n) : `${n} na memória`;
+  },
+
+  // ── FILTROS DAS TELAS PRESERVADOS NA NAVEGAÇÃO (README 4.9) ──
+  /**
+   * Guarda os filtros da tela que está saindo (o roteador chama antes de trocar a view).
+   * Ficam só na memória da sessão: recarregar a página volta aos padrões.
+   */
+  salvarFiltros(p){
+    const ids = FILTROS_TELA[p];
+    if(!ids || !document.getElementById(`page-${p}`)) return;
+    const campos = {};
+    ids.forEach(id => { const el = document.getElementById(id); if(el) campos[id] = el.value; });
+    const v = {campos};
+    if(typeof FILTRO_FORMAS_TELAS !== 'undefined' && FILTRO_FORMAS_TELAS[p]) v.formas = this.filtroFormasSelecao(p);
+    STATE.filtrosTela[p] = v;
+  },
+
+  /**
+   * Devolve os filtros guardados à view recém-montada. Redesenho da mesma view (listener do
+   * Firestore) não mexe em nada: o que o usuário acabou de escolher vale.
+   * Também acerta o selo do período personalizado, que antes sumia ao voltar para a tela
+   * enquanto o filtro continuava aplicado.
+   * @returns {'novo'|'restaurado'|null}
+   */
+  restaurarFiltros(p){
+    const pagina = document.getElementById(`page-${p}`);
+    if(!pagina || pagina.dataset.filtrosOk) return null;
+    pagina.dataset.filtrosOk = '1';
+    if(typeof PERIODO_TELAS !== 'undefined' && PERIODO_TELAS[p]) this._atualizarPeriodoBadge(p, STATE[PERIODO_TELAS[p].chave]);
+    const v = STATE.filtrosTela[p];
+    if(!v) return 'novo';
+    Object.entries(v.campos).forEach(([id, val]) => {
+      const el = document.getElementById(id);
+      if(!el) return;
+      if(el.tagName === 'SELECT' && ![...el.options].some(o => o.value === val)) return;   // opção sumiu (ex.: categoria excluída)
+      el.value = val;
+    });
+    if(v.formas) this.filtroFormasDefinir(p, v.formas);
+    return 'restaurado';
+  },
+
+  /** Ícone de ordenação da tabela da tela conforme o estado guardado (a view nova vem sem ele). */
+  _iconeSort(p){
+    const key = {contas:'sortContas', receitas:'sortReceitas', relatorio:'sortRel'}[p];
+    const pagina = document.getElementById(`page-${p}`);
+    if(!key || !pagina) return;
+    pagina.querySelectorAll('.sort-icon').forEach(el => el.classList.remove('asc', 'desc'));
+    const s = STATE[key];
+    const ic = s.col && pagina.querySelector(`.sort-icon[data-col="${s.col}"]`);
+    if(ic) ic.classList.add(s.dir === 1 ? 'asc' : 'desc');
   },
 
   _aplicarTemaResp(resp){
@@ -398,7 +507,8 @@ const APP = {
       },
     }[STATE.page];
     if(rerender){
-      try { rerender(); } catch(err){ console.error('[setResp] Erro ao redesenhar '+STATE.page+':', err); }
+      try { rerender(); this.aguardandoDados(STATE.page, false); }
+      catch(err){ if(!this.tratarDadosIncompletos(err)) console.error('[setResp] Erro ao redesenhar '+STATE.page+':', err); }
     }
   },
 

@@ -10,7 +10,7 @@ Object.assign(APP, {
   renderBackup(){
     if(STATE.usuario!=='Leo') return;
     // Stats em tempo real do CACHE
-    document.getElementById('bkContas').textContent   = CACHE.contas.length;
+    document.getElementById('bkContas').textContent   = APP.qtdContasRotulo();
     document.getElementById('bkSalarios').textContent = CACHE.salarios.length;
     document.getElementById('bkCats').textContent     = CACHE.getAllCats().length;
     document.getElementById('bkImps').textContent     = '...';

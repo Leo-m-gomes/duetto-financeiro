@@ -25,7 +25,8 @@ Object.assign(APP, {
       if(!todosMeses && mes!==null) r = r.filter(c=>new Date(c.data+'T12:00').getMonth()===mes);
       return r;
     };
-    const baseContas = filtrarContas(CACHE.contas);
+    // Contrato de cobertura (README 3.5): pede só o ano da tela (ou todos) na visão do filtro
+    const baseContas = filtrarContas(CACHE.contasDoAno(p ? p.ano : ano, resp));
     const contas = resp ? filtrarPorResp(baseContas, resp) : baseContas.map(c=>({...c}));
 
     // Receita dos MESMOS meses e anos das despesas: período (mesIni..mesFim do ano dele), ano
@@ -56,14 +57,14 @@ Object.assign(APP, {
     // de Total Despesas e Saldo segue o mês de vencimento: a conta já pesou no mês dela.
     const mergeRef = p ? {y:p.ano, m:p.mesIni} : (!todosAnos && !todosMeses ? {y:ano, m:mes} : null);
     const anteriores = mergeRef
-      ? filtrarPorResp(CACHE.getOverdueAntesDe(mergeRef.y, mergeRef.m), resp).filter(c=>!isQuitada(c))
+      ? filtrarPorResp(CACHE.getOverdueAntesDe(mergeRef.y, mergeRef.m, resp), resp).filter(c=>!isQuitada(c))
       : [];
     const pendPeriodoCent   = contas.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const pendAnterioresCent= anteriores.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const pendTotal = [...anteriores, ...pendList].sort((a,b)=>a.data.localeCompare(b.data));
 
     // Alerta: todas as atrasadas (qualquer mês), com o valor que falta pagar (÷2 quando filtrado)
-    const atrasadas = filtrarPorResp(CACHE.getOverdue(), resp).filter(c=>!isQuitada(c));
+    const atrasadas = filtrarPorResp(CACHE.getOverdue(resp), resp).filter(c=>!isQuitada(c));
     const atrasadasCent = atrasadas.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const banner=document.getElementById('dashInfoBanner');
     if(atrasadas.length>0){banner.style.display='flex';banner.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso (<span class="money">${fmt(atrasadasCent/100)}</span>)!</strong> Clique para ver → ${atrasadas.slice(0,2).map(c=>c.conta).join(', ')}${atrasadas.length>2?'...':''}`;}
@@ -130,10 +131,9 @@ Object.assign(APP, {
     if(mes !== null && ano !== null){
       const mesPrev = mes === 0 ? 11 : mes - 1;
       const anoPrev = mes === 0 ? ano - 1 : ano;
-      const basePrev = CACHE.contas.filter(c=>{
-        const d = new Date(c.data+'T12:00');
-        return d.getFullYear()===anoPrev && d.getMonth()===mesPrev;
-      });
+      // Só o mês anterior (em janeiro, dezembro do ano passado): não precisa do ano inteiro
+      const iniPrev  = `${anoPrev}-${String(mesPrev+1).padStart(2,'0')}-01`;
+      const basePrev = CACHE.contasEntre(iniPrev, fimMes(iniPrev), resp);
       // Mesmo ÷2 do mês atual: antes o mês anterior entrava inteiro e a variação saía inflada
       const contasPrev = resp ? filtrarPorResp(basePrev, resp) : basePrev;
       const totPrev = contasPrev.reduce((s,c)=>s+vEfetivo(c),0);
@@ -161,19 +161,14 @@ Object.assign(APP, {
     // 4. Contas próximas do vencimento (3 dias)
     const hoje = new Date(); hoje.setHours(0,0,0,0);
     const em3  = new Date(hoje); em3.setDate(hoje.getDate()+3);
-    const proximas = CACHE.contas.filter(c=>{
-      if(isQuitada(c)) return false;
-      if(resp && c.resp !== resp && c.resp !== 'Leo & Pri') return false;
-      const d = new Date(c.data+'T12:00'); d.setHours(0,0,0,0);
-      return d >= hoje && d <= em3;
-    });
+    const proximas = CACHE.contasEntre(isoLocal(hoje), isoLocal(em3), resp).filter(c=>!isQuitada(c));
     if(proximas.length > 0) chips.push({cls:'insight-warn', text:`⏰ ${proximas.length} conta${proximas.length>1?'s':''} vencem nos próximos 3 dias`});
 
     // 5. Contas recorrentes sem preenchimento no mês atual (só com o recurso ligado)
     if(FEATURES.recorrentes && mes !== null && ano !== null){
-      const recorrentes = CACHE.contas.filter(c=>c.recorrente && (!resp || c.resp===resp || c.resp==='Leo & Pri'));
+      const recorrentes = CACHE.contasTodas(resp).filter(c=>c.recorrente);
       const comMes = new Set(
-        CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===ano&&d.getMonth()===mes; }).map(c=>c.conta.toLowerCase()+'|'+c.resp)
+        CACHE.contasDoAno(ano).filter(c=>new Date(c.data+'T12:00').getMonth()===mes).map(c=>c.conta.toLowerCase()+'|'+c.resp)
       );
       const semMes = recorrentes.filter(c=>!comMes.has(c.conta.toLowerCase()+'|'+c.resp));
       if(semMes.length > 0) chips.push({cls:'insight-warn', text:`🔁 ${semMes.length} conta${semMes.length>1?'s recorrentes':'recorrente'} sem registro neste mês`});
@@ -321,9 +316,7 @@ Object.assign(APP, {
     const ano    = STATE.periodoDash ? STATE.periodoDash.ano : (anoVal === 'todos' ? null : parseInt(anoVal));
 
     // Usa TODAS as contas do ano (não só o mês filtrado)
-    const contasAno = ano
-      ? CACHE.contas.filter(c => new Date(c.data+'T12:00').getFullYear() === ano)
-      : CACHE.contas;
+    const contasAno = CACHE.contasDoAno(ano, resp);
 
     // Agrupa por mês com filtro de responsável — usa vEfetivo
     const despFilt = Array.from({length:12},(_,m)=>{

@@ -17,7 +17,7 @@ const ROUTER = (() => {
     receitas:  { file: 'views/receitas.html',  title: 'Receitas',      adminOnly: false },
 
     relatorio: { file: 'views/relatorio.html', title: 'Relatório',     adminOnly: false },
-    eac:       { file: 'views/eac.html',       title: 'EAC',           adminOnly: false },
+    eac:       { file: 'views/eac.html',       title: 'EAC',           adminOnly: true  },   // README 10.6
     notas:     { file: 'views/notas.html',     title: 'Notas e Ações', adminOnly: false },
     upload:    { file: 'views/upload.html',    title: 'Upload Cards',  adminOnly: true  },
     backup:    { file: 'views/backup.html',    title: 'Backup',        adminOnly: true  },
@@ -85,7 +85,10 @@ const ROUTER = (() => {
     try {
       const html = await fetchView(page);
 
-      // 1. Injetar HTML
+      // 1. Guardar os filtros da tela que sai (README 4.9) e injetar o HTML da nova
+      if (currentPage && typeof APP !== 'undefined' && APP.salvarFiltros) {
+        try { APP.salvarFiltros(currentPage); } catch (e) { console.warn('[ROUTER] filtros:', e); }
+      }
       container.innerHTML = html;
       currentPage = page;
 

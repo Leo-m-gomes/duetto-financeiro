@@ -1548,7 +1548,7 @@ function ntSeed(){
    LISTENERS REAL-TIME (FIRESTORE)
    Espelham os dados do Firestore em NOTES_STATE.notes e .trash.
    Cada snapshot atualiza o array local e re-renderiza a UI.
-   Mesma abordagem usada por fin-db.js para CACHE.contas.
+   Mesma abordagem usada por fin-db.js para as coleções em tempo real.
    ───────────────────────────────────────────────────────────────────── */
 
 const _ntListeners = [];

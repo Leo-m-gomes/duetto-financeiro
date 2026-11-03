@@ -13,7 +13,7 @@
  *     "⏳ aprovar" na lista de Contas e aviso no modal da conta. Quem cadastrou não vê nada.
  *
  * DEPENDÊNCIAS: fin-state (permConta, podeDesfazerPg, precisaAprovacao, aprovacaoPendente,
- *   ehAdmin, fmt, fmtDate, centavos), fin-cache (CACHE.contas), fin-db (FS.aprovarContas),
+ *   ehAdmin, fmt, fmtDate, centavos), fin-cache (CACHE.pendentesAprovacao, contaPorId), fin-db (FS.aprovarContas),
  *   contas.js (APP.verConta), divisao.js (APP.respHtml), ui-toast (APP.toast).
  * IMPORTAÇÃO: depois de divisao.js.
  * ═══════════════════════════════════════════════════════════════════════════
@@ -108,7 +108,7 @@ Object.assign(APP, {
   /** Pendente e ainda com o admin como responsável (se o admin trocou o responsável, sai da lista). */
   _precisaAprovar(c){ return aprovacaoPendente(c) && precisaAprovacao(c.resp, c.aprovacao.por); },
 
-  aprovacoesPendentes(){ return ehAdmin(STATE.usuario) ? CACHE.contas.filter(c => this._precisaAprovar(c)) : []; },
+  aprovacoesPendentes(){ return ehAdmin(STATE.usuario) ? CACHE.pendentesAprovacao().filter(c => this._precisaAprovar(c)) : []; },
 
   /** Selo "⏳ aprovar" ao lado da descrição na lista de Contas (só o admin vê). */
   seloAprovacao(c){
@@ -247,7 +247,7 @@ Object.assign(APP, {
 
   /** Botão Aprovar do modal da conta. */
   async aprovarConta(id){
-    const c = CACHE.contas.find(x => x.id === id);
+    const c = CACHE.contaPorId(id);
     if(!c || !this._precisaAprovar(c)) return;
     const r = await this._aprovar([c]);
     if(r?.ok){ const av = document.getElementById('contaAviso'); if(av){ av.hidden = true; av.innerHTML = ''; } }

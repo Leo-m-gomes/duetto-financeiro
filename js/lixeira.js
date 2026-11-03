@@ -68,6 +68,8 @@ Object.assign(APP, {
     if(origemId){
       await fbDb.collection(colecao).doc(origemId).set({
         ...dadosOriginais,
+        // Conta restaurada recalcula o campo derivado (README 6.1): a da lixeira pode ser antiga
+        ...(colecao === 'contas' ? {emAberto: contaEmAberto(dadosOriginais)} : {}),
         restauradoPor: STATE.usuario,
         restauradoEm:  new Date().toISOString(),
         updatedAt:     firebase.firestore.FieldValue.serverTimestamp(),
@@ -75,6 +77,7 @@ Object.assign(APP, {
     } else {
       await fbDb.collection(colecao).add({
         ...dadosOriginais,
+        ...(colecao === 'contas' ? {emAberto: contaEmAberto(dadosOriginais)} : {}),
         restauradoPor: STATE.usuario,
         restauradoEm:  new Date().toISOString(),
         createdAt:     firebase.firestore.FieldValue.serverTimestamp(),

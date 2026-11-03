@@ -14,16 +14,21 @@ Object.assign(APP, {
     const recFiltro=document.getElementById('filtroRecorrente')?.value||'';
     const p=STATE.periodoContas;
 
+    // Contrato de cobertura (README 3.5): pede só o recorte da tela na visão do filtro global.
+    // "Atrasado" em todos os anos usa as atrasadas (já na memória), sem carregar o histórico.
+    const mm = m => String(m+1).padStart(2,'0');
     let data = p
-      ? CACHE.contas.filter(c=>{ const d=new Date(c.data+'T12:00'); return d.getFullYear()===p.ano&&d.getMonth()>=p.mesIni&&d.getMonth()<=p.mesFim; })
-      : CACHE.getByAnoMes(ano,mes);
+      ? CACHE.contasEntre(`${p.ano}-${mm(p.mesIni)}-01`, fimMes(`${p.ano}-${mm(p.mesFim)}-01`), resp)
+      : (status==='atrasado' && ano==='todos')
+        ? CACHE.getOverdue(resp).filter(c=>mes==='todos'||new Date(c.data+'T12:00').getMonth()===parseInt(mes))
+        : CACHE.getByAnoMes(ano,mes,resp);
 
     let mergeRef=null;
     if(p) mergeRef={y:p.ano,m:p.mesIni};
     else if(ano!=='todos'&&mes!=='todos') mergeRef={y:parseInt(ano),m:parseInt(mes)};
     if(mergeRef){
       const ids=new Set(data.map(c=>c.id));
-      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
+      CACHE.getOverdueAntesDe(mergeRef.y,mergeRef.m,resp).forEach(c=>{ if(!ids.has(c.id)) data.push(c); });
     }
 
     if(search)  data = data.filter(c=>{
@@ -50,7 +55,7 @@ Object.assign(APP, {
     // Aviso de atraso: atrasadas de qualquer mês com o filtro global de responsável (÷2 nas
     // compartilhadas). Mesma regra do banner do Dashboard: a metade já paga pela pessoa
     // filtrada deixa de contar. O clique filtra por atrasado e a lista bate com a contagem.
-    const atrasadas=filtrarPorResp(CACHE.getOverdue(), resp).filter(c=>!isQuitada(c));
+    const atrasadas=filtrarPorResp(CACHE.getOverdue(resp), resp).filter(c=>!isQuitada(c));
     const atrasadasCent=atrasadas.reduce((s,c)=>s+centavos(vPendente(c)),0);
     const alertEl=document.getElementById('overdueAlert');
     if(atrasadas.length>0){alertEl.style.display='block';alertEl.innerHTML=`⚠️ <strong>${atrasadas.length} conta${atrasadas.length>1?'s':''} em atraso (<span class="money">${fmt(atrasadasCent/100)}</span>)</strong> — Clique para filtrar`;}
@@ -73,7 +78,8 @@ Object.assign(APP, {
       const atr=isOverdue(c); const ef=vEfetivo(c); const pend=vPendente(c);
       const catNome=CACHE.resolveCat(c.catId||c.cat);const formaNome=CACHE.resolveForma(c.formaId||c.forma);
       const auditBy=c.updatedBy||c.createdBy||'';
-      const hasGrupo=c.grupo&&CACHE.getByGrupo(c.grupo).length>1;
+      // Só exibição: "i de n" com n > 1 ou mais de uma parcela na memória (o modal lê o grupo inteiro)
+      const hasGrupo=!!c.grupo&&((lerParcela(c.parcela)?.total||1)>1||CACHE.grupoCarregado(c.grupo).length>1);
       const splitBadge=this.seloParte(c);   // parte da pessoa filtrada (60%), js/divisao.js
       const pgBadge=isShared&&!c._split&&c.pagamentos&&(c.pagamentos.Leo||c.pagamentos.Pri)&&!fullyPaid
         ?`<div style="font-size:10px;margin-top:2px">${c.pagamentos.Leo?'<span style="color:var(--green)">Leo ✓</span>':'<span style="color:var(--orange)">Leo ⏳</span>'} · ${c.pagamentos.Pri?'<span style="color:var(--green)">Pri ✓</span>':'<span style="color:var(--orange)">Pri ⏳</span>'}</div>`:'';
@@ -119,7 +125,7 @@ Object.assign(APP, {
 
   atualizarDiffPagamento(){
     const id   = document.getElementById('pgContaId').value;
-    const c    = CACHE.contas.find(x=>x.id===id);
+    const c    = CACHE.contaPorId(id);
     const pago = parseMoney(document.getElementById('pgValorPago').value);
     const respSel = document.getElementById('pgRespSelecionado')?.value||'';
     // Pagamento de uma parte: compara com a parte da pessoa pela divisão da conta
@@ -138,7 +144,7 @@ Object.assign(APP, {
   },
 
   marcarPago(id){
-    const c=CACHE.contas.find(x=>x.id===id); if(!c)return;
+    const c=CACHE.contaPorId(id); if(!c)return;
     if(!this._podeOuAvisa(c,'pagar'))return;
     const isShared=c.resp==='Leo & Pri';
     document.getElementById('pgContaId').value          = id;
@@ -192,7 +198,7 @@ Object.assign(APP, {
 
   // Dica sob "Data do Pagamento": o que vale com o campo em branco ou por que ele é obrigatório
   atualizarDataPagamento(){
-    const c=CACHE.contas.find(x=>x.id===document.getElementById('pgContaId').value);if(!c)return;
+    const c=CACHE.contaPorId(document.getElementById('pgContaId').value);if(!c)return;
     const el=document.getElementById('pgData'), info=document.getElementById('pgDataInfo');
     const pad=dataPagamentoPadrao(c.data);
     let txt='', cls='';
@@ -223,7 +229,7 @@ Object.assign(APP, {
       else{b.classList.remove('btn-primary');b.classList.add('btn-secondary');}
     });
     const id=document.getElementById('pgContaId').value;
-    const c=CACHE.contas.find(x=>x.id===id);if(!c)return;
+    const c=CACHE.contaPorId(id);if(!c)return;
     // Parte da pessoa pela divisão da conta (centavos: Leo arredondado, Pri = resto)
     const val=resp==='ambos'?c.vPagar:parteValor(c.vPagar, divLeo(c), resp);
     document.getElementById('pgValorPrevisto').textContent=fmt(val)+(resp!=='ambos'?` · ${fmtPct(divisaoDe(c)[resp])} de ${fmt(c.vPagar)}`:'');
@@ -238,7 +244,7 @@ Object.assign(APP, {
       const id    = document.getElementById('pgContaId').value;
       const valor = parseMoney(document.getElementById('pgValorPago').value);
       if(!valor||valor<=0){ this.toast('Informe um valor válido','error'); return; }
-      const c=CACHE.contas.find(x=>x.id===id);
+      const c=CACHE.contaPorId(id);
       if(!c){ this.toast('Conta não encontrada','error'); return; }
       const paidAt=this._dataPagamento(c); if(!paidAt) return;
       const respSel=document.getElementById('pgRespSelecionado').value;
@@ -262,7 +268,7 @@ Object.assign(APP, {
   // Exclusão: em ano com linha de base, confirmarExclusaoConta pergunta se é cancelamento ou
   // cadastro indevido (EAC); nos demais anos, o confirm de sempre.
   async deleteConta(id){
-    const c=CACHE.contas.find(x=>x.id===id);
+    const c=CACHE.contaPorId(id);
     if(!c)return;
     if(!this._podeOuAvisa(c,'excluir'))return;
     const r=await this.confirmarExclusaoConta([c],`Excluir "${c.conta}"?`);
@@ -276,7 +282,7 @@ Object.assign(APP, {
   // Baixa integral segura: em conta "Leo & Pri" com uma parte já paga
   // individualmente, completa a parte faltante em vez de sobrescrever vPago.
   async _pagarContaAuto(id, valor){
-    const c=CACHE.contas.find(x=>x.id===id);
+    const c=CACHE.contaPorId(id);
     if(c&&c.resp==='Leo & Pri'&&c.pagamentos){
       const temLeo=!!c.pagamentos.Leo, temPri=!!c.pagamentos.Pri;
       if(temLeo!==temPri) return FS.pagarContaIndividual(id, temLeo?'Pri':'Leo', STATE.usuario, valor);
@@ -285,7 +291,10 @@ Object.assign(APP, {
   },
 
   // ── PARCELAS ──
-  openParcelas(grupo){
+  async openParcelas(grupo){
+    // Parcelas de outros anos ou da outra pessoa podem não estar na memória: lê o grupo inteiro
+    try{ await FS.garantirGrupo(grupo); }
+    catch(e){ console.error('[Parcelas]', e); this.toast('Não foi possível ler o parcelamento: '+e.message,'error'); return; }
     const parcs=CACHE.getByGrupo(grupo);if(!parcs.length)return;
     // Gerenciar parcelamento edita e exclui: exige acesso total em todas as parcelas.
     // Na compartilhada do admin, cada parcela continua sendo paga pelo ✓ da lista.
@@ -336,12 +345,12 @@ Object.assign(APP, {
   },
   async parcsPayOne(id){
     if(!confirm('Pagar esta parcela?'))return;
-    const c=CACHE.contas.find(x=>x.id===id);
+    const c=CACHE.contaPorId(id);
     await this._pagarContaAuto(id,c?vPendente(c):0);this.toast('Parcela paga','success');
     this.openParcelas(STATE.parcGrupo);
   },
   async parcsDeleteOne(id){
-    const c=CACHE.contas.find(x=>x.id===id);
+    const c=CACHE.contaPorId(id);
     const r=await this.confirmarExclusaoConta(c?[c]:[],'Excluir esta parcela?');
     if(!r)return;
     await FS.deleteConta(id,r.motivo);
@@ -453,13 +462,13 @@ Object.assign(APP, {
   // Edição sem acesso total (README 5): 'nota' na compartilhada do admin; senão o alerta.
   openConta(id=null, modo=id?'editar':'nova'){
     if(id&&modo==='editar'){
-      modo=this._modoEdicao(CACHE.contas.find(x=>x.id===id));
+      modo=this._modoEdicao(CACHE.contaPorId(id));
       if(!modo)return;
     }
     STATE.editContaId=id;
     this.clearConta();this.populateContaSelects();
     if(id){
-      const c=CACHE.contas.find(x=>x.id===id);
+      const c=CACHE.contaPorId(id);
       if(c){
         document.getElementById('fDesc').value=c.conta;document.getElementById('fNota').value=c.nota||'';
         document.getElementById('fData').value=c.data;
@@ -482,7 +491,7 @@ Object.assign(APP, {
   },
   verConta(id){ this.openConta(id,'ver'); },
   editarConta(){
-    const modo=this._modoEdicao(CACHE.contas.find(x=>x.id===STATE.editContaId));
+    const modo=this._modoEdicao(CACHE.contaPorId(STATE.editContaId));
     if(!modo)return;
     this._modoConta(modo); document.getElementById(modo==='nota'?'fNota':'fDesc').focus();
   },
@@ -495,7 +504,7 @@ Object.assign(APP, {
   _modoConta(modo){
     STATE.contaModo=modo;
     const ver=modo==='ver', nota=modo==='nota', leitura=ver||nota, ov=document.getElementById('ovConta');
-    const c=STATE.editContaId?CACHE.contas.find(x=>x.id===STATE.editContaId):null;
+    const c=STATE.editContaId?CACHE.contaPorId(STATE.editContaId):null;
     ov.classList.toggle('modo-ver',leitura);
     ov.querySelectorAll('.modal-body input, .modal-body select, .modal-body textarea').forEach(e=>{e.disabled=leitura&&!(nota&&e.id==='fNota');});
     if(!leitura) this._travarParcelamento(!!STATE.editContaId);
@@ -536,7 +545,7 @@ Object.assign(APP, {
     const fRec=document.getElementById('fRecorrente');if(fRec)fRec.checked=false;
     this._respConta('');
     // Divisão: 50/50 na conta nova; na edição, a gravada (travada se a conta tem pagamento)
-    this._divCarregar(STATE.editContaId?CACHE.contas.find(x=>x.id===STATE.editContaId):null);
+    this._divCarregar(STATE.editContaId?CACHE.contaPorId(STATE.editContaId):null);
     this._travarParcelamento(!!STATE.editContaId);this.calcTotal();
   },
   _travarParcelamento(travar){
@@ -613,7 +622,9 @@ Object.assign(APP, {
       const grupo=`grp-${Date.now()}`;
       const candidatos=plano.map(p=>({...c,vPago:null,...p}));
 
-      // Detecção de duplicatas: comunica e deixa o usuário decidir
+      // Detecção de duplicatas: comunica e deixa o usuário decidir. Antes, põe na memória os
+      // vencimentos comparados (parcelas de outros anos podem não estar carregadas, README 3.5)
+      await DUP.garantir(candidatos);
       const itensDup = candidatos.map(cand=>({candidato:cand, achados:DUP.buscar(cand)})).filter(i=>i.achados.length);
       if(itensDup.length){
         const ok = await DUP.confirmar({

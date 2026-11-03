@@ -400,7 +400,7 @@ Object.assign(APP, {
     });
 
     this._upGrupos=grupos;
-    this._upDetectarDuplicatas();
+    await this._upDetectarDuplicatas();
     const td=grupos.reduce((s,g)=>s+g.parcs.length,0);
     document.getElementById('upBtnConfirmar').disabled=false;
     document.getElementById('upAlertVal').style.display='none';
@@ -416,8 +416,10 @@ Object.assign(APP, {
   _upCandidato(p){
     return {conta:p.conta, resp:p.resp, forma:p.forma, data:p.dataF, dataCompra:p.dataCompra||null, vPagar:p.vPagar, parcela:p.parcela};
   },
-  _upDetectarDuplicatas(){
+  async _upDetectarDuplicatas(){
     const grupos=this._upGrupos;
+    // Vencimentos comparados precisam estar na memória (carga por janela, README 3.5)
+    await DUP.garantir(grupos.flatMap(g=>g.parcs.map(p=>this._upCandidato(p))));
     grupos.forEach((g,gi)=>{
       const doArquivo=grupos.flatMap((o,oi)=>oi===gi?[]:o.parcs.map(p=>({...this._upCandidato(p), id:`arquivo-${o.base.linha}`, _linha:o.base.linha})));
       const achados=[];
@@ -469,8 +471,8 @@ Object.assign(APP, {
   _upUpdCampo(i,k,v){ this._upGrupos[i].base[k]=v; this._upGrupos[i].parcs.forEach(p=>p[k]=v); if(['resp','forma'].includes(k)) this._upReavaliar(); },
   _upUpdValor(i,v){ const n=parseMoney(v); this._upGrupos[i].base.vPagar=n; this._upGrupos[i].parcs.forEach(p=>p.vPagar=n); },
   // Re-render só em selects (inputs de texto perderiam o foco a cada tecla)
-  _upReavaliar(){ this._upDetectarDuplicatas(); this._upRenderPreview(this._upGrupos); },
-  _upDelGrupo(i){ this._upGrupos.splice(i,1); this._upDetectarDuplicatas(); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
+  async _upReavaliar(){ await this._upDetectarDuplicatas(); this._upRenderPreview(this._upGrupos); },
+  async _upDelGrupo(i){ this._upGrupos.splice(i,1); await this._upDetectarDuplicatas(); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
 
   _upVerParcelas(i){
     const g=this._upGrupos[i];
@@ -486,7 +488,7 @@ Object.assign(APP, {
     const grupos=this._upGrupos;
     if(!grupos.length) return this.toast('Nenhuma conta para cadastrar','error');
     // Reavalia (descrição/valor podem ter sido editados) e comunica
-    this._upDetectarDuplicatas();
+    await this._upDetectarDuplicatas();
     const comDup=grupos.filter(g=>g.dup&&g.dup.length);
     if(comDup.length){
       const ok=await DUP.confirmar({
@@ -514,7 +516,7 @@ Object.assign(APP, {
             conta:p.conta, resp:p.resp,
             catId: CACHE.getAllCats().find(c=>c.nome===p.cat)?.id||p.cat,
             formaId: CACHE.getAllFormas().find(f=>f.nome===p.forma)?.id||p.forma,
-            data:p.dataF, vPagar:p.vPagar, vPago:null,
+            data:p.dataF, vPagar:p.vPagar, vPago:null, emAberto:true,   // README 6.1
             parcela:p.parcela, grupo:p.gid, nota:p.nota||'', dataCompra:p.dataCompra||null,
             createdBy:STATE.usuario,
             createdAt:firebase.firestore.FieldValue.serverTimestamp(),

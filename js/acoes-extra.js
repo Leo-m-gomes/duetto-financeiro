@@ -5,7 +5,7 @@ Object.assign(APP, {
   // Permissão (README 5): acesso total desfaz qualquer pagamento; na compartilhada do admin,
   // quem não é admin desfaz só os pagamentos que ele mesmo registrou (podeDesfazerPg).
   async desfazerPagamento(id){
-    const c = CACHE.contas.find(x=>x.id===id);
+    const c = CACHE.contaPorId(id);
     if(!c) return;
     try{ await this._desfazerPagamento(c); }
     catch(e){ this.toast(e.message||'Erro ao desfazer o pagamento','error'); }

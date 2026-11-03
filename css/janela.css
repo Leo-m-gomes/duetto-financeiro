@@ -1,0 +1,29 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   DUETTO FINANCEIRO, janela.css
+   Carga das contas por janela (README 3.5): aviso "Carregando contas…" sobre a tela enquanto
+   chegam as contas pedidas, e a aba "🗂️ Dados" de Configurações (js/janela-tela.js).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Tela esperando contas: o conteúdo fica atrás de um véu, sem números pela metade à vista */
+.page.aguardando-dados{position:relative;min-height:240px}
+.page.aguardando-dados::before{
+  content:"";position:absolute;inset:0;z-index:20;
+  background:color-mix(in srgb,var(--bg) 82%,transparent);
+  backdrop-filter:blur(2px);-webkit-backdrop-filter:blur(2px);
+}
+.page.aguardando-dados::after{
+  content:"Carregando contas…";position:absolute;z-index:21;left:50%;top:120px;transform:translateX(-50%);
+  padding:10px 18px;border-radius:var(--ui-radius-pill);
+  background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);
+  font-size:13px;font-weight:600;color:var(--t2);white-space:nowrap;
+}
+@media (prefers-reduced-motion:no-preference){
+  .page.aguardando-dados::after{animation:janela-pulso 1.2s ease-in-out infinite alternate}
+}
+@keyframes janela-pulso{from{opacity:.65}to{opacity:1}}
+
+/* Aba Dados */
+.janela-modos{display:flex;flex-wrap:wrap;gap:10px 12px;align-items:flex-end}
+.janela-modos label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.4px;color:var(--t4)}
+.janela-modos select{min-width:220px;max-width:100%;text-transform:none;letter-spacing:0;font-weight:500}
+@media (max-width:640px){.janela-modos label,.janela-modos select{width:100%;min-width:0}}
