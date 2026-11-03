@@ -901,9 +901,10 @@ O SDK do navegador não lê o faturamento oficial do Firebase. Por isso o app **
     return (indiv && pg.get('Leo', null) != null && pg.get('Pri', null) != null)
         || (!indiv && d.get('vPago', null) is number && d.vPago > 0);
   }
-  // em create e update de /contas: && request.resource.data.get('emAberto', true) == !quitada(request.resource.data)
+  // em create e update de /contas, somar à condição atual:
+  //   && (!('emAberto' in request.resource.data) || request.resource.data.emAberto == !quitada(request.resource.data))
   ```
-  Valide no Rules Playground antes de publicar.
+  Publique esta trava opcional **só depois** de "Preparar contas" (aba Dados) e com a versão nova do app no ar: uma aba aberta com a versão anterior grava pagamento sem atualizar `emAberto` e passa a ser recusada (basta recarregar). Valide no Rules Playground antes de publicar.
   A regra não distingue **quem registrou** cada pagamento: "desfaz só os pagamentos que ela registrou" e "aprovar só a versão vista" ficam no app. Cuidado: regra mais ampla que case com `contas` (ex.: `match /{document=**}` liberando os dois e-mails) anula estas, porque no Firestore basta uma regra permitir. Sem a regra de `uso_diario`, o app funciona e a aba Uso mostra só a sessão atual.
 * **Carga por janela (3.5):**
   * O `on` depende de `emAberto` correto em todas as contas. Uma aba aberta com a versão anterior do app pode gravar pagamento sem o campo: rode "Preparar contas" de novo depois de publicar (corrige só as divergentes) e confira o diagnóstico.
