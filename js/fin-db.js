@@ -839,7 +839,8 @@ Object.assign(FS, {
     await this._emLotes(corrigir.map(c => b => b.update(fbDb.collection('contas').doc(c.id), {emAberto:contaEmAberto(c)})));
     await fbDb.collection('config').doc('sistema').set({emAbertoMigrado:true, emAbertoPor:STATE.usuario,
       emAbertoEm:firebase.firestore.FieldValue.serverTimestamp(), emAbertoCorrigidas:corrigir.length}, {merge:true});
-    CONTAS.cfg.emAbertoMigrado = true;
+    // Reflete na memória o que foi gravado: a aba Dados mostra quem, quando e quantas sem recarregar
+    Object.assign(CONTAS.cfg, {emAbertoMigrado:true, emAbertoPor:STATE.usuario, emAbertoEm:new Date(), emAbertoCorrigidas:corrigir.length});
     return corrigir.length;
   },
 });
