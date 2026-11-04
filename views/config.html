@@ -46,7 +46,8 @@
         <button class="cfg-tab"        data-tab="lixeira"   onclick="APP.cfgTab('lixeira')">🗑️ Excluídos</button>
         <button class="cfg-tab"        data-tab="log"       onclick="APP.cfgTab('log')">📋 Log de Atividades</button>
         <button class="cfg-tab"        data-tab="acesso"    onclick="APP.cfgTab('acesso')">🔑 Log de Acesso</button>
-        <button class="cfg-tab"        data-tab="uso"       onclick="APP.cfgTab('uso')">📈 Uso</button>
+        <button class="cfg-tab"        data-tab="dados"     onclick="APP.cfgTab('dados')">🗂️ Dados</button>
+        <button class="cfg-tab"        data-tab="uso"       data-feature="uso" onclick="APP.cfgTab('uso')">📈 Uso</button>
         <button class="cfg-tab"        data-tab="prefs"     onclick="APP.cfgTab('prefs')">⚙️ Preferências</button>
       </div>
 
@@ -245,8 +246,22 @@
         </div>
       </div>
 
-      <!-- TAB: USO DO FIREBASE (README 13.5): js/uso.js mede, js/uso-tela.js monta o conteúdo -->
-      <div class="cfg-panel" id="cfgPanel-uso">
+      <!-- TAB: DADOS (README 3.5): modo de carga das contas; js/janela-tela.js monta o conteúdo -->
+      <div class="cfg-panel" id="cfgPanel-dados">
+        <div class="section-card">
+          <div class="section-header">
+            <h3>🗂️ Carga das contas</h3>
+            <div class="uso-acoes">
+              <button class="btn btn-ghost btn-sm" onclick="APP.janelaAtualizarPainel()">🔄 Atualizar</button>
+            </div>
+          </div>
+          <div class="uso-corpo" id="cfgJanelaCorpo"><p class="uso-vazio">Carregando…</p></div>
+        </div>
+      </div>
+
+      <!-- TAB: USO DO FIREBASE (README 13.5): js/uso.js mede, js/uso-tela.js monta o conteúdo.
+           Desligada (FEATURES.uso): data-feature esconde a aba enquanto o recurso estiver off -->
+      <div class="cfg-panel" id="cfgPanel-uso" data-feature="uso">
         <div class="section-card">
           <div class="section-header">
             <h3>📈 Uso do Firebase</h3>

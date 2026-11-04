@@ -65,7 +65,7 @@ Object.assign(APP, {
     // Monta tabela do modal com valores editáveis
     const tbody = document.getElementById('tbodyPagMassa');
     tbody.innerHTML = selecionadas.map(s=>{
-      const c = CACHE.contas.find(x=>x.id===s.id);
+      const c = CACHE.contaPorId(s.id);
       if(!c) return '';
       const catNome = CACHE.resolveCat(c.catId||c.cat);
       const isShared = c.resp==='Leo & Pri';

@@ -60,6 +60,7 @@ Object.assign(APP, {
 
   /** Abre/atualiza a aba. forcar: lê uso_diario de novo (botão Atualizar). */
   async cfgUsoCarregar(forcar = false){
+    if(!FEATURES.uso) return;   // recurso desligado (README 13.5): a aba nem aparece
     const corpo = document.getElementById('cfgUsoCorpo');
     if(!corpo || typeof USO === 'undefined') return;
     const link = document.getElementById('cfgUsoConsole');
@@ -151,7 +152,7 @@ Object.assign(APP, {
     // Armazenamento estimado: só o que o app mantém em memória
     const notas = typeof NOTES_STATE !== 'undefined' ? NOTES_STATE : null;
     const fontes = [
-      ['contas', CACHE.contas], ['salarios', CACHE.salarios], ['outras_receitas', CACHE.outras],
+      ['contas', CACHE.contasCarregadas()], ['salarios', CACHE.salarios], ['outras_receitas', CACHE.outras],
       ['categorias', CACHE.cats], ['formas', CACHE.formas], ['categoria_grupos', CACHE.grupos],
       ['eac_lb', CACHE.lbs], ['eac_exclusoes', CACHE.eacExcl],
       ['avatares', Object.entries(CACHE.avatares || {}).map(([id, d]) => ({id, ...d}))],

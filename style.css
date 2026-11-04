@@ -265,6 +265,7 @@
 .dark .pg-data-info.aviso,.dark .pg-data-info.erro{border-color:rgba(255,159,10,.3)}
 /* Recursos desligados (FEATURES em js/fin-state.js): vence até o display inline dos botões da topbar */
 html:not(.ft-recorrentes) [data-feature="recorrentes"]{display:none!important}
+html:not(.ft-uso) [data-feature="uso"]{display:none!important}
 .form-sep{grid-column:1/-1;height:1px;background:var(--border);margin:2px 0}
 .form-note{grid-column:1/-1;font-size:11.5px;color:#92400e;background:var(--yellow-lt);border:1px solid #fde68a;padding:8px 12px;border-radius:6px;line-height:1.5}
 

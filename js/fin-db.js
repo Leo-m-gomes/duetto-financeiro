@@ -9,7 +9,8 @@
  * DEPENDÊNCIAS:
  *   firebase-config.js: fbDb
  *   fin-state.js:       STATE, fmt, today, DEFAULT_TABELAS, SEED_*
- *   fin-cache.js:       CACHE
+ *   fin-cache.js:       CACHE, COBERTURA, DadosIncompletos (contrato de cobertura, README 3.5)
+ *   security.js:        ehAdmin/ADMIN_USERS (EAC e pendentes só do admin)
  *   app.js:             APP.renderPage, APP.renderContas (refs runtime)
  *
  * IMPORTAÇÃO NO HTML:
@@ -62,12 +63,25 @@ const FS = {
     delete doc.aprovacao;
     const pendente = precisaAprovacao(doc.resp, STATE.usuario);
     if(pendente) doc.aprovacao = this._aprovacaoPendente('cadastro', '');
+    doc.emAberto = contaEmAberto(doc);
     const ref = await fbDb.collection('contas').add({...doc, createdAt:firebase.firestore.FieldValue.serverTimestamp()});
     await this._log('cadastro', ref.id, doc.conta,
       `Cadastrado por ${STATE.usuario}${doc.divisao?` · divisão ${fmtDivisao(doc)}`:''}${pendente?' · aguarda aprovação do administrador':''}`,
       {valor:doc.vPagar, resp:doc.resp, parcela:doc.parcela||'1 de 1'}
     );
     return ref.id;
+  },
+
+  /**
+   * Campo derivado emAberto (README 6.1) para uma gravação: só entra quando muda, assim uma
+   * edição que não mexe no pagamento não altera o campo (a regra do Firestore compara campos).
+   * @param {Object} ant   conta como está no Firestore ({} no cadastro)
+   * @param {Object} final conta como ficará depois da gravação
+   * @returns {{emAberto?:boolean}}
+   */
+  _emAbertoUpd(ant, final){
+    const v = contaEmAberto(final);
+    return ant && ant.emAberto === v ? {} : {emAberto:v};
   },
 
   /** Marca de pendência de aprovação (campo `aprovacao` da conta, README 6.1). */
@@ -149,6 +163,8 @@ const FS = {
           upd.aprovacao = firebase.firestore.FieldValue.delete();
         }
       }
+      // Responsável ou valor pago podem mudar a regra de quitação (compartilhada × individual)
+      Object.assign(upd, this._emAbertoUpd(d, {...d, ...upd}));
       tx.update(ref, {...upd, updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
       return {ant:d, alteracoes};
     });
@@ -235,10 +251,12 @@ const FS = {
         throw new Error('Conta compartilhada com pagamento parcial — registre a parte faltante pelo pagamento individual');
       }
     }
+    const d = snap?.exists ? snap.data() : null;
     await fbDb.collection('contas').doc(id).update({
       vPago:  valorPago,
       paidBy: quem,
       paidAt,
+      ...this._emAbertoUpd(d, {...(d||{}), vPago:valorPago}),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await this._log('pagamento', id, nome,
@@ -263,6 +281,7 @@ const FS = {
         vPago: vPagoTotal,
         paidBy: quem,
         paidAt,
+        ...this._emAbertoUpd(d, {...d, pagamentos, vPago:vPagoTotal}),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
       return {nome:d.conta, parcela:d.parcela, quitada:Object.keys(pagamentos).length>=2, pct:divisaoDe(d)[resp]};
@@ -303,6 +322,7 @@ const FS = {
         updates.paidBy = firebase.firestore.FieldValue.delete();
         updates.paidAt = firebase.firestore.FieldValue.delete();
       }
+      Object.assign(updates, this._emAbertoUpd(d, {...d, pagamentos:restantes, vPago:vPagoTotal > 0 ? vPagoTotal : null}));
       tx.update(contaRef, updates);
       return {nome:d.conta, valor};
     });
@@ -325,6 +345,7 @@ const FS = {
       vPago:  null,
       paidBy: firebase.firestore.FieldValue.delete(),
       paidAt: firebase.firestore.FieldValue.delete(),
+      ...this._emAbertoUpd(snap?.exists ? d : null, {...d, vPago:null}),
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     await this._log('desfazer_pagamento', id, nome,
@@ -537,21 +558,296 @@ const FS = {
 // ── LISTENERS TEMPO REAL ──
 const listeners = [];
 
-function setupListeners(){
-  // Guard: só re-renderiza se o app já mostrou a tela principal
-  // E a view ativa (page-{STATE.page}) existe no DOM.
-  const _canReRender = () => {
-    if(!CACHE._ready.has('_appShown')) return false;
-    return !!document.getElementById('page-' + STATE.page);
+// Guard: só re-renderiza se o app já mostrou a tela principal E a view ativa (page-{STATE.page})
+// existe no DOM.
+function _canReRender(){
+  if(!CACHE._ready.has('_appShown')) return false;
+  return !!document.getElementById('page-' + STATE.page);
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// CONTAS: CARGA POR JANELA E SOB DEMANDA (README 3.5)
+// ══════════════════════════════════════════════════════════════════════════
+// Modo (config/sistema.janelaContas; override do aparelho em localStorage dt_janela; padrão
+// FEATURES.janelaContas):
+//   'off'    → um listener na coleção inteira (como antes);
+//   'sombra' → coleção inteira + diagnóstico do que o 'on' deixaria de ver (sem economia);
+//   'on'     → ao abrir, só: contas do usuário logado e compartilhadas que vencem na janela;
+//              contas em aberto (emAberto) de antes da janela, de todos; pendentes de aprovação
+//              (admin). O resto entra sob demanda, quando o contrato do CACHE pede.
+// 'on' só vale com o campo emAberto preparado (config/sistema.emAbertoMigrado): sem ele, as
+// atrasadas antigas sumiriam. Nesse caso o app fica em 'sombra' e a aba Dados avisa.
+// Cada carga é um "segmento" (listener). A memória (CACHE._contas) é a união dos segmentos.
+const CONTAS = {
+  modo: 'off',
+  ano: null, ini: null, fim: null,   // janela de abertura (vencimento), calculada no login
+  seg: new Map(),                    // chave → {docs:Map, pronto, unsub, promessa}
+  boot: new Set(),                   // segmentos que precisam chegar antes de abrir o app
+  cfg: {},                           // config/sistema
+  local: null,                       // override deste aparelho (dt_janela)
+  aviso: '',
+  _diagTimer: null,
+};
+
+function _contasRecompor(){
+  const porId = new Map();
+  CONTAS.seg.forEach(s => s.docs.forEach((d, id) => porId.set(id, d)));
+  // Ordem pelo ID, a mesma da coleção inteira no Firestore: as telas que mostram "as primeiras"
+  // (ex.: nomes no aviso de atraso) ficam iguais em qualquer modo
+  CACHE._contas = [...porId.values()].sort((a, b) => a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+}
+
+/** Depois de qualquer carga: abre o app (na 1ª vez), redesenha a tela e o sino do admin. */
+function _contasAposMudar(){
+  if(CONTAS.boot.size) return;          // ainda abrindo
+  CACHE.markReady('contas');
+  if(CONTAS.modo === 'sombra') _contasAgendarDiagnostico();
+  if(_canReRender()) APP.renderPage(STATE.page);
+  APP.atualizarAprovacoes?.();          // sino do admin (contas para aprovar) em qualquer tela
+  APP.janelaAtualizarPainel?.();        // aba Dados de Configurações, se aberta
+}
+
+/**
+ * Liga um segmento (listener) de contas, uma vez por chave. Resolve quando a 1ª leitura chega.
+ * Erro (índice composto ausente, permissão): volta para a coleção inteira, correto e sem economia.
+ */
+function _contasSegmento(chave, consulta, {aoPronto, boot = false} = {}){
+  if(CONTAS.seg.has(chave)) return CONTAS.seg.get(chave).promessa;
+  const s = {docs:new Map(), pronto:false, unsub:null};
+  s.promessa = new Promise(res => { s.resolver = res; });
+  CONTAS.seg.set(chave, s);
+  if(boot) CONTAS.boot.add(chave);
+  s.unsub = consulta.onSnapshot(snap => {
+    if(CONTAS.seg.get(chave) !== s) return;   // segmento já desligado
+    s.docs = new Map(snap.docs.map(d => [d.id, {id:d.id, ...d.data()}]));
+    const primeira = !s.pronto;
+    if(primeira){ s.pronto = true; aoPronto?.(); }
+    _contasRecompor();
+    if(primeira){ CONTAS.boot.delete(chave); s.resolver(); }
+    _contasAposMudar();
+  }, err => {
+    console.error(`[Contas] segmento ${chave}:`, err);
+    if(CONTAS.seg.get(chave) === s) CONTAS.seg.delete(chave);
+    CONTAS.boot.delete(chave);
+    if(chave === 'tudo'){
+      APP.toast?.('Não foi possível ler as contas: ' + (err.message || err), 'error');
+      s.resolver();
+      return;
+    }
+    if(ehAdmin(STATE.usuario)) APP.toast?.('Consulta de contas recusada pelo Firestore (índice ou regra): carregando todas. Veja o console.', 'error');
+    _contasLigarTudo(true).then(s.resolver);
+  });
+  listeners.push(() => s.unsub && s.unsub());
+  return s.promessa;
+}
+
+/** Coleção inteira. No 'on', os demais segmentos ficam redundantes e são desligados. */
+function _contasLigarTudo(boot = false){
+  return _contasSegmento('tudo', fbDb.collection('contas'), {boot, aoPronto(){
+    if(CONTAS.modo === 'sombra') return;   // sombra: a cobertura continua simulada
+    CACHE.marcarCoberto({tudo:true});
+    CONTAS.seg.forEach((s, k) => {
+      if(k === 'tudo') return;
+      s.unsub?.(); CONTAS.seg.delete(k); CONTAS.boot.delete(k); s.resolver?.();
+    });
+  }});
+}
+
+/** Abertura das contas conforme o modo. */
+function _contasAbrir(){
+  const u = STATE.usuario, admin = ehAdmin(u);
+  const ano = new Date().getFullYear();
+  CONTAS.ano = ano;
+  CONTAS.ini = `${ano - JANELA_ANOS.antes}-01-01`;
+  CONTAS.fim = `${ano + JANELA_ANOS.depois}-12-31`;
+  COBERTURA.modo = CONTAS.modo;
+  const base = respsDaVisao(u);
+
+  if(CONTAS.modo === 'off'){
+    CACHE.resetCobertura(true);
+    _contasLigarTudo(true);
+    return;
+  }
+  CACHE.resetCobertura(false);
+  if(CONTAS.modo === 'sombra'){
+    // Mesma cobertura de abertura do 'on', simulada sobre a coleção inteira
+    CACHE.marcarCoberto({ini:CONTAS.ini, fim:CONTAS.fim, resps:base});
+    CACHE.marcarCoberto({abertasAntes:CONTAS.ini});
+    if(admin) CACHE.marcarCoberto({pendentes:true});
+    _contasLigarTudo(true);
+    return;
+  }
+  const col = fbDb.collection('contas');
+  _contasSegmento('base', col.where('resp', 'in', base).where('data', '>=', CONTAS.ini).where('data', '<=', CONTAS.fim),
+    {boot:true, aoPronto:()=>CACHE.marcarCoberto({ini:CONTAS.ini, fim:CONTAS.fim, resps:base})});
+  _contasSegmento('abertas', col.where('emAberto', '==', true).where('data', '<', CONTAS.ini),
+    {boot:true, aoPronto:()=>CACHE.marcarCoberto({abertasAntes:CONTAS.ini})});
+  if(admin) _contasLigarPendentes(true);
+}
+
+function _contasLigarPendentes(boot = false){
+  return _contasSegmento('pendentes', fbDb.collection('contas').where('aprovacao.status', '==', 'pendente'),
+    {boot, aoPronto:()=>CACHE.marcarCoberto({pendentes:true})});
+}
+
+/** Lê config/sistema (1 leitura por abertura) e decide o modo. */
+async function _contasLerModo(){
+  let cfg = {};
+  try{
+    const s = await fbDb.collection('config').doc('sistema').get();
+    if(s.exists) cfg = s.data() || {};
+  }catch(e){ console.warn('[Contas] config/sistema:', e.message); }
+  const valido = m => ['off', 'sombra', 'on'].includes(m);
+  let local = null;
+  try{ local = localStorage.getItem('dt_janela'); }catch(e){}
+  CONTAS.cfg   = cfg;
+  CONTAS.local = valido(local) ? local : null;
+  let modo = CONTAS.local || (valido(cfg.janelaContas) ? cfg.janelaContas : FEATURES.janelaContas);
+  CONTAS.aviso = '';
+  if(modo === 'on' && cfg.emAbertoMigrado !== true){
+    modo = 'sombra';
+    CONTAS.aviso = 'O modo "on" foi pedido, mas o campo emAberto das contas ainda não foi preparado: o app ficou em "sombra". Use "Preparar contas" na aba Dados.';
+  }
+  CONTAS.modo = modo;
+}
+
+/** Diagnóstico do modo sombra (README 3.5), no máximo a cada 2 s. */
+function _contasAgendarDiagnostico(){
+  clearTimeout(CONTAS._diagTimer);
+  CONTAS._diagTimer = setTimeout(() => {
+    try{
+      COBERTURA.diag = COBERTURA.diagnostico(CACHE._contas,
+        {ini:CONTAS.ini, fim:CONTAS.fim, usuario:STATE.usuario, admin:ehAdmin(STATE.usuario)});
+      COBERTURA.diag.em = new Date();
+      APP.janelaAtualizarPainel?.();
+    }catch(e){ console.warn('[Contas] diagnóstico:', e); }
+  }, 2000);
+}
+
+/**
+ * Virada do ano com o app aberto: a janela muda, então recarrega ao voltar para a aba (ou a
+ * cada 30 min), desde que nenhum modal esteja aberto (não perde edição em andamento).
+ */
+function _contasVigiarAno(){
+  const checar = () => {
+    if(CONTAS.modo === 'off' || new Date().getFullYear() === CONTAS.ano) return;
+    if(document.querySelector('.modal-overlay.open')) return;
+    location.reload();
   };
+  document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') checar(); });
+  setInterval(checar, 30 * 60 * 1000);
+}
+
+Object.assign(FS, {
+  /**
+   * Carrega o que o contrato do CACHE pediu (README 3.5). Resolve quando está na memória.
+   * Fora do modo 'on' não lê nada ('sombra' só simula; 'off' já tem tudo).
+   * @param {{tudo?:true, grupo?:string, pendentes?:true, ini?:string, fim?:string, resps?:string[]}} falta
+   */
+  garantirCobertura(falta){
+    if(!falta) return Promise.resolve();
+    if(COBERTURA.modo !== 'on'){
+      if(COBERTURA.modo === 'sombra') CACHE.marcarCoberto(falta);
+      return Promise.resolve();
+    }
+    if(CACHE.cob.completa) return Promise.resolve();
+    const col = fbDb.collection('contas');
+    // Segmento já pronto e a cobertura não fechou: proteção contra laço, lê tudo
+    const ligar = (chave, consulta, marca) => {
+      const s = CONTAS.seg.get(chave);
+      if(s?.pronto){ console.error('[Contas] cobertura não fechou com', chave); return _contasLigarTudo(); }
+      return _contasSegmento(chave, consulta, {aoPronto:()=>CACHE.marcarCoberto(marca)});
+    };
+    if(falta.tudo) return _contasLigarTudo();
+    if(falta.grupo) return ligar(`grupo:${falta.grupo}`, col.where('grupo', '==', falta.grupo), {grupo:falta.grupo});
+    if(falta.pendentes) return _contasLigarPendentes();
+    if(falta.ini && falta.fim){
+      const resps = falta.resps || RESPS;
+      const faltam = resps.filter(r => !CACHE.cobre(falta.ini, falta.fim, [r]));
+      if(!faltam.length) return Promise.resolve();
+      // Os três responsáveis: só o intervalo de datas (pega também responsável fora do padrão)
+      const todos = RESPS.every(r => faltam.includes(r));
+      let q = col.where('data', '>=', falta.ini).where('data', '<=', falta.fim);
+      if(!todos) q = col.where('resp', 'in', faltam).where('data', '>=', falta.ini).where('data', '<=', falta.fim);
+      return ligar(`faixa:${falta.ini}:${falta.fim}:${todos ? '*' : faltam.join('+')}`, q,
+        {ini:falta.ini, fim:falta.fim, resps:todos ? RESPS : faltam});
+    }
+    return Promise.resolve();
+  },
+
+  /** Executa fn; se faltar conta na memória, espera a carga e tenta de novo (ações, não telas). */
+  async comContas(fn){
+    for(let i = 0; i < 6; i++){
+      try { return fn(); }
+      catch(e){
+        if(!(e instanceof DadosIncompletos)) throw e;
+        await this.garantirCobertura(e.falta);
+      }
+    }
+    throw new Error('Não foi possível carregar as contas necessárias');
+  },
+
+  /** Intervalo de vencimento da visão `resp` na memória (ex.: antes da checagem de duplicatas). */
+  garantirIntervalo(ini, fim, resp = ''){
+    return this.comContas(() => CACHE.contasEntre(ini, fim, resp));
+  },
+
+  /** Parcelamento inteiro na memória (Gerenciar Parcelamento edita e exclui todas as parcelas). */
+  garantirGrupo(grupo){
+    return this.comContas(() => CACHE.getByGrupo(grupo));
+  },
+
+  /**
+   * Categoria ou forma usada em alguma conta? Consulta no servidor (1 leitura): a memória pode
+   * não ter as contas de outros anos ou da outra pessoa.
+   * @param {'catId'|'formaId'} campo
+   */
+  async emUso(campo, id){
+    if(CACHE.cob.completa) return CACHE._contas.some(c => c[campo] === id);
+    const snap = await fbDb.collection('contas').where(campo, '==', id).limit(1).get();
+    return !snap.empty;
+  },
+
+  /** Modo da janela e diagnóstico, para a aba Dados de Configurações. */
+  janelaEstado(){
+    return {modo:CONTAS.modo, local:CONTAS.local, cfg:{...CONTAS.cfg}, aviso:CONTAS.aviso,
+      ini:CONTAS.ini, fim:CONTAS.fim, completa:CACHE.cob.completa, carregadas:CACHE._contas.length,
+      segmentos:[...CONTAS.seg].map(([chave, s]) => ({chave, docs:s.docs.size, pronto:s.pronto})),
+      faltas:[...COBERTURA.faltas.values()], diag:COBERTURA.diag};
+  },
+
+  /** Grava o modo de todos os aparelhos em config/sistema (vale na próxima abertura). Só o admin. */
+  async salvarModoJanela(modo){
+    this._exigirAdmin('Somente o administrador muda o modo de carga das contas');
+    if(!['off', 'sombra', 'on'].includes(modo)) throw new Error('Modo inválido');
+    if(modo === 'on' && CONTAS.cfg.emAbertoMigrado !== true) throw new Error('Prepare as contas (emAberto) antes de ligar o modo "on"');
+    await fbDb.collection('config').doc('sistema').set({janelaContas:modo, janelaPor:STATE.usuario,
+      janelaEm:firebase.firestore.FieldValue.serverTimestamp()}, {merge:true});
+    CONTAS.cfg.janelaContas = modo;
+  },
+
+  /**
+   * Preenche o campo emAberto de todas as contas (só onde falta ou diverge) e marca
+   * config/sistema.emAbertoMigrado. Lê a coleção inteira uma vez no modo 'on'; nos outros modos
+   * ela já está na memória. Pode rodar de novo a qualquer momento (corrige divergências).
+   * @returns {Promise<number>} contas corrigidas (1 gravação cada)
+   */
+  async prepararEmAberto(){
+    this._exigirAdmin('Somente o administrador prepara as contas');
+    await this.garantirCobertura({tudo:true});
+    const corrigir = CACHE._contas.filter(c => c.emAberto !== contaEmAberto(c));
+    await this._emLotes(corrigir.map(c => b => b.update(fbDb.collection('contas').doc(c.id), {emAberto:contaEmAberto(c)})));
+    await fbDb.collection('config').doc('sistema').set({emAbertoMigrado:true, emAbertoPor:STATE.usuario,
+      emAbertoEm:firebase.firestore.FieldValue.serverTimestamp(), emAbertoCorrigidas:corrigir.length}, {merge:true});
+    CONTAS.cfg.emAbertoMigrado = true;
+    return corrigir.length;
+  },
+});
+
+async function setupListeners(){
+  const admin = ehAdmin(STATE.usuario);
 
   listeners.push(
-    fbDb.collection('contas').onSnapshot(snap=>{
-      CACHE.contas=snap.docs.map(d=>({id:d.id,...d.data()}));
-      CACHE.markReady('contas');
-      if(_canReRender()) APP.renderPage(STATE.page);
-      APP.atualizarAprovacoes?.();   // sino do admin (contas para aprovar) em qualquer tela
-    }),
     fbDb.collection('salarios').onSnapshot(snap=>{
       CACHE.salarios=snap.docs.map(d=>({id:d.id,...d.data()}));
       CACHE.markReady('salarios');
@@ -581,20 +877,28 @@ function setupListeners(){
     fbDb.collection('config').doc('tabelas').onSnapshot(snap=>{
       CACHE.tabelas=snap.exists?snap.data():DEFAULT_TABELAS;
     }),
-    // EAC: coleções pequenas, fora do markReady (o app abre sem esperar por elas).
-    // Erro (ex.: regra do Firestore ainda sem a coleção) só avisa no console.
-    ...[['categoria_grupos','grupos'],['eac_lb','lbs'],['eac_exclusoes','eacExcl']].map(([col,chave])=>
-      fbDb.collection(col).onSnapshot(snap=>{
-        CACHE[chave]=snap.docs.map(d=>({id:d.id,...d.data()}));
-        if(_canReRender()) APP.eacAoMudarDados?.();
-      }, err=>console.warn(`[EAC] ${col}:`, err.message))
-    ),
     // Fotos de perfil: fora do markReady. Sem permissão de leitura, ficam as fotos padrão de img/.
     fbDb.collection('avatares').onSnapshot(snap=>{
       CACHE.avatares = Object.fromEntries(snap.docs.map(d=>[d.id, d.data()]));
       if(typeof APP !== 'undefined') APP.aplicarAvatares?.();   // avatares.js também lê o CACHE ao carregar
     }, err=>console.warn('[Avatares] avatares:', err.message))
   );
+
+  // EAC: só o administrador vê a tela (README 10.6), então só ele lê estas coleções.
+  // Coleções pequenas, fora do markReady (o app abre sem esperar por elas).
+  if(admin){
+    listeners.push(...[['categoria_grupos','grupos'],['eac_lb','lbs'],['eac_exclusoes','eacExcl']].map(([col,chave])=>
+      fbDb.collection(col).onSnapshot(snap=>{
+        CACHE[chave]=snap.docs.map(d=>({id:d.id,...d.data()}));
+        if(_canReRender()) APP.eacAoMudarDados?.();
+      }, err=>console.warn(`[EAC] ${col}:`, err.message))
+    ));
+  }
+
+  // Contas: o modo vem de config/sistema (README 3.5)
+  await _contasLerModo();
+  _contasAbrir();
+  _contasVigiarAno();
 }
 
 // ── SEED INICIAL (banco vazio) ──

@@ -13,7 +13,8 @@
  *   DIV_* (divisão das compartilhadas), divLeo, divisaoDe, montarDivisao, divValida,
  *   parteCent, parteValor, fmtPct, fmtDivisao, temPagamento,
  *   permissões das contas: ehAdmin, respInclui, permConta, podeDesfazerPg, precisaAprovacao,
- *   aprovacaoPendente
+ *   aprovacaoPendente; janela de contas: JANELA_ANOS, RESPS, respsDaVisao, contaEmAberto,
+ *   inicioMes, fimMes, diaSeguinte
  * ═══════════════════════════════════════════════════════════════════════════
  */
 "use strict";
@@ -27,9 +28,27 @@ const COLORS  = ['#006437','#00a85a','#d97706','#dc2626','#2563eb','#7c3aed','#0
 // recorrentes: "Conta recorrente" no cadastro e "Gerar recorrentes" (js/recorrentes.js).
 // DESLIGADO por decisão do usuário: sai das telas, mas o código e o campo `recorrente`
 // das contas ficam intactos. Para religar, troque para true (README, seção 8.7).
-const FEATURES = Object.freeze({ recorrentes: false });
-// Marcação estática com data-feature="recorrentes" fica oculta (CSS) enquanto a classe não existir
+// uso: aba "📈 Uso" de Configurações e a medição gravada em uso_diario (js/uso.js e
+// js/uso-tela.js). DESLIGADO para poupar leituras e gravações do Firestore; o código fica
+// intacto. Para religar, troque para true (README, seção 13.5).
+// janelaContas: modo de carga das contas quando config/sistema não define outro (README 3.5):
+// 'off' (coleção inteira, como antes), 'sombra' (inteira + diagnóstico) ou 'on' (janela).
+const FEATURES = Object.freeze({ recorrentes: false, uso: false, janelaContas: 'sombra' });
+// Marcação estática com data-feature="..." fica oculta (CSS) enquanto a classe não existir
 document.documentElement.classList.toggle('ft-recorrentes', FEATURES.recorrentes);
+document.documentElement.classList.toggle('ft-uso', FEATURES.uso);
+
+// ── JANELA DE CONTAS (README 3.5) ──
+// No modo 'on' o app abre só com as contas do usuário logado (e as compartilhadas) que vencem
+// na janela, mais as em aberto de antes dela e, para o admin, as pendentes de aprovação. O resto
+// entra sob demanda pelo contrato de cobertura do CACHE (fin-cache.js). 0/0 = só o ano vigente.
+const JANELA_ANOS = Object.freeze({ antes: 0, depois: 0 });
+const RESPS = Object.freeze(['Leo', 'Pri', 'Leo & Pri']);
+/**
+ * Responsáveis cujas contas uma visão do filtro global usa: '' (Todos) → os três;
+ * 'Leo' → Leo e compartilhadas; 'Leo & Pri' → só compartilhadas. Mesma regra de filtrarPorResp.
+ */
+const respsDaVisao = resp => !resp ? [...RESPS] : resp === 'Leo & Pri' ? ['Leo & Pri'] : [resp, 'Leo & Pri'];
 
 // ── FOTOS DE PERFIL (js/avatares.js) ──
 // Foto padrão versionada no repositório; a enviada pelo usuário fica em avatares/{usuario}.
@@ -85,6 +104,10 @@ const fmtDate = s => { if(!s)return'—'; const d=new Date(s+'T12:00'); return d
 // devolveria o dia seguinte e marcaria como atrasadas as contas que vencem hoje.
 const isoLocal = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 const today   = () => isoLocal(new Date());
+// Datas YYYY-MM-DD: primeiro e último dia do mês e dia seguinte (contrato de cobertura, README 3.5)
+const inicioMes   = iso => `${iso.slice(0,7)}-01`;
+const fimMes      = iso => { const [y, m] = iso.split('-').map(Number); return isoLocal(new Date(y, m, 0, 12)); };
+const diaSeguinte = iso => { const [y, m, d] = iso.split('-').map(Number); return isoLocal(new Date(y, m - 1, d + 1, 12)); };
 /**
  * Soma n meses a uma data ISO preservando o dia, limitado ao último dia do mês.
  * Evita o overflow de Date#setMonth (31/01 + 1 mês virava 03/03, pulando fevereiro).
@@ -115,6 +138,9 @@ const isQuitada = c => temPgIndividual(c) ? (!!c.pagamentos.Leo && !!c.pagamento
 
 // Atrasada = vencida e não quitada. Compartilhada com só uma parte paga continua atrasada.
 const isOverdue = c => !!(c.data < today() && !isQuitada(c));
+// Campo derivado `emAberto` (README 6.1): gravado em toda conta para a consulta das contas em
+// aberto de anos anteriores. true enquanto a conta não estiver quitada.
+const contaEmAberto = c => !isQuitada(c);
 // Valor que a conta pesa nas despesas. Compartilhada com só uma parte paga: vPago guarda
 // apenas a parcial, então vale o valor cheio (vPagar) até as duas partes pagarem.
 const vEfetivo  = c => (c.vPago > 0 && !(temPgIndividual(c) && !isQuitada(c))) ? c.vPago : c.vPagar;
@@ -288,6 +314,8 @@ const STATE = {
   sortReceitas:{col:null, dir:1},
   sortRel:     {col:null, dir:1},
   pgReceitas:1, editReceitaId:null,
+  // Filtros de cada tela guardados ao sair dela e restaurados ao voltar (app.js, README 4.9)
+  filtrosTela:{},
   darkMode:  localStorage.getItem('dt_dark')==='1',
   hideValues: false,
 };
@@ -305,6 +333,13 @@ window.vEfetivo  = vEfetivo;
 window.vPendente = vPendente;
 window.centavos  = centavos;
 window.FEATURES  = FEATURES;
+window.JANELA_ANOS   = JANELA_ANOS;
+window.RESPS         = RESPS;
+window.respsDaVisao  = respsDaVisao;
+window.contaEmAberto = contaEmAberto;
+window.inicioMes     = inicioMes;
+window.fimMes        = fimMes;
+window.diaSeguinte   = diaSeguinte;
 window.anoValido     = anoValido;
 window.anosJanela    = anosJanela;
 window.preencherAnos = preencherAnos;

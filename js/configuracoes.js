@@ -16,13 +16,15 @@ Object.assign(APP, {
   },
 
   cfgTab(tab){
+    if(tab==='uso' && !FEATURES.uso) tab = 'usuarios';
     this._cfgTabAtual = tab;
     document.querySelectorAll('.cfg-tab').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
     document.querySelectorAll('.cfg-panel').forEach(p=>p.classList.toggle('active', p.id===`cfgPanel-${tab}`));
     if(tab==='log') this.cfgCarregarLog();
     if(tab==='acesso') this.cfgCarregarLogAcesso();
     if(tab==='lixeira') this.lixeiraCarregar();
-    if(tab==='uso') this.cfgUsoCarregar();   // js/uso-tela.js (redesenhos usam o que já foi lido)
+    if(tab==='uso') this.cfgUsoCarregar();   // js/uso-tela.js (desligada por FEATURES.uso, README 13.5)
+    if(tab==='dados') this.janelaAtualizarPainel();   // modo de carga das contas (README 3.5)
   },
 
   // ── USUÁRIOS ──
@@ -96,7 +98,7 @@ Object.assign(APP, {
     const el2=document.getElementById('cfgBkSalarios');
     const el3=document.getElementById('cfgBkCats');
     const el4=document.getElementById('cfgBkImps');
-    if(el1) el1.textContent = CACHE.contas.length;
+    if(el1) el1.textContent = this.qtdContasRotulo();
     if(el2) el2.textContent = CACHE.salarios.length;
     if(el3) el3.textContent = CACHE.getAllCats().length;
     if(el4){

@@ -422,7 +422,7 @@ Object.assign(APP, {
     });
 
     this._upGrupos=grupos;
-    this._upDetectarDuplicatas();
+    await this._upDetectarDuplicatas();
     const td=grupos.reduce((s,g)=>s+g.parcs.length,0);
     document.getElementById('upAlertVal').style.display='none';
     // Abre direto a primeira pendência (no celular não: a folha cobriria a lista)
@@ -440,8 +440,10 @@ Object.assign(APP, {
   _upCandidato(p){
     return {conta:p.conta, resp:p.resp, forma:p.forma, data:p.dataF, dataCompra:p.dataCompra||null, vPagar:p.vPagar, parcela:p.parcela};
   },
-  _upDetectarDuplicatas(){
+  async _upDetectarDuplicatas(){
     const grupos=this._upGrupos;
+    // Vencimentos comparados precisam estar na memória (carga por janela, README 3.5)
+    await DUP.garantir(grupos.flatMap(g=>g.parcs.map(p=>this._upCandidato(p))));
     grupos.forEach((g,gi)=>{
       const doArquivo=grupos.flatMap((o,oi)=>oi===gi?[]:o.parcs.map(p=>({...this._upCandidato(p), id:`arquivo-${o.base.linha}`, _linha:o.base.linha})));
       const achados=[];
@@ -826,20 +828,21 @@ Object.assign(APP, {
     clearTimeout(this._upTimer);
     this._upTimer=setTimeout(()=>this._upAposEdicao(), k==='resp'||k==='forma'||k==='cat'?0:250);
   },
-  _upAposEdicao(){
-    this._upDetectarDuplicatas();
+  async _upAposEdicao(){
+    // Responsável ou vencimento novos podem pedir contas fora da memória (README 3.5)
+    await this._upDetectarDuplicatas();
     this._upRenderAbas(); this._upRenderLista(); this._upRenderBarra();
     const box=document.getElementById('upPainelDup'), g=this._upGrupos[this._upSel];
     if(box&&g) box.innerHTML=this._upDupHtml(g,this._upSel);
   },
 
-  _upDelGrupo(i){
+  async _upDelGrupo(i){
     if(!this._upGrupos[i]) return;
     this._upGrupos.splice(i,1);
     if(this._upSel===i) this._upSel=this._upGrupos[i]?i:i-1;
     else if(this._upSel>i) this._upSel--;
     if(!this._upGrupos.length) this._upSel=-1;
-    this._upDetectarDuplicatas();
+    await this._upDetectarDuplicatas();
     const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0);
     this._upRenderStats(td,this._upGrupos.length,this._upIgn,td-this._upGrupos.length);
     this._upRenderPreview(this._upGrupos);
@@ -879,7 +882,7 @@ Object.assign(APP, {
     if(this._upSalvando) return;
     // Reavalia (descrição/valor podem ter sido editados) e comunica só as
     // pendentes: as marcadas "Não é duplicata" no painel já foram decididas.
-    this._upDetectarDuplicatas();
+    await this._upDetectarDuplicatas();
     const comDup=grupos.filter(g=>this._upPendente(g));
     if(comDup.length){
       const ok=await DUP.confirmar({
@@ -909,7 +912,7 @@ Object.assign(APP, {
             conta:p.conta, resp:p.resp,
             catId: CACHE.getAllCats().find(c=>c.nome===p.cat)?.id||p.cat,
             formaId: CACHE.getAllFormas().find(f=>f.nome===p.forma)?.id||p.forma,
-            data:p.dataF, vPagar:p.vPagar, vPago:null,
+            data:p.dataF, vPagar:p.vPagar, vPago:null, emAberto:true,   // README 6.1
             parcela:p.parcela, grupo:p.gid, nota:p.nota||'', dataCompra:p.dataCompra||null,
             createdBy:STATE.usuario,
             createdAt:firebase.firestore.FieldValue.serverTimestamp(),

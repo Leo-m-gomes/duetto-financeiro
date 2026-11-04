@@ -96,7 +96,33 @@ const DUP = {
   },
 
   /**
-   * Procura possíveis duplicatas de `cand` em `base` (default: CACHE.contas).
+   * Vencimentos comparados com o candidato: o mês dele, o anterior e o seguinte (README 8.6).
+   * Com a carga por janela (README 3.5), é o intervalo que precisa estar na memória.
+   * @returns {[string, string]} [ini, fim] YYYY-MM-DD
+   */
+  _faixa(cand){
+    const mes = inicioMes(cand.data);
+    return [addMeses(mes, -1), fimMes(addMeses(mes, 1))];
+  },
+
+  /**
+   * Põe na memória as contas que buscar() vai comparar, antes de checar uma lista de candidatos
+   * (cadastro parcelado, importação). Um intervalo contínuo por responsável.
+   * @param {object[]} cands
+   */
+  async garantir(cands){
+    const porResp = new Map();
+    cands.filter(c => c && /^\d{4}-\d{2}-\d{2}$/.test(c.data || '')).forEach(c => {
+      const [ini, fim] = this._faixa(c), r = c.resp || '';
+      const f = porResp.get(r);
+      porResp.set(r, f ? [ini < f[0] ? ini : f[0], fim > f[1] ? fim : f[1]] : [ini, fim]);
+    });
+    for(const [resp, [ini, fim]] of porResp) await FS.garantirIntervalo(ini, fim, resp);
+  },
+
+  /**
+   * Procura possíveis duplicatas de `cand` em `base` (padrão: contas na memória que vencem no
+   * mês do candidato, no anterior ou no seguinte, com o mesmo responsável; ver garantir()).
    * @param {object} cand  {conta, resp, formaId|forma, data, vPagar, parcela?, dataCompra?}
    * @param {object} [opts]
    * @param {object[]} [opts.base]      lista onde procurar
@@ -104,7 +130,8 @@ const DUP = {
    * @returns {{conta:object, nivel:string, motivo:string}[]} prováveis primeiro
    */
   buscar(cand, opts={}){
-    const base  = opts.base || CACHE.contas;
+    if(!opts.base && !/^\d{4}-\d{2}-\d{2}$/.test(cand.data || '')) return [];   // sem vencimento não compara
+    const base  = opts.base || CACHE.contasEntre(...this._faixa(cand), cand.resp || '');
     const chave = this.chave(cand);
     const achados = [];
     base.forEach(c=>{

@@ -53,7 +53,10 @@ Object.assign(APP, {
 
   async gerenciarExcluir(id){
     const tipo=STATE.gerenciarTipo;const item=(tipo==='cat'?CACHE.getAllCats():CACHE.getAllFormas()).find(x=>x.id===id);if(!item)return;
-    const emUso=CACHE.contas.some(c=>tipo==='cat'?c.catId===id:c.formaId===id);
+    // Consulta no servidor: a memória pode não ter as contas de outros anos ou da outra pessoa
+    let emUso;
+    try{ emUso=await FS.emUso(tipo==='cat'?'catId':'formaId', id); }
+    catch(e){ this.toast('Não foi possível verificar o uso: '+e.message,'error'); return; }
     if(emUso){this.toast(`❌ "${item.nome}" está em uso e não pode ser excluída.`,'error');return;}
     if(!confirm(`Excluir "${item.nome}"?`))return;
     tipo==='cat'?await FS.deleteCat(id):await FS.deleteForma(id);
