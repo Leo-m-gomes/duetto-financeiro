@@ -3,6 +3,28 @@
 // ============================================================
 // UPLOAD CARDS MODULE
 // ============================================================
+
+/** Largura em que o painel de edição vira folha inferior (mesmo valor de css/upload.css). */
+const UP_CELULAR='(max-width:900px)';
+
+/** Ícones de traço (24x24, stroke=currentColor) da pré-visualização. */
+const UP_IC=(()=>{
+  const sv=d=>`<svg class="upr-ic" viewBox="0 0 24 24" aria-hidden="true">${d}</svg>`;
+  return {
+    alerta:  sv('<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>'),
+    check:   sv('<polyline points="20 6 9 17 4 12"/>'),
+    lixo:    sv('<path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/>'),
+    cartao:  sv('<rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/>'),
+    carteira:sv('<path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1"/><path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4"/>'),
+    arquivo: sv('<path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/>'),
+    x:       sv('<path d="M18 6 6 18"/><path d="m6 6 12 12"/>'),
+    esq:     sv('<path d="m15 18-6-6 6-6"/>'),
+    dir:     sv('<path d="m9 18 6-6-6-6"/>'),
+    cadeado: sv('<rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>'),
+    camadas: sv('<path d="m12 2 10 5-10 5L2 7z"/><path d="m2 17 10 5 10-5"/><path d="m2 12 10 5 10-5"/>'),
+    editar:  sv('<path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>'),
+  };
+})();
 Object.assign(APP, {
 
   // ── Estado do modulo ──
@@ -377,8 +399,8 @@ Object.assign(APP, {
         `🚫 <strong>${ev.length} problema(s) encontrado(s) — cadastro bloqueado:</strong><br><br>`+
         ev.map(e=>`• ${e}`).join('<br>')+
         `<br><br><strong>Corrija a planilha e faça o upload novamente.</strong>`);
-      document.getElementById('upBtnConfirmar').disabled=true;
       this._upGrupos=[];
+      this._upResetVista();
       this._upRenderStats(0,novas.length,ign.length,0);
       this._upRenderPreview([]);
       return;
@@ -402,8 +424,10 @@ Object.assign(APP, {
     this._upGrupos=grupos;
     await this._upDetectarDuplicatas();
     const td=grupos.reduce((s,g)=>s+g.parcs.length,0);
-    document.getElementById('upBtnConfirmar').disabled=false;
     document.getElementById('upAlertVal').style.display='none';
+    // Abre direto a primeira pendência (no celular não: a folha cobriria a lista)
+    this._upResetVista();
+    if(!this._upCelular()) this._upSel=grupos.findIndex(g=>this._upPendente(g));
     this._upRenderStats(td,novas.length,ign.length,td-novas.length);
     this._upRenderPreview(grupos);
     this._upShowAlert('upAlertAv',
@@ -432,47 +456,415 @@ Object.assign(APP, {
     });
   },
 
-  // ── PREVIEW ──
+  // ══════════════════════════════════════════════════════════════════════
+  // PRÉ-VISUALIZAÇÃO: lista de leitura + painel de edição (css/upload.css)
+  // ──────────────────────────────────────────────────────────────────────
+  // • Lista: uma conta por linha, em dois níveis (descrição e valor; forma,
+  //   categoria, vencimento e nota). Agrupada por situação, categoria ou
+  //   responsável. Filtros: abas (Todas, Revisar, Leo, Pri, Ambos) e busca.
+  // • Painel: edita a linha selecionada (_upSel = índice em _upGrupos).
+  //   No celular (UP_CELULAR) vira folha inferior.
+  // • Duplicata pendente = tem achados e o usuário ainda não marcou "Não é
+  //   duplicata" para ESSE conjunto de achados (assinatura em g.dupOk).
+  //   Mudou o achado (edição de descrição, valor, forma...), volta a pendente.
+  // • Somas em centavos inteiros (centavos(), fin-state.js); vPagar segue
+  //   em reais no modelo, como no restante do sistema.
+  // ══════════════════════════════════════════════════════════════════════
+
+  _upSel:     -1,
+  _upFiltro:  'todas',
+  _upBusca:   '',
+  _upAgrup:   'situacao',
+  _upIgn:     0,
+  _upTimer:   null,
+  _upSalvando:false,
+
+  _upEsc(v){
+    return String(v==null?'':v).replace(/[&<>"']/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+  },
+  _upCelular(){ return typeof matchMedia==='function' && matchMedia(UP_CELULAR).matches; },
+
+  /** Volta filtros, busca, agrupamento e seleção ao padrão (novo arquivo, cancelar, concluir). */
+  _upResetVista(){
+    this._upSel=-1; this._upFiltro='todas'; this._upBusca=''; this._upAgrup='situacao';
+    const b=document.getElementById('upBusca');   if(b) b.value='';
+    const a=document.getElementById('upAgrupar'); if(a) a.value='situacao';
+  },
+
+  // ── Duplicatas: pendência e confirmação do usuário ──
+  _upDupSig(g){ return (g.dup||[]).map(a=>`${a.conta.id||''}|${a.parcela}|${a.motivo}`).join(';'); },
+  _upPendente(g){ return !!(g.dup&&g.dup.length) && g.dupOk!==this._upDupSig(g); },
+  _upConferida(g){ return !!(g.dup&&g.dup.length) && g.dupOk===this._upDupSig(g); },
+
+  // ── Formatação ──
+  _upValorHtml(v){
+    const s=fmt(v), sim=typeof MONEY_CFG!=='undefined'?MONEY_CFG.simbolo:'R$';
+    return s.startsWith(sim) ? `<small>${this._upEsc(sim)}</small>${s.slice(sim.length).trim()}` : s;
+  },
+  _upTotais(lista){
+    return lista.reduce((t,g)=>{
+      const v=centavos(g.base.vPagar);
+      t.linhas+=v; t.docs+=v*g.parcs.length; t.n+=g.parcs.length;
+      return t;
+    },{linhas:0, docs:0, n:0});
+  },
+  /** Cor da categoria = cor do grupo EAC dela (js/eac.js); sem grupo, neutra. */
+  _upCorCat(nome){
+    const c=CACHE.cats.find(x=>x.nome===nome);
+    const g=c&&c.grupoId ? (CACHE.grupos||[]).find(x=>x.id===c.grupoId) : null;
+    return g&&typeof EAC_CORES!=='undefined'&&EAC_CORES.includes(g.cor) ? `var(--${g.cor})` : 'var(--upr-neutro)';
+  },
+  _upAvatar(resp){
+    if(resp==='Leo'||resp==='Pri')
+      return `<span class="who-av who-${resp.toLowerCase()} upr-av" data-avatar="${resp}" aria-hidden="true">${resp[0]}</span>`;
+    return `<span class="who-duo upr-av" aria-hidden="true"><i class="who-leo" data-avatar="Leo">L</i><i class="who-pri" data-avatar="Pri">P</i></span>`;
+  },
+  _upIcForma(forma){ return /cart[aã]o|cr[eé]dito/i.test(forma||'') ? UP_IC.cartao : UP_IC.carteira; },
+
+  // ── Cabeçalho ──
   _upRenderStats(td,ct,ig,ex){
-    document.getElementById('upStats').innerHTML=[
-      {l:'Docs a criar',v:td,c:'var(--palm)'},{l:'Contas únicas',v:ct,c:'var(--blue)'},
-      {l:'Ignoradas',v:ig,c:'var(--t4)'},{l:'Parcelas extras',v:ex,c:'var(--orange)'}
-    ].map(s=>`<div class="up-stat"><label>${s.l}</label><div class="sv" style="color:${s.c}">${s.v}</div></div>`).join('');
-    document.getElementById('upResumoLinha').textContent=ct+' conta(s) para cadastrar';
+    this._upIgn=ig;
+    const el=document.getElementById('upStats');
+    if(el) el.innerHTML=[[ct,'contas únicas'],[td,'documentos'],[ex,'parcelas extras'],[ig,'ignoradas']]
+      .map(([v,l])=>`<span${v?'':' class="zero"'}><b>${v}</b>${l}</span>`).join('');
+    const arq=document.getElementById('upResumoArquivo');
+    const nome=document.getElementById('upFileName')?.textContent||'';
+    if(arq){ arq.hidden=!nome; arq.innerHTML=nome?`${UP_IC.arquivo}<span>${this._upEsc(nome)}</span>`:''; }
   },
 
+  /** Ponto de entrada: redesenha abas, lista, painel e barra. */
   _upRenderPreview(grupos){
-    const esc=s=>String(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-    const cats=CACHE.getAllCats().map(c=>c.nome);
-    const formas=CACHE.getAllFormas().map(f=>f.nome);
-    const resps=['Leo','Pri','Leo & Pri'];
-    document.getElementById('upTbodyPreview').innerHTML=!grupos.length
-      ?'<tr><td colspan="11" style="text-align:center;padding:24px;color:var(--t4)">Nenhuma conta para exibir</td></tr>'
-      :grupos.map((g,i)=>{const c=g.base;const tp=g.parcs.length>1;
-        return`<tr>
-          <td style="color:var(--t4);font-size:11px">${i+1}</td>
-          <td><input type="text" value="${esc(c.conta)}" oninput="APP._upUpdCampo(${i},'conta',this.value)" style="min-width:140px"></td>
-          <td><select onchange="APP._upUpdCampo(${i},'resp',this.value)">${resps.map(r=>`<option ${r===c.resp?'selected':''}>${r}</option>`).join('')}</select></td>
-          <td><select onchange="APP._upUpdCampo(${i},'forma',this.value)" style="min-width:120px">${formas.map(f=>`<option ${f===c.forma?'selected':''}>${f}</option>`).join('')}</select></td>
-          <td><select onchange="APP._upUpdCampo(${i},'cat',this.value)" style="min-width:110px">${cats.map(x=>`<option ${x===c.cat?'selected':''}>${x}</option>`).join('')}</select></td>
-          <td><input type="date" value="${g.parcs[0]?.dataF||c.data}" readonly style="min-width:110px;color:var(--t3)" title="Data da 1ª parcela — gerado automaticamente"></td>
-          <td><input type="text" inputmode="numeric" class="money-input" value="${maskMoney(floatToCentsStr(c.vPagar))}" oninput="APP._upUpdValor(${i},this.value)" style="width:100px"></td>
-          <td style="text-align:center">${tp
-            ?`<span class="badge bg-cat" style="cursor:pointer" onclick="APP._upVerParcelas(${i})" title="Ver todas as parcelas">${g.parcs.length} × 🔍</span>`
-            :`<span class="audit-chip">1 de 1</span>`}</td>
-          <td><input type="text" value="${esc(c.nota)}" oninput="APP._upUpdCampo(${i},'nota',this.value)" style="min-width:90px"></td>
-          <td>${g.dup&&g.dup.length?`<div class="up-dup ${DUP.nivel(g.dup)}" title="${esc(g.dup.map(a=>`${a.parcela}: ${a.motivo}; existente ${fmtDate(a.conta.data)} ${fmt(a.conta.vPagar)}`).join('\n'))}">${esc(DUP.resumo(g.dup))}</div>`:'<span style="color:var(--t4);font-size:11px">—</span>'}</td>
-          <td><button class="action-btn del" onclick="APP._upDelGrupo(${i})">✕</button></td>
-        </tr>`;
-      }).join('');
-    bindAllMoneyInputs(document.getElementById('upTbodyPreview'));
+    if(grupos!==this._upGrupos) this._upGrupos=grupos;
+    if(this._upSel>=this._upGrupos.length) this._upSel=-1;
+    this._upRenderAbas();
+    this._upRenderLista();
+    this._upRenderPainel();
+    this._upRenderBarra();
   },
 
-  _upUpdCampo(i,k,v){ this._upGrupos[i].base[k]=v; this._upGrupos[i].parcs.forEach(p=>p[k]=v); if(['resp','forma'].includes(k)) this._upReavaliar(); },
-  _upUpdValor(i,v){ const n=parseMoney(v); this._upGrupos[i].base.vPagar=n; this._upGrupos[i].parcs.forEach(p=>p.vPagar=n); },
-  // Re-render só em selects (inputs de texto perderiam o foco a cada tecla)
-  async _upReavaliar(){ await this._upDetectarDuplicatas(); this._upRenderPreview(this._upGrupos); },
-  async _upDelGrupo(i){ this._upGrupos.splice(i,1); await this._upDetectarDuplicatas(); const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0); this._upRenderStats(td,this._upGrupos.length,0,td-this._upGrupos.length); this._upRenderPreview(this._upGrupos); },
+  // ── Filtros ──
+  upFiltrar(f){ this._upFiltro=f; this._upRenderAbas(); this._upRenderLista(); },
+  upBuscar(q){ this._upBusca=q||''; this._upRenderLista(); },
+  upAgrupar(m){ this._upAgrup=m; this._upRenderLista(); },
+
+  _upRenderAbas(){
+    const el=document.getElementById('upAbas'); if(!el) return;
+    const G=this._upGrupos, n=r=>G.filter(g=>g.base.resp===r).length;
+    const pend=G.filter(g=>this._upPendente(g)).length;
+    el.innerHTML=[['todas','Todas',G.length],['revisar','Revisar',pend],['Leo','Leo',n('Leo')],['Pri','Pri',n('Pri')],['Leo & Pri','Ambos',n('Leo & Pri')]]
+      .map(([id,rot,q])=>`<button type="button" class="upr-aba${id==='revisar'&&q?' warn':''}" aria-pressed="${this._upFiltro===id}" onclick="APP.upFiltrar('${this._upEsc(id)}')">${id==='revisar'?UP_IC.alerta:''}${rot}<b>${q}</b></button>`).join('');
+  },
+
+  _upVisiveis(){
+    const q=DUP._norm(this._upBusca), f=this._upFiltro;
+    return this._upGrupos.map((g,i)=>({g,i})).filter(({g})=>{
+      const c=g.base;
+      if(f==='revisar'&&!this._upPendente(g)) return false;
+      if((f==='Leo'||f==='Pri'||f==='Leo & Pri')&&c.resp!==f) return false;
+      return !q || DUP._norm(`${c.conta} ${c.nota} ${c.cat} ${c.forma}`).includes(q);
+    });
+  },
+
+  _upSecoes(itens){
+    if(this._upAgrup==='situacao'){
+      const pend=itens.filter(x=>this._upPendente(x.g));
+      const ok=itens.filter(x=>!this._upPendente(x.g));
+      return [
+        {tit:'Requer revisão', itens:pend, warn:true},
+        {tit:'Prontas para cadastrar', itens:ok, ok:true},
+      ].filter(s=>s.itens.length);
+    }
+    const porCat=this._upAgrup==='cat';
+    const chave=x=>porCat ? (x.g.base.cat||'Sem categoria') : (x.g.base.resp||'Sem responsável');
+    const ordemResp=['Leo','Pri','Leo & Pri'];
+    const mapa=new Map();
+    itens.forEach(x=>{ const k=chave(x); if(!mapa.has(k)) mapa.set(k,[]); mapa.get(k).push(x); });
+    return [...mapa.entries()]
+      .sort(([a],[b])=>porCat ? a.localeCompare(b,'pt') : ordemResp.indexOf(a)-ordemResp.indexOf(b))
+      .map(([k,its])=>({tit:k==='Leo & Pri'?'Leo & Pri (ambos)':k, itens:its, cor:porCat?this._upCorCat(k):null}));
+  },
+
+  /** Índices na ordem em que aparecem na tela (navegação ↑ ↓, Anterior/Próxima). */
+  _upOrdem(){ return this._upSecoes(this._upVisiveis()).flatMap(s=>s.itens.map(x=>x.i)); },
+
+  // ── Lista ──
+  _upRenderLista(){
+    const el=document.getElementById('upLista'); if(!el) return;
+    const G=this._upGrupos;
+    if(!G.length){ el.innerHTML='<p class="upr-vazio">Nenhuma conta para exibir.</p>'; return; }
+    const secoes=this._upSecoes(this._upVisiveis());
+    if(!secoes.length){
+      el.innerHTML=`<p class="upr-vazio">${this._upFiltro==='revisar'&&!this._upBusca?'Nenhuma linha aguardando revisão.':'Nenhuma conta neste filtro.'}</p>`;
+      return;
+    }
+    const esc=v=>this._upEsc(v);
+    el.innerHTML=secoes.map(s=>{
+      const t=this._upTotais(s.itens.map(x=>x.g));
+      const ic=s.warn?UP_IC.alerta:s.ok?UP_IC.check:s.cor?`<i class="upr-dot" style="--c:${s.cor}"></i>`:'';
+      const dir=s.warn?'Decida antes de confirmar':`Subtotal <b>${fmt(t.linhas/100)}</b>`;
+      return `<div class="upr-grupo${s.warn?' warn':''}${s.ok?' ok':''}">${ic}<span>${esc(s.tit)} · ${s.itens.length}</span><span class="upr-grupo-dir">${dir}</span></div>`
+        + s.itens.map(x=>this._upLinhaHtml(x)).join('');
+    }).join('');
+    if(typeof this.aplicarAvatares==='function') this.aplicarAvatares();
+  },
+
+  _upLinhaHtml({g,i}){
+    const esc=v=>this._upEsc(v), c=g.base, p0=g.parcs[0]||{};
+    const pend=this._upPendente(g), conf=this._upConferida(g), sel=i===this._upSel;
+    const tp=g.parcs.length>1;
+    const sub=tp ? `<span class="info">parcela ${esc(p0.parcela)} · gera ${g.parcs.length}</span>`
+               : c.totParc>1 ? `parcela ${esc(p0.parcela)}` : 'à vista';
+    const selo=pend ? `<span class="upr-selo warn">${DUP.nivel(g.dup)==='provavel'?'Provável':'Possível'} duplicata</span>`
+              : conf ? '<span class="upr-selo">Conferida</span>' : '';
+    const meta=[
+      `<span class="upr-m">${this._upIcForma(c.forma)}${esc(c.forma)}</span>`,
+      `<span class="upr-chip" style="--c:${this._upCorCat(c.cat)}"><i></i>${esc(c.cat)}</span>`,
+      `<span class="upr-m">${tp?'1ª em':'Vence'} ${fmtDate(p0.dataF||c.data)}</span>`,
+      c.nota ? `<span class="upr-nota">${esc(c.nota)}</span>` : '',
+    ].filter(Boolean).join('<i class="upr-sep" aria-hidden="true"></i>');
+    return `<div class="upr-row${sel?' sel':''}${pend?' pend':''}" data-i="${i}">
+      <button type="button" class="upr-row-btn" aria-pressed="${sel}" onclick="APP.upSelecionar(${i})">
+        <span class="upr-n">${i+1}</span>
+        ${this._upAvatar(c.resp)}
+        <span class="upr-txt">
+          <span class="upr-l1"><span class="upr-desc">${esc(c.conta)||'<em>Sem descrição</em>'}</span>${selo}</span>
+          <span class="upr-l2">${meta}</span>
+        </span>
+        <span class="upr-val"><span class="v">${this._upValorHtml(c.vPagar)}</span><span class="p">${sub}</span></span>
+      </button>
+      <button type="button" class="upr-del" title="Excluir linha" aria-label="Excluir linha ${i+1}: ${esc(c.conta)}" onclick="APP._upDelGrupo(${i})">${UP_IC.lixo}</button>
+    </div>`;
+  },
+
+  _upMarcarSelecao(){
+    document.querySelectorAll('#upLista .upr-row').forEach(r=>{
+      const s=Number(r.dataset.i)===this._upSel;
+      r.classList.toggle('sel',s);
+      r.querySelector('.upr-row-btn')?.setAttribute('aria-pressed',String(s));
+    });
+  },
+
+  /** Seleciona a linha i e abre o painel. foco: 'lista' mantém o foco na linha; 'painel' leva ao painel. */
+  upSelecionar(i, foco){
+    if(!this._upGrupos[i]) return;
+    this._upSel=i;
+    this._upMarcarSelecao();
+    this._upRenderPainel();
+    const row=document.querySelector(`#upLista .upr-row[data-i="${i}"]`);
+    if(foco==='lista') row?.querySelector('.upr-row-btn')?.focus({preventScroll:true});
+    row?.scrollIntoView({block:'nearest'});
+    if(this._upCelular()&&foco!=='lista') document.getElementById('upPainelFechar')?.focus({preventScroll:true});
+  },
+
+  upNavegar(d, foco){
+    const ordem=this._upOrdem(); if(!ordem.length) return;
+    const k=ordem.indexOf(this._upSel);
+    const nk=k<0 ? (d>0?0:ordem.length-1) : Math.min(ordem.length-1, Math.max(0, k+d));
+    this.upSelecionar(ordem[nk], foco);
+  },
+
+  upProximaPendente(){
+    const ordem=this._upGrupos.map((g,i)=>i).filter(i=>this._upPendente(this._upGrupos[i]));
+    if(!ordem.length) return;
+    const prox=ordem.find(i=>i>this._upSel);
+    this.upSelecionar(prox!=null?prox:ordem[0]);
+  },
+
+  upFecharPainel(){
+    const ant=this._upSel;
+    this._upSel=-1;
+    this._upMarcarSelecao();
+    this._upRenderPainel();
+    document.querySelector(`#upLista .upr-row[data-i="${ant}"] .upr-row-btn`)?.focus({preventScroll:true});
+  },
+
+  _upTeclaLista(e){
+    if(!e.target.classList?.contains('upr-row-btn')) return;
+    if(e.key==='ArrowDown'||e.key==='ArrowUp'){
+      e.preventDefault();
+      const i=Number(e.target.closest('.upr-row').dataset.i);
+      if(i!==this._upSel) this._upSel=i;
+      this.upNavegar(e.key==='ArrowDown'?1:-1,'lista');
+    }
+  },
+  _upTeclaPainel(e){
+    if(e.key==='Escape'&&this._upSel>=0){ e.preventDefault(); this.upFecharPainel(); }
+  },
+
+  // ── Painel ──
+  _upRenderPainel(){
+    const el=document.getElementById('upPainel'), lay=document.getElementById('upLayout');
+    if(!el) return;
+    const G=this._upGrupos, g=G[this._upSel];
+    lay?.classList.toggle('sem-linhas', !G.length);
+    lay?.classList.toggle('com-sel', !!g);
+    if(!g){ el.innerHTML=G.length?this._upPainelVazioHtml():''; return; }
+
+    const esc=v=>this._upEsc(v), c=g.base, i=this._upSel;
+    const ordem=this._upOrdem(), k=ordem.indexOf(i);
+    const tp=g.parcs.length>1;
+    const formas=CACHE.getAllFormas().map(f=>f.nome), cats=CACHE.getAllCats().map(x=>x.nome);
+    // Valor fora da lista (planilha antiga) continua visível e selecionado
+    const opts=(lista,atual)=>(lista.includes(atual)||!atual?lista:[atual,...lista])
+      .map(v=>`<option${v===atual?' selected':''}>${esc(v)}</option>`).join('');
+    const resp=[['Leo','Leo'],['Pri','Pri'],['Leo & Pri','Ambos']].map(([v,rot])=>
+      `<label class="resp-op"><input type="radio" name="upEdResp" value="${esc(v)}"${c.resp===v?' checked':''} onchange="APP._upEd('resp',this.value)">${this._upAvatar(v).replace(' upr-av','')}<span>${rot}</span></label>`).join('');
+    const ultima=g.parcs[g.parcs.length-1]||{};
+
+    el.innerHTML=`
+      <div class="upr-p-head">
+        <div class="upr-p-tit">
+          <span class="k">Conta ${i+1} de ${G.length}${c.linha?` · linha ${c.linha} da planilha`:''}</span>
+          <strong id="upPainelTit">${esc(c.conta)||'Sem descrição'}</strong>
+        </div>
+        <button type="button" class="upr-p-x" id="upPainelFechar" aria-label="Fechar painel" title="Fechar (Esc)" onclick="APP.upFecharPainel()">${UP_IC.x}</button>
+      </div>
+      <div class="upr-p-body">
+        <div id="upPainelDup">${this._upDupHtml(g,i)}</div>
+        <div class="fg">
+          <label for="upEdConta">Descrição</label>
+          <input type="text" id="upEdConta" value="${esc(c.conta)}" autocomplete="off" oninput="APP._upEd('conta',this.value)">
+        </div>
+        <div class="fg">
+          <span class="fg-tit" id="upEdRespTit">Responsável</span>
+          <div class="resp-seg" role="radiogroup" aria-labelledby="upEdRespTit">${resp}</div>
+        </div>
+        <div class="fg-pair">
+          <div class="fg"><label for="upEdForma">Forma de pagamento</label><select id="upEdForma" onchange="APP._upEd('forma',this.value)">${opts(formas,c.forma)}</select></div>
+          <div class="fg"><label for="upEdCat">Categoria</label><select id="upEdCat" onchange="APP._upEd('cat',this.value)">${opts(cats,c.cat)}</select></div>
+        </div>
+        <div class="fg-pair">
+          <div class="fg">
+            <label for="upEdData">${tp?'1º vencimento':'Vencimento'}</label>
+            <input type="text" id="upEdData" value="${fmtDate(g.parcs[0]?.dataF||c.data)}" readonly aria-describedby="upEdDataDica">
+            <small class="upr-dica" id="upEdDataDica">${UP_IC.cadeado}Vem da planilha</small>
+          </div>
+          <div class="fg">
+            <label for="upEdValor">${tp?'Valor da parcela':'Valor'} (${esc(typeof MONEY_CFG!=='undefined'?MONEY_CFG.simbolo:'R$')})</label>
+            <input type="text" id="upEdValor" class="money-input upr-money" inputmode="numeric" value="${maskMoney(floatToCentsStr(c.vPagar))}" oninput="APP._upEd('vPagar',this.value)">
+          </div>
+        </div>
+        ${tp?`<div class="upr-parcs">
+          ${UP_IC.camadas}
+          <span>Gera <b>${g.parcs.length} documentos</b>: parcela ${esc(g.parcs[0].parcela)} até ${esc(ultima.parcela)} (${fmtDate(ultima.dataF)})</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="APP._upVerParcelas(${i})">Ver parcelas</button>
+        </div>`:''}
+        <div class="fg">
+          <label for="upEdNota">Nota <span class="opc">(opcional)</span></label>
+          <input type="text" id="upEdNota" value="${esc(c.nota)}" placeholder="Ex.: presente de aniversário" autocomplete="off" oninput="APP._upEd('nota',this.value)">
+        </div>
+      </div>
+      <div class="upr-p-foot">
+        <button type="button" class="btn btn-ghost btn-sm" onclick="APP.upNavegar(-1)"${k<=0?' disabled':''}>${UP_IC.esq}Anterior</button>
+        <span class="upr-p-kbd"><kbd>↑</kbd><kbd>↓</kbd> na lista</span>
+        <button type="button" class="btn btn-primary btn-sm" onclick="APP.upNavegar(1)"${k<0||k>=ordem.length-1?' disabled':''}>Próxima${UP_IC.dir}</button>
+      </div>`;
+    bindAllMoneyInputs(el);
+    if(typeof this.aplicarAvatares==='function') this.aplicarAvatares();
+  },
+
+  _upPainelVazioHtml(){
+    const pend=this._upGrupos.filter(g=>this._upPendente(g)).length;
+    return `<div class="upr-p-vazio">
+      ${UP_IC.editar}
+      <strong>Selecione uma conta para editar</strong>
+      <p>Clique em uma linha da lista. Com o foco na lista, use <kbd>↑</kbd> <kbd>↓</kbd> para percorrer.</p>
+      ${pend?`<button type="button" class="btn btn-sm upr-btn-warn" onclick="APP.upProximaPendente()">${UP_IC.alerta}Revisar ${pend} pendência${pend>1?'s':''}</button>`:''}
+    </div>`;
+  },
+
+  /** Bloco da duplicata no painel: motivo, comparação lado a lado e decisão. */
+  _upDupHtml(g,i){
+    if(!g.dup||!g.dup.length) return '';
+    const esc=v=>this._upEsc(v);
+    if(this._upConferida(g)) return `<div class="upr-conf">${UP_IC.check}<span>Marcada como <b>não duplicata</b>.</span><button type="button" class="upr-link" onclick="APP.upDesfazerConferida(${i})">Desfazer</button></div>`;
+    const a=g.dup[0], ex=a.conta, p=g.parcs.find(x=>x.parcela===a.parcela)||g.parcs[0];
+    const daPlanilha=ex._linha!=null;
+    const lin=(rot,v1,v2,dif)=>`<tr><th scope="row">${rot}</th><td${dif?' class="dif"':''}>${v1}</td><td${dif?' class="dif"':''}>${v2}</td></tr>`;
+    const compra=p.dataCompra||ex.dataCompra;
+    const motivo=a.motivo.charAt(0).toUpperCase()+a.motivo.slice(1);
+    const nivel=DUP.nivel(g.dup);
+    return `<div class="upr-alerta ${nivel}">
+      <div class="upr-alerta-h">${UP_IC.alerta}${nivel==='provavel'?'Provável duplicata':'Possível duplicata'}</div>
+      <p class="upr-alerta-d">${esc(motivo)}.${g.dup.length>1?` Há mais ${g.dup.length-1} ocorrência${g.dup.length>2?'s':''} parecida${g.dup.length>2?'s':''}.`:''}</p>
+      <table class="upr-cmp">
+        <thead><tr><td></td><th scope="col">Esta linha</th><th scope="col">${daPlanilha?`Linha ${esc(ex._linha)} da planilha`:'Já no banco'}</th></tr></thead>
+        <tbody>
+          ${lin('Vencimento',fmtDate(p.dataF),fmtDate(ex.data),p.dataF!==ex.data)}
+          ${compra?lin('Compra',p.dataCompra?fmtDate(p.dataCompra):'—',ex.dataCompra?fmtDate(ex.dataCompra):'—',(p.dataCompra||'')!==(ex.dataCompra||'')):''}
+          ${lin('Valor',fmt(p.vPagar),fmt(ex.vPagar),centavos(p.vPagar)!==centavos(ex.vPagar))}
+          ${lin('Parcela',esc(p.parcela||'1 de 1'),esc(ex.parcela||'1 de 1'),DUP._parcela(p.parcela)!==DUP._parcela(ex.parcela))}
+        </tbody>
+      </table>
+      <div class="upr-alerta-acts">
+        <button type="button" class="btn btn-sm upr-btn-del" onclick="APP._upDelGrupo(${i})">${UP_IC.lixo}Excluir linha</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="APP.upNaoDuplicata(${i})">Não é duplicata</button>
+      </div>
+    </div>`;
+  },
+
+  upNaoDuplicata(i){
+    const g=this._upGrupos[i]; if(!g) return;
+    g.dupOk=this._upDupSig(g);
+    const restam=this._upGrupos.some(x=>this._upPendente(x));
+    this._upRenderAbas(); this._upRenderLista(); this._upRenderBarra();
+    if(restam) this.upProximaPendente(); else this._upRenderPainel();
+    this.toast(restam?'Marcada como conferida. Próxima pendência aberta.':'Marcada como conferida','success');
+  },
+  upDesfazerConferida(i){
+    const g=this._upGrupos[i]; if(!g) return;
+    g.dupOk=null;
+    this._upRenderPreview(this._upGrupos);
+  },
+
+  // ── Edição pelo painel ──
+  // Texto: atualiza o modelo na hora e redesenha a lista com atraso (o foco
+  // fica no painel, que não é redesenhado). Selects e responsável: imediato.
+  _upEd(k,v){
+    const g=this._upGrupos[this._upSel]; if(!g) return;
+    if(k==='vPagar') v=parseMoney(v);
+    g.base[k]=v; g.parcs.forEach(p=>p[k]=v);
+    if(k==='conta'){ const t=document.getElementById('upPainelTit'); if(t) t.textContent=v||'Sem descrição'; }
+    clearTimeout(this._upTimer);
+    this._upTimer=setTimeout(()=>this._upAposEdicao(), k==='resp'||k==='forma'||k==='cat'?0:250);
+  },
+  async _upAposEdicao(){
+    // Responsável ou vencimento novos podem pedir contas fora da memória (README 3.5)
+    await this._upDetectarDuplicatas();
+    this._upRenderAbas(); this._upRenderLista(); this._upRenderBarra();
+    const box=document.getElementById('upPainelDup'), g=this._upGrupos[this._upSel];
+    if(box&&g) box.innerHTML=this._upDupHtml(g,this._upSel);
+  },
+
+  async _upDelGrupo(i){
+    if(!this._upGrupos[i]) return;
+    this._upGrupos.splice(i,1);
+    if(this._upSel===i) this._upSel=this._upGrupos[i]?i:i-1;
+    else if(this._upSel>i) this._upSel--;
+    if(!this._upGrupos.length) this._upSel=-1;
+    await this._upDetectarDuplicatas();
+    const td=this._upGrupos.reduce((s,g)=>s+g.parcs.length,0);
+    this._upRenderStats(td,this._upGrupos.length,this._upIgn,td-this._upGrupos.length);
+    this._upRenderPreview(this._upGrupos);
+  },
+
+  // ── Barra fixa ──
+  _upRenderBarra(){
+    const G=this._upGrupos, t=this._upTotais(G);
+    const pend=G.filter(g=>this._upPendente(g)).length;
+    const tot=document.getElementById('upTotal');
+    if(tot) tot.innerHTML=this._upValorHtml(t.linhas/100);
+    const info=document.getElementById('upBarraInfo');
+    if(info) info.innerHTML=`<b>${G.length}</b> conta${G.length===1?'':'s'} · <b>${t.n}</b> documento${t.n===1?'':'s'}`
+      + (t.docs!==t.linhas?`<span class="upr-barra-fut"> · <b>${fmt(t.docs/100)}</b> com parcelas futuras</span>`:'');
+    const pe=document.getElementById('upBarraPend');
+    if(pe){ pe.hidden=!pend; pe.innerHTML=`${UP_IC.alerta}${pend} linha${pend>1?'s':''} aguardando revisão`; }
+    const btn=document.getElementById('upBtnConfirmar');
+    if(btn){
+      btn.disabled=this._upSalvando||!G.length;
+      btn.innerHTML=this._upSalvando?'Cadastrando…':`${UP_IC.check}Confirmar cadastro${t.n?`<span class="upr-btn-n"> · ${t.n} doc${t.n>1?'s':''}</span>`:''}`;
+    }
+  },
 
   _upVerParcelas(i){
     const g=this._upGrupos[i];
@@ -487,9 +879,11 @@ Object.assign(APP, {
   async upConfirmar(){
     const grupos=this._upGrupos;
     if(!grupos.length) return this.toast('Nenhuma conta para cadastrar','error');
-    // Reavalia (descrição/valor podem ter sido editados) e comunica
+    if(this._upSalvando) return;
+    // Reavalia (descrição/valor podem ter sido editados) e comunica só as
+    // pendentes: as marcadas "Não é duplicata" no painel já foram decididas.
     await this._upDetectarDuplicatas();
-    const comDup=grupos.filter(g=>g.dup&&g.dup.length);
+    const comDup=grupos.filter(g=>this._upPendente(g));
     if(comDup.length){
       const ok=await DUP.confirmar({
         titulo:`${comDup.length} linha(s) da planilha parecem já cadastradas`,
@@ -497,12 +891,14 @@ Object.assign(APP, {
         btnSim:'Não são duplicatas, cadastrar todas',
       });
       if(!ok){
+        this._upFiltro='revisar';
         this._upRenderPreview(grupos);
-        return this.toast('Remova as linhas repetidas (✕) e confirme novamente','info');
+        this.upProximaPendente();
+        return this.toast('Revise as linhas marcadas (excluir ou "Não é duplicata") e confirme novamente','info');
       }
     }
-    const btn=document.getElementById('upBtnConfirmar');
-    btn.disabled=true; btn.textContent='⏳ Cadastrando...';
+    this._upSalvando=true;
+    this._upRenderBarra();
 
     try{
       const td=grupos.reduce((s,g)=>s+g.parcs.length,0);
@@ -538,6 +934,7 @@ Object.assign(APP, {
       });
 
       this._upGrupos=[]; this._upPlanId=''; this._upPlanNome='';
+      this._upResetVista();
       document.getElementById('upSecaoPreview').style.display='none';
       document.getElementById('upFileInfo').style.display='none';
       document.getElementById('upFileInput').value='';
@@ -549,8 +946,8 @@ Object.assign(APP, {
       this.toast('Erro ao cadastrar: '+err.message,'error');
     }
 
-    btn.textContent='✅ Confirmar Cadastro em Massa';
-    btn.disabled=false;
+    this._upSalvando=false;
+    this._upRenderBarra();
   },
 
   /** Converte célula de data (Date, texto dd/mm/aaaa, ISO ou serial Excel) em YYYY-MM-DD. */
@@ -575,6 +972,7 @@ Object.assign(APP, {
 
   upCancelar(){
     this._upGrupos=[]; this._upPlanId='';
+    this._upResetVista();
     document.getElementById('upSecaoPreview').style.display='none';
     document.getElementById('upFileInfo').style.display='none';
     document.getElementById('upFileInput').value='';
